@@ -23,6 +23,8 @@
 #include "log.h"
 #include "smartcard.h"
 #include "externalpinui.h"
+#include "util.h"
+#include "cache.h"
 
 #include <commctrl.h>
 /****************************************************************************************************/
@@ -1212,8 +1214,7 @@ DWORD PteidSignData(PCARD_DATA pCardData, BYTE pin_id, DWORD cbToBeSigned, PBYTE
    *pcbSignature = 0x80;
 
    /* Allocate memory for the target buffer */
-   *ppbSignature = pCardData->pfnCspAlloc(*pcbSignature); //pfnCspAlloc é o Memory allocator fornecido pelo CSP
-   //*ppbSignature = malloc(*pcbSignature);
+   *ppbSignature = pCardData->pfnCspAlloc(*pcbSignature);
 
    if ( *ppbSignature == NULL )
    {
@@ -1232,7 +1233,6 @@ cleanup:
 #undef WHERE
 
 #define WHERE "PteidSignDataGemsafe"
-/*TODO: To be Tested... */
 DWORD PteidSignDataGemsafe(PCARD_DATA pCardData, BYTE pin_id, DWORD cbToBeSigned, PBYTE pbToBeSigned, DWORD *pcbSignature, PBYTE *ppbSignature)
 {
 
@@ -1543,7 +1543,7 @@ cleanup:
    return (dwReturn);
 }
 
-BOOL checkStatusCode(const char * context, BYTE dwReturn, BYTE SW1, BYTE SW2)
+BOOL checkStatusCode(const char * context, DWORD dwReturn, BYTE SW1, BYTE SW2)
 {
 
    if ( dwReturn != SCARD_S_SUCCESS )
@@ -1579,9 +1579,40 @@ DWORD PteidReadCert(PCARD_DATA  pCardData, DWORD dwCertSpec, DWORD *pcbCertif, P
 
    unsigned char     recvbuf[256];
    unsigned long     recvlen = sizeof(recvbuf);
+   char certPath[25];
+   const int		 max_path = 512;
    BYTE              SW1, SW2;
 
    DWORD             cbCertif;
+   
+   VENDOR_SPECIFIC * vs;
+   int serial_len = 16;
+   char * filename;
+
+   cbCertif = 2500; //More than enough for any certificate lmedinas dixit...
+   *ppbCertif = pCardData->pfnCspAlloc(cbCertif);
+   
+   
+   vs = (VENDOR_SPECIFIC*)pCardData->pvVendorSpecific;
+
+   if (!runningUnderService())
+   {
+	   memcpy(certPath, vs->szSerialNumber, serial_len);
+	   certPath[serial_len] = translateCertType(dwCertSpec);
+
+	   //More than enough for long file paths...
+	   filename = pCardData->pfnCspAlloc(max_path);
+
+	   getCacheFilePath(certPath, filename, max_path);
+
+	   if (readFromCache(filename, *ppbCertif))
+	   {
+		   pCardData->pfnCspFree(filename);
+		   return SCARD_S_SUCCESS;
+	   }
+   }
+
+   // Certificate Not Cached
 
    PteidSelectApplet(pCardData);
    memset(recvbuf, 0, sizeof(recvbuf));
@@ -1626,26 +1657,12 @@ DWORD PteidReadCert(PCARD_DATA  pCardData, DWORD dwCertSpec, DWORD *pcbCertif, P
 	
 	if (!Is_Gemsafe)
 	{
-	Cmd[2] = 0x09;    //09 00 02  [Cert Filename= EF **]
+	Cmd[2] = 0x09; 
     Cmd[3] = 0x00;
 	}
 	Cmd[4] = 0x02;
 	Cmd[5] = 0xEF;
-   switch (dwCertSpec)
-   {
-   case CERT_AUTH:
-      Cmd[6] = 0x09;
-      break;
-   case CERT_NONREP:
-      Cmd[6] = 0x08;
-      break;
-   case CERT_CA:
-      Cmd[6] = 0x11;
-      break;
-   case CERT_ROOTCA:
-      Cmd[6] = 0x10;
-      break;
-   }
+    Cmd[6] = translateCertType(dwCertSpec);
 
     memset(recvbuf, 0, sizeof(recvbuf));
 	dwReturn = SCardTransmit(pCardData->hScard, 
@@ -1658,8 +1675,7 @@ DWORD PteidReadCert(PCARD_DATA  pCardData, DWORD dwCertSpec, DWORD *pcbCertif, P
 	if (!checkStatusCode(WHERE" -> select CertFile", dwReturn, SW1, SW2))
 		CLEANUP(dwReturn);
 
-   cbCertif = 2500; //More than enough for any certificate lmedinas dixit...
-   *ppbCertif = pCardData->pfnCspAlloc(cbCertif);
+   
    if ( *ppbCertif == NULL )
    {
       LogTrace(LOGTYPE_ERROR, WHERE, "Error allocating memory for [*ppbCertif]");
@@ -1672,6 +1688,18 @@ DWORD PteidReadCert(PCARD_DATA  pCardData, DWORD dwCertSpec, DWORD *pcbCertif, P
       LogTrace(LOGTYPE_ERROR, WHERE, "PteidReadFile errorcode: [0x%02X]", dwReturn);
       CLEANUP(dwReturn);
    }
+  
+	/* Skip caching if running under the Certificate Propagation Service 
+	   It would be painful to grab the cachedir because the relevant
+	   environment variables APPLOCALDATA will point to somewhere under
+	   %WINDIR% (i.e. not to user-writable directories)
+	*/
+  if (!runningUnderService())
+  {
+	   LogTrace(LOGTYPE_INFO, WHERE, "certPath: %s", filename);
+	   CacheCertificate(filename, *ppbCertif, cbCertif);
+	   pCardData->pfnCspFree(filename);
+  }
 
    /* Certificate Length */
    *pcbCertif = cbCertif;
