@@ -21,14 +21,14 @@
            Language="!(loc.Lang)"
            Codepage="1252"
            Version="$(var.ProductVersion)"
-           Manufacturer="Belgian Government"
+           Manufacturer="Portuguese Government"
            UpgradeCode="$(var.UpgradeCode)">
 
     <Package Id="$(var.PackageCode)"
              InstallerVersion="200"
              Keywords="Portugal e-ID Middleware Installer"
              Platform="x86"
-             Manufacturer="Belgian Government"
+             Manufacturer="Portuguese Government"
              Compressed="yes"
              InstallPrivileges="elevated"
     />
@@ -158,7 +158,6 @@
 
       <Directory Id="SystemFolder">
         <Directory Id="PTEIDPPDIR" Name="pteidpp"/>
-        <Directory Id="SISCARDPLUGINSDIR" Name="siscardplugins"/>
       </Directory>
 
       
@@ -473,8 +472,8 @@
       </Component>
 
       <Component Id="CSP" Guid="{54153442-D4CE-4DE6-9321-1BAC5DE4C725}" SharedDllRefCount="yes">
-        <File Id="pteidCSP.dll" Name="pteidCSP.dll" KeyPath="yes" Source="..\..\..\_Binaries35\Release\pteidCSP.dll" />
-        <File Id="pteidCSPlib.dll" Name="pteidCSPlib.dll" KeyPath="no" Source="..\..\..\_Binaries35\Release\pteidCSPlib.dll" />
+        <File Id="beidCSP.dll" Name="beidCSP.dll" KeyPath="yes" Source="..\..\..\_Binaries35\Release\beidCSP.dll" />
+        <File Id="beidCSPlib.dll" Name="beidCSPlib.dll" KeyPath="no" Source="..\..\..\_Binaries35\Release\beidCSPlib.dll" />
       </Component>
 
       <Component Id="pkcs11" Guid="{D54164C0-795D-4B2D-96C6-C8E395100896}" SharedDllRefCount="yes">
@@ -585,12 +584,6 @@
       </Component>
     </DirectoryRef>
     
-    <DirectoryRef Id="SISCARDPLUGINSDIR">
-      <Component Id="Siscardplugin" Guid="{821ED2E0-9FDB-4a08-9686-DDE65EE3D5E5}" SharedDllRefCount="yes">
-        <File Id="siscardplugin1_BE_EID_35__ACS_ACR38U__.dll" Name="siscardplugin1_BE_EID_35__ACS ACR38U__.dll" KeyPath="yes" Source="..\..\..\_Binaries35\Release\siscardplugin1_BE_EID_35__ACS_ACR38U__.dll" />
-      </Component>
-    </DirectoryRef>
-
     <DirectoryRef Id="TARGETDIR">
       <Component Id="SCardSvrService" Guid="{C3BC9746-0843-41b2-BDDA-3192772974CE}" Permanent="yes">
         <!-- Start SCardSvr Service during startup -->
@@ -612,7 +605,7 @@
                      Key="SOFTWARE\Microsoft\Cryptography\Calais\SmartCards\Pteid (IAS)"
                      Action="createAndRemoveOnUninstall">
           <RegistryValue Type="string" Name="80000001" Value="pteidmdrv32.dll" KeyPath="yes"/>
-          <RegistryValue Type="binary" Name="ATR" Value="3B959540FFD000540131" KeyPath="no"/>
+          <RegistryValue Type="binary" Name="ATR" Value="3B959540FFD000540130" KeyPath="no"/>
           <RegistryValue Type="binary" Name="ATRMask" Value="fffffffffffffffffffc" KeyPath="no"/>
           <RegistryValue Type="string" Name="Crypto Provider" Value="Microsoft Base Smart Card Crypto Provider" KeyPath="no"/>
           <RegistryValue Type="string" Name="Smart Card Key Storage Provider" Value="Microsoft Smart Card Key Storage Provider" KeyPath="no"/>
@@ -621,7 +614,7 @@
                      Key="SOFTWARE\Microsoft\Cryptography\Calais\SmartCards\Pteid (Gemsafe)"
                      Action="createAndRemoveOnUninstall">
           <RegistryValue Type="string" Name="80000001" Value="pteidmdrv32.dll" KeyPath="no"/>
-          <RegistryValue Type="binary" Name="ATR" Value="3B7D95000080318065B08311C0A983009000" KeyPath="no"/>
+          <RegistryValue Type="binary" Name="ATR" Value="3B7D95000080318065B08311000083009000" KeyPath="no"/>
           <RegistryValue Type="binary" Name="ATRMask" Value="ffffffffffffffffffffffff0000ffffffff" KeyPath="no"/>
           <RegistryValue Type="string" Name="Crypto Provider" Value="Microsoft Base Smart Card Crypto Provider" KeyPath="no"/>
           <RegistryValue Type="string" Name="Smart Card Key Storage Provider" Value="Microsoft Smart Card Key Storage Provider" KeyPath="no"/>
@@ -632,7 +625,7 @@
         <RegistryKey Root="HKLM"
                      Key="SOFTWARE\Microsoft\Cryptography\Defaults\Provider\Portugal Identity Card CSP"
                       Action="createAndRemoveOnUninstall">
-          <RegistryValue Type="string" Name="Image Path" Value="pteidcsp.dll" KeyPath="yes"/>
+          <RegistryValue Type="string" Name="Image Path" Value="beidcsp.dll" KeyPath="yes"/>
           <RegistryValue Type="integer" Name="Type" Value="1" />
           <RegistryValue
             Type="binary"
@@ -643,7 +636,7 @@
                      Key="SOFTWARE\Microsoft\Cryptography\Calais\SmartCards\Portugal Identity Card (IAS)"
                      Action="createAndRemoveOnUninstall">
           <RegistryValue Type="string" Name="Crypto Provider" Value="Portugal Identity Card CSP"/>
-          <RegistryValue Type="string" Name="80000001" Value="pteidcsp.dll" KeyPath="no"/>
+          <RegistryValue Type="string" Name="80000001" Value="beidcsp.dll" KeyPath="no"/>
           <RegistryValue Type="binary" Name="ATR" Value="3B959540FFD000540131" KeyPath="no"/>
           <RegistryValue Type="binary" Name="ATRMask" Value="fffffffffffffffffffc" KeyPath="no"/>
         </RegistryKey>
@@ -651,7 +644,7 @@
                      Key="SOFTWARE\Microsoft\Cryptography\Calais\SmartCards\Portugal Identity Card (Gemsafe)"
                      Action="createAndRemoveOnUninstall">
           <RegistryValue Type="string" Name="Crypto Provider" Value="Portugal Identity Card CSP"/>
-          <RegistryValue Type="string" Name="80000001" Value="pteidcsp.dll" KeyPath="no"/>
+          <RegistryValue Type="string" Name="80000001" Value="beidcsp.dll" KeyPath="no"/>
           <RegistryValue Type="binary" Name="ATR" Value="3B7D95000080318065B08311C0A983009000" KeyPath="no"/>
           <RegistryValue Type="binary" Name="ATRMask" Value="ffffffffffffffffffffffff0000ffffffff" KeyPath="no"/>
         </RegistryKey>
@@ -786,9 +779,6 @@
       <!-- Pteid pinpad dir-->
       <ComponentRef Id="PinpadLib"/>
 
-      <!-- Pteid Siscardplugin dir-->
-      <ComponentRef Id="Siscardplugin"/>
-
       <!-- Windows -->
       <ComponentRef Id="pteidgui.conf"/>
 
@@ -821,14 +811,14 @@
         <ComponentRef Id="OutlookTool" />
         <!-- Shortcuts -->
         <ComponentRef Id ="OutlookShortcut"/>
-        <Feature Id="Install_Minidriver" Level="0">
+        <Feature Id="Install_Minidriver" Title="!(loc.Minidriver)" Description="!(loc.MinidriverDescr)" Level="0">
           <ComponentRef Id="pteidmdrv"/>
           <ComponentRef Id="CertPropService"/>
           <ComponentRef Id="pteidmdrvsystem32"/>
           <ComponentRef Id="REGISTERMINIDRIVER"/>
           <Condition Level="1">VersionNT >= 600</Condition>
         </Feature>
-        <Feature Id="Install_CSP" Level="1">
+        <Feature Id="Install_CSP" Title="!(loc.CSP)" Description="!(loc.CSPDescr)" Level="1">
           <ComponentRef Id="CSP"/>
           <ComponentRef Id="REGISTERCSP"/>
           <Condition Level="0">VersionNT >= 600</Condition>
@@ -926,7 +916,7 @@
 
     <Binary Id="KILLPROCESS" SourceFile="..\..\..\misc\Wix_MW35\Kill_Process\Release\Kill_Process.exe"/>
 -->
-    <Binary Id="MarkHidden" SourceFile="..\..\..\misc\Wix_MW35\MarkHidden\Release\MarkHidden.exe"/>   
+    <Binary Id="MarkHidden" SourceFile="..\..\..\misc\Wix_MW35\MarkHidden\Release\MarkHidden.exe"/>
     <Binary Id="PTEID_CLEANUP" SourceFile="..\..\..\misc\Wix_MW35\pteidcleanup\Release\pteidcleanup.exe"/>
  
 <!--

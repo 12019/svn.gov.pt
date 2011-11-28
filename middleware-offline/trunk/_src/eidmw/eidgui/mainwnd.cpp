@@ -1328,7 +1328,7 @@ void MainWnd::showCertImportMessage(bool bImported)
 	{
 		message += tr("failed");
 	}
-	QMessageBox::information(0,caption,message);
+	m_pTrayIcon->showMessage(caption, message, QSystemTrayIcon::Information);
 #endif
 }
 
@@ -1944,7 +1944,7 @@ void MainWnd::on_treeCert_itemClicked(QTreeWidgetItem* baseItem, int column)
 //*****************************************************
 void MainWnd::on_treePIN_itemClicked(QTreeWidgetItem* item, int column)
 {
-	if (!m_CI_Data.isDataLoaded())
+ 	if (!m_CI_Data.isDataLoaded())
 	{
 		return;
 	}
@@ -3487,7 +3487,6 @@ void MainWnd::authPINRequest_triggered()
 bool MainWnd::addressPINRequest_triggered()
 {
 	//Workaround: Make PIN window called only one time
-	pinactivate = 0;
 
 	/*if (!m_CI_Data.isDataLoaded())
 	{
@@ -3497,22 +3496,15 @@ bool MainWnd::addressPINRequest_triggered()
 	{
 		PTEID_ReaderContext &ReaderContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
 
+		
+		QString caption(tr("Identity Card: PIN verification"));
+		
 		//------------------------------------
 		// make always sure a card is present
 		//------------------------------------
-		QString		  caption(tr("Identity Card: PIN verification"));
-
 		if (ReaderContext.isCardPresent())
 		{
-			//QString PinName = m_ui.txtPIN_Name->text();
 			QString PinName = "PIN da Morada";
-			if (PinName.length()==0)
-			{
-				//--------------------------
-				// no pin selected in tree
-				//--------------------------
-				return false;
-			}
 
 			PTEID_EIDCard&	Card	= ReaderContext.getEIDCard();
 			PTEID_Pins&		Pins	= Card.getPins();
@@ -3528,15 +3520,9 @@ bool MainWnd::addressPINRequest_triggered()
 					bool		  bResult   = Pin.verifyPin("",triesLeft);
 					//QString		  msg(tr("PIN verification "));
 
-					QString msg = bResult?tr("PIN verification passed"):tr("PIN verification failed");
+					QString msg = bResult ? tr("PIN verification passed"):tr("PIN verification failed");
 					if (!bResult)
 					{
-						//--------------------------
-						// if it remains to -1, then CANCEL was pressed
-						// so, don't give a message
-						//--------------------------
-						if ((unsigned long)-1!=triesLeft)
-						{
 							QString nrTriesLeft;
 							nrTriesLeft.setNum(triesLeft);
 							msg += "\n";
@@ -3544,17 +3530,13 @@ bool MainWnd::addressPINRequest_triggered()
 							msg += tr("Number of tries left: ") + nrTriesLeft + " )";
 							m_ui.txtPIN_Status->setText(msg);
 							m_ui.txtPIN_Status->setAccessibleName(msg);
-						}
-						else
-						{
+
 							pinactivate = 1;
 							return false;
-						}
 					}
 					else
 					{
-						QString nrTriesLeft;
-						nrTriesLeft.setNum(triesLeft);
+						pinactivate = 0;
 						m_ui.txtPIN_Status->setText(tr("Not available"));
 						m_ui.txtPIN_Status->setAccessibleName(tr("Not available"));
 					}
@@ -3567,17 +3549,20 @@ bool MainWnd::addressPINRequest_triggered()
 		{
 			QString msg(tr("No card present"));
 			QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
+			return false;
 		}
 	}
 	catch (PTEID_Exception &e)
 	{
 		QString msg(tr("General exception"));
 		ShowPTEIDError( e.GetError(), msg );
+		return false;
 	}
 	catch (...)
 	{
 		QString msg(tr("Unknown exception"));
 		ShowPTEIDError( 0, msg );
+		return false;
 	}
 	return true;
 }
@@ -4050,10 +4035,14 @@ void MainWnd::fillCertificateList( void )
 
 	try
 	{
-		PTEID_Certificate& certificate = certificates->getRoot();
+		PTEID_Certificate& certificate = certificates->getCert(2);
 
 		short Level=0;
 		fillCertTree(&certificate,Level,NULL);
+
+		PTEID_Certificate& certificate1 = certificates->getCert(3);
+
+		fillCertTree(&certificate1,Level,NULL);
 
 		m_ui.treeCert->expandAll();
 		m_ui.treeCert->sortItems(0,Qt::AscendingOrder);
@@ -4334,8 +4323,14 @@ void MainWnd::fillPinList(PTEID_EIDCard& Card)
 
 		QTreeWidgetItem* PinTreeItem = new QTreeWidgetItem( TYPE_PINTREE_ITEM );
 
-		PinTreeItem->setText(COLUMN_PIN_NAME, trUtf8(Pin.getLabel()));
-		m_ui.treePIN->addTopLevelItem ( PinTreeItem );
+		std::string pinname = "PIN";
+
+		if (!DispPinName.toStdString().find(pinname))
+		{
+			PinTreeItem->setText(COLUMN_PIN_NAME, trUtf8(Pin.getLabel()));
+			m_ui.treePIN->addTopLevelItem ( PinTreeItem );
+		}
+
 		if (0==PinNr)
 		{
 			PinTreeItem->setSelected(true);
@@ -4343,7 +4338,7 @@ void MainWnd::fillPinList(PTEID_EIDCard& Card)
 	}
 	m_ui.treePIN->expandAll();
 
-	QList<QTreeWidgetItem*> treeList = m_ui.treePIN->findItems("Basic PIN",Qt::MatchFixedString|Qt::MatchRecursive);
+	QList<QTreeWidgetItem*> treeList = m_ui.treePIN->findItems("PIN ",Qt::MatchContains);
 	if (treeList.size() > 0)
 	{
 		treeList[0]->setSelected(true);
@@ -4982,14 +4977,15 @@ void MainWnd::refreshTabIdentityExtra()
 //*****************************************************
 void MainWnd::refreshTabAddress( void )
 {
-
+	//DEBUG: m_ui.statusBar->showMessage("Pinactivate flag: "+ QString::number(pinactivate), m_STATUS_MSG_TIME);
 	if (pinactivate == 1)
 	{
-		if (addressPINRequest_triggered())
-			loadCardDataAddress();
-	}else{
-		loadCardDataAddress();
+		if (!addressPINRequest_triggered())
+			return;
 	}
+
+	loadCardDataAddress();
+
 	tFieldMap& AddressFields = m_CI_Data.m_AddressInfo.getFields();
 
 	m_ui.txtAddress_Municipality->setText		 ( AddressFields[ADDRESS_MUNICIPALITY] );
@@ -5598,6 +5594,9 @@ void MainWnd::customEvent( QEvent* pEvent )
 				if (pPopupEvent->getType() ==  PopupEvent::ET_CARD_CHANGED)
 				{
 					QString	cardReader = pPopupEvent->getReaderName();
+
+					//Toggle the Address PIN flag to "false"
+					pinactivate = 1;
 
 					//----------------------------------------------------------
 					// show a message in the status bar that a card has been inserted
