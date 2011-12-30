@@ -28,6 +28,7 @@
 #include <QImage>
 #include <stdlib.h>	
 #include <time.h>
+
 #ifdef WIN32
 #include <shlobj.h>
 #endif
@@ -302,7 +303,7 @@ static widgetInfo widgetTabInfo[]=
 		,{"lblAdress_Country",					{{  9,214,201, 34}},	STYLESHEET_NORMAL_LABEL}
 		,{"txtIdentityExtra_Adress_Country",	{{  9,246,176, 18}},	STYLESHEET_NORMAL_VALUE}
 		,{"lblCard_ValidFrom_Until",			{{  9,340,353, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_ValidFrom_Until",	{{  9,360,353, 18}},	STYLESHEET_NORMAL_VALUE}
+		,{"txtIdentityExtra_ValidFrom",	{{  9,360,353, 18}},	STYLESHEET_NORMAL_VALUE}
 
 		//,{"lblSpecialStatus",					{{230,214,176, 34}},	STYLESHEET_NORMAL_LABEL}
 		//,{"txtSpecialStatus",					{{230,246,201, 18}},	STYLESHEET_NORMAL_VALUE}
@@ -575,6 +576,10 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	flags ^= Qt::WindowMaximizeButtonHint;
 	setWindowFlags( flags );
 
+	list_of_pins[0] = PinInfo(1, "PIN da Autentica\xc3\xa7\xc3\xa3o");
+	list_of_pins[1] = PinInfo(2, "PIN da Assinatura");
+	list_of_pins[2] = PinInfo(3, "PIN da Morada");
+
 	//------------------------------------
 	// set the window Icon (as it appears in the left corner of the window)
 	//------------------------------------
@@ -636,7 +641,7 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 #ifndef WIN32
 	m_ui.btnCert_Details->hide();
 	m_ui.btnCert_Register->hide();
-	m_ui.lblCert_InfoAdd->hide();
+
 #endif
 
 	//----------------------------------
@@ -1819,6 +1824,9 @@ void MainWnd::on_btnCert_Details_clicked( void )
 			{
 				PTEID_ReaderContext &ReaderContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
 
+				std::string ccimport = "Cartão de Cidadão 001";
+				QString qccimport = QString::fromUtf8(ccimport.c_str());
+
 				//------------------------------------
 				// make always sure a card is present
 				//------------------------------------
@@ -1826,7 +1834,7 @@ void MainWnd::on_btnCert_Details_clicked( void )
 				{
 					PTEID_EIDCard&		Card		= ReaderContext.getEIDCard();
 					PTEID_Certificates&	certificates= Card.getCertificates();
-
+				
 					//------------------------------------
 					// find the certificate with this label
 					//------------------------------------
@@ -1837,6 +1845,7 @@ void MainWnd::on_btnCert_Details_clicked( void )
 
 						if (CurrCertLabel==CertLabel)
 						{
+
 							const PTEID_ByteArray certData = cert.getCertData();
 
 							CRYPTUI_VIEWCERTIFICATE_STRUCT tCert = {0};
@@ -1848,6 +1857,44 @@ void MainWnd::on_btnCert_Details_clicked( void )
 							CryptUIDlgViewCertificate(&tCert, &bChange);
 							CertFreeCertificateContext (tCert.pCertContext);
 						}
+					}
+					
+					if (CertLabel == "GTE CyberTrust Global Root")
+					{
+							CRYPTUI_VIEWCERTIFICATE_STRUCT tCert = {0};
+							tCert.dwSize		= sizeof(CRYPTUI_VIEWCERTIFICATE_STRUCT);
+							tCert.hwndParent	= this->winId();
+							tCert.dwFlags		= CRYPTUI_DISABLE_EDITPROPERTIES;
+							tCert.pCertContext	= CertCreateCertificateContext(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, (const BYTE*)certificates.getExternalCertData(1), (DWORD)certificates.getExternalCertDataSize(1));
+							BOOL bChange		= FALSE;
+							CryptUIDlgViewCertificate(&tCert, &bChange);
+							CertFreeCertificateContext (tCert.pCertContext);
+
+					} 
+					
+					if (CertLabel == "ECRaizEstado")
+					{
+							CRYPTUI_VIEWCERTIFICATE_STRUCT tCert = {0};
+							tCert.dwSize		= sizeof(CRYPTUI_VIEWCERTIFICATE_STRUCT);
+							tCert.hwndParent	= this->winId();
+							tCert.dwFlags		= CRYPTUI_DISABLE_EDITPROPERTIES;
+							tCert.pCertContext	= CertCreateCertificateContext(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, (const BYTE*)certificates.getExternalCertData(2) , (DWORD)certificates.getExternalCertDataSize(2));
+							BOOL bChange		= FALSE;
+							CryptUIDlgViewCertificate(&tCert, &bChange);
+							CertFreeCertificateContext (tCert.pCertContext);
+
+					} 
+
+					if (CertLabel == qccimport) 
+					{
+							CRYPTUI_VIEWCERTIFICATE_STRUCT tCert = {0};
+							tCert.dwSize		= sizeof(CRYPTUI_VIEWCERTIFICATE_STRUCT);
+							tCert.hwndParent	= this->winId();
+							tCert.dwFlags		= CRYPTUI_DISABLE_EDITPROPERTIES;
+							tCert.pCertContext	= CertCreateCertificateContext(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, (const BYTE*)certificates.getExternalCertData(3) , (DWORD)certificates.getExternalCertDataSize(3));
+							BOOL bChange		= FALSE;
+							CryptUIDlgViewCertificate(&tCert, &bChange);
+							CertFreeCertificateContext (tCert.pCertContext);
 					}
 				}
 			}
@@ -1974,7 +2021,8 @@ void MainWnd::on_treePIN_itemClicked(QTreeWidgetItem* item, int column)
 		{
 			QString PINId;
 			PINId = PINId.setNum(Pin.getId());
-			QString PINStatus(tr("Not available"));
+			QString PINStatus;
+			PINStatus.sprintf("Resta(m) %ld tentativa(s)", Pin.getTriesLeft());
 
 			//------------------------------------
 			// fill in the fields
@@ -3442,8 +3490,9 @@ void MainWnd::authPINRequest_triggered()
 							msg += "\n";
 							msg += "( ";
 							msg += tr("Number of tries left: ") + nrTriesLeft + " )";
-							m_ui.txtPIN_Status->setText(msg);
-							m_ui.txtPIN_Status->setAccessibleName(msg);
+							//This wrongly assumes that the PIN selected in the PIN tab is the one we failed
+							// m_ui.txtPIN_Status->setText(msg);
+							// m_ui.txtPIN_Status->setAccessibleName(msg);
 						}
 						else
 						{
@@ -3452,10 +3501,11 @@ void MainWnd::authPINRequest_triggered()
 					}
 					else
 					{
-						QString nrTriesLeft;
-						nrTriesLeft.setNum(triesLeft);
-						m_ui.txtPIN_Status->setText(tr("Not available"));
-						m_ui.txtPIN_Status->setAccessibleName(tr("Not available"));
+						//QString nrTriesLeft;
+						//nrTriesLeft.setNum(triesLeft);
+						//If PIN verification succeeded the try counter is set to the maximum i.e. 3
+						//m_ui.txtPIN_Status->setText(tr(""));
+						//m_ui.txtPIN_Status->setAccessibleName(tr("Not available"));
 					}
 					QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
 					break;
@@ -3523,6 +3573,7 @@ bool MainWnd::addressPINRequest_triggered()
 					QString msg = bResult ? tr("PIN verification passed"):tr("PIN verification failed");
 					if (!bResult)
 					{
+							/*
 							QString nrTriesLeft;
 							nrTriesLeft.setNum(triesLeft);
 							msg += "\n";
@@ -3530,6 +3581,7 @@ bool MainWnd::addressPINRequest_triggered()
 							msg += tr("Number of tries left: ") + nrTriesLeft + " )";
 							m_ui.txtPIN_Status->setText(msg);
 							m_ui.txtPIN_Status->setAccessibleName(msg);
+							*/
 
 							pinactivate = 1;
 							return false;
@@ -3537,8 +3589,8 @@ bool MainWnd::addressPINRequest_triggered()
 					else
 					{
 						pinactivate = 0;
-						m_ui.txtPIN_Status->setText(tr("Not available"));
-						m_ui.txtPIN_Status->setAccessibleName(tr("Not available"));
+						//m_ui.txtPIN_Status->setText("Restam 3 tentativas");
+						//m_ui.txtPIN_Status->setAccessibleName("Restam 3 tentativas");
 					}
 					QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
 					break;
@@ -3583,7 +3635,7 @@ void MainWnd::on_actionPINRequest_triggered()
 		//------------------------------------
 		// make always sure a card is present
 		//------------------------------------
-		QString		  caption(tr("Identity Card: PIN verification"));
+		QString		 caption(tr("Identity Card: PIN verification"));
 
 		if (ReaderContext.isCardPresent())
 		{
@@ -3638,8 +3690,8 @@ void MainWnd::on_actionPINRequest_triggered()
 					{
 						QString nrTriesLeft;
 						nrTriesLeft.setNum(triesLeft);
-						m_ui.txtPIN_Status->setText(tr("Not available"));
-						m_ui.txtPIN_Status->setAccessibleName(tr("Not available"));
+						m_ui.txtPIN_Status->setText("Restam 3 tentativas");
+						m_ui.txtPIN_Status->setAccessibleName("Restam 3 tentativas");
 					}
 					QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
 					break;
@@ -3994,18 +4046,21 @@ void MainWnd::fillCertTree(PTEID_Certificate *cert, short level, QTreeCertItem* 
 	//------------------------------------------------------
 	// set the text for the the created item
 	//------------------------------------------------------
-	const char* label = cert->getLabel();
-	QString strLabel = QString::fromUtf8(label);
-	item->setText(COLUMN_CERT_NAME, strLabel);
+	if (cert)
+	{
+		const char* label = cert->getLabel();
+		QString strLabel = QString::fromUtf8(label);
+		item->setText(COLUMN_CERT_NAME, strLabel);
 
-	item->setIssuer(QString::fromUtf8(cert->getIssuerName(),-1));
-	item->setOwner(QString::fromUtf8(cert->getOwnerName(),-1));
-	item->setValidityBegin(cert->getValidityBegin());
-	item->setValidityEnd(cert->getValidityEnd());
-	QString	strKeyLen;
-	strKeyLen=strKeyLen.setNum(cert->getKeyLength());
-	item->setKeyLen(strKeyLen);
-	item->setOcspStatus(PTEID_CERTIF_STATUS_OCSP_NOT_CHECKED);
+		item->setIssuer(QString::fromUtf8(cert->getIssuerName(),-1));
+		item->setOwner(QString::fromUtf8(cert->getOwnerName(),-1));
+		item->setValidityBegin(cert->getValidityBegin());
+		item->setValidityEnd(cert->getValidityEnd());
+		QString	strKeyLen;
+		strKeyLen=strKeyLen.setNum(cert->getKeyLength());
+		item->setKeyLen(strKeyLen);
+		item->setOcspStatus(PTEID_CERTIF_STATUS_OCSP_NOT_CHECKED);
+	}
 
 	PTEID_Certificate*	child	= NULL;
 
@@ -4036,36 +4091,89 @@ void MainWnd::fillCertificateList( void )
 	try
 	{
 		short Level=1;
-
+		std::string msgtitle = "O Certificado não foi encontrado";
 		/* Root Certificate if the card owns it
 		PTEID_Certificate& certificate = certificates->getCert(4);
 		fillCertTree(&certificate,Level,NULL);
 		*/
 
-		QTreeCertItem* item = new QTreeCertItem( m_ui.treeCert, 0 );
-		item = new QTreeCertItem( m_ui.treeCert, 0 );
+		QTreeCertItem* item1 = new QTreeCertItem( m_ui.treeCert, 0 );
+		item1 = new QTreeCertItem( m_ui.treeCert, 0 );
 
-		QString strLabel1 = QString::fromUtf8("ROOT CA");
-		item->setText(COLUMN_CERT_NAME, strLabel1);
-		item->setIssuer(QString::fromUtf8("Cartão de Cidadão 001"));
-		item->setOwner(QString::fromUtf8("Cartão de Cidadão 001",-1));
-		item->setValidityBegin("26/01/2007");
-		item->setValidityEnd("27/05/2018");
+		QString strLabel1 = QString::fromUtf8(certificates->getExternalCertSubject(1));
+		if (strLabel1 == NULL)
+		{
+			std::string certerrmsggte = "<p>O Certificado GTE Global Root não foi encontrado." \
+									     " A sua cadeia de certificação está incorrecta." \
+									     "<p>Verifique o caminho do certificado.";
+			QMessageBox msgBoxgte(QMessageBox::Warning, QString::fromUtf8(msgtitle.c_str()), QString::fromUtf8(certerrmsggte.c_str()), 0, this);
+			msgBoxgte.exec();
+		}
+		item1->setText(COLUMN_CERT_NAME, strLabel1);
+		item1->setIssuer(QString::fromUtf8(certificates->getExternalCertIssuer(1)));
+		item1->setOwner(QString::fromUtf8(certificates->getExternalCertSubject(1),-1));
+		item1->setValidityBegin(QString::fromUtf8(certificates->getExternalCertNotBefore(1)));
+		item1->setValidityEnd(QString::fromUtf8(certificates->getExternalCertNotAfter(1)));
 		QString	strKeyLen1;
-		unsigned long int keyleg = 4096;
-		strKeyLen1=strKeyLen1.setNum(keyleg);
-		item->setKeyLen(strKeyLen1);
+		strKeyLen1=strKeyLen1.setNum(certificates->getExternalCertKeylenght(1));
+		item1->setKeyLen(strKeyLen1);
+
+		QTreeCertItem* item2 = new QTreeCertItem( m_ui.treeCert, 0 );
+		item2 = new QTreeCertItem( item1, 0 );
+
+		QString strLabel2 = QString::fromUtf8(certificates->getExternalCertSubject(2));
+		if (strLabel2 == NULL)
+		{
+			std::string certerrmsgecraiz = "<p>O Certificado EC Raiz do Estado não foi encontrado." \
+									       " A sua cadeia de certificação está incorrecta." \
+									       "<p>Verifique o caminho do certificado.";
+			QMessageBox msgBoxec(QMessageBox::Warning, QString::fromUtf8(msgtitle.c_str()), QString::fromUtf8(certerrmsgecraiz.c_str()), 0, this);
+			msgBoxec.exec();
+		}
+		item2->setText(COLUMN_CERT_NAME, strLabel2);
+		item2->setIssuer(QString::fromUtf8(certificates->getExternalCertIssuer(2)));
+		item2->setOwner(QString::fromUtf8(certificates->getExternalCertSubject(2),-1));
+		item2->setValidityBegin(QString::fromUtf8(certificates->getExternalCertNotBefore(2)));
+		item2->setValidityEnd(QString::fromUtf8(certificates->getExternalCertNotAfter(2)));
+		QString	strKeyLen2;
+		strKeyLen2=strKeyLen2.setNum(certificates->getExternalCertKeylenght(2));
+		item2->setKeyLen(strKeyLen2);
+
+		QTreeCertItem* item3 = new QTreeCertItem( m_ui.treeCert, 0 );
+		item3 = new QTreeCertItem( item2, 0 );
+
+		QString strLabel3 = QString::fromUtf8(certificates->getExternalCertSubject(3));
+		if (strLabel3 == NULL)
+		{
+			std::string certerrmsgcc = "<p>O Certificado Cartão de Cidadão 001 não foi encontrado." \
+									   " A sua cadeia de certificação está incorrecta." \
+									   "<p>Verifique o caminho do certificado.";
+			QMessageBox msgBoxcc(QMessageBox::Warning, QString::fromUtf8(msgtitle.c_str()), QString::fromUtf8(certerrmsgcc.c_str()), 0, this);
+			msgBoxcc.exec();
+		}
+		item3->setText(COLUMN_CERT_NAME, strLabel3);
+		item3->setIssuer(QString::fromUtf8(certificates->getExternalCertIssuer(3)));
+		item3->setOwner(QString::fromUtf8(certificates->getExternalCertSubject(3),-1));
+		item3->setValidityBegin(QString::fromUtf8(certificates->getExternalCertNotBefore(3)));
+		item3->setValidityEnd(QString::fromUtf8(certificates->getExternalCertNotAfter(3)));
+		QString	strKeyLen3;
+		strKeyLen3=strKeyLen3.setNum(certificates->getExternalCertKeylenght(3));
+		item3->setKeyLen(strKeyLen3);
 
 		// Sign Certificate
 		PTEID_Certificate& certificatesign = certificates->getCert(2);
-		fillCertTree(&certificatesign, Level,item);
+		fillCertTree(&certificatesign, Level,item3);
 
 		// Auth Certificate
 		PTEID_Certificate& certificateauth = certificates->getCert(3);
-		fillCertTree(&certificateauth, Level,item);
+		fillCertTree(&certificateauth, Level,item3);
 
 		m_ui.treeCert->expandAll();
-		// m_ui.treeCert->sortItems(0,Qt::AscendingOrder);
+		m_ui.treeCert->setColumnCount(1);
+		m_ui.treeCert->takeTopLevelItem(0);
+		m_ui.treeCert->takeTopLevelItem(1);
+		m_ui.treeCert->takeTopLevelItem(1);
+		m_ui.treeCert->sortItems(0,Qt::DescendingOrder);
 	}
 	catch(PTEID_ExCertNoRoot &e)
 	{
@@ -4136,12 +4244,6 @@ void MainWnd::LoadDataID(PTEID_EIDCard& Card)
 		fillPinList( Card );
 
 		//------------------------------------------------------
-		// fill in the table with the card info
-		//------------------------------------------------------
-
-		fillCardVersionInfo( Card );
-
-		//------------------------------------------------------
 		// fill in the table with the software info
 		//------------------------------------------------------
 
@@ -4207,12 +4309,6 @@ void MainWnd::LoadDataAddress(PTEID_EIDCard& Card)
 		fillPinList( Card );
 
 		//------------------------------------------------------
-		// fill in the table with the card info
-		//------------------------------------------------------
-
-		fillCardVersionInfo( Card );
-
-		//------------------------------------------------------
 		// fill in the table with the software info
 		//------------------------------------------------------
 
@@ -4226,47 +4322,7 @@ void MainWnd::LoadDataPersoData(PTEID_EIDCard& Card)
 	setEnabledCertifButtons(false);
 	m_TypeCard = Card.getType();
 	m_CI_Data.LoadDataPersoData(Card,m_CurrReaderName);
-
-	//clearTabCertificates();
-	//fillCertificateList();
-
-	/*if(!m_CI_Data.isDataLoaded())
-	{
-		//------------------------------------------------------
-		// Certificates Tab
-		//------------------------------------------------------
-		//clearTabCertificates();
-
-		//------------------------------------------------------
-		// fill in the tree of Certificates
-		//------------------------------------------------------
-		//fillCertificateList();
-
-		//------------------------------------------------------
-		// PIN's Tab
-		//------------------------------------------------------
-#define TYPE_PINTREE_ITEM 0
-#define COLUMN_PIN_NAME   0
-
-		clearTabPins();
-
-		//------------------------------------------------------
-		// fill in the tree of Pins
-		//------------------------------------------------------
-		fillPinList( Card );
-
-		//------------------------------------------------------
-		// fill in the table with the card info
-		//------------------------------------------------------
-
-		fillCardVersionInfo( Card );
-
-		//------------------------------------------------------
-		// fill in the table with the software info
-		//------------------------------------------------------
-
-		fillSoftwareInfo();
-	}*/
+	
 }
 
 void MainWnd::LoadDataCertificates(PTEID_EIDCard& Card)
@@ -4278,44 +4334,7 @@ void MainWnd::LoadDataCertificates(PTEID_EIDCard& Card)
 
 	clearTabCertificates();
 	fillCertificateList();
-
-	/*if(!m_CI_Data.isDataLoaded())
-	{
-		//------------------------------------------------------
-		// Certificates Tab
-		//------------------------------------------------------
-		clearTabCertificates();
-
-		//------------------------------------------------------
-		// fill in the tree of Certificates
-		//------------------------------------------------------
-		fillCertificateList();
-
-		//------------------------------------------------------
-		// PIN's Tab
-		//------------------------------------------------------
-#define TYPE_PINTREE_ITEM 0
-#define COLUMN_PIN_NAME   0
-
-		clearTabPins();
-
-		//------------------------------------------------------
-		// fill in the tree of Pins
-		//------------------------------------------------------
-		fillPinList( Card );
-
-		//------------------------------------------------------
-		// fill in the table with the card info
-		//------------------------------------------------------
-
-		fillCardVersionInfo( Card );
-
-		//------------------------------------------------------
-		// fill in the table with the software info
-		//------------------------------------------------------
-
-		fillSoftwareInfo();
-	}*/
+	
 }
 
 //*****************************************************
@@ -4615,67 +4634,6 @@ void MainWnd::fillSoftwareInfo( void )
 }
 
 //**************************************************
-// fill the table with the card info
-// This function has to be called each time the language is changed
-//**************************************************
-void MainWnd::fillCardVersionInfo( PTEID_EIDCard& Card )
-{
-	/*
-	PTEID_CardVersionInfo& CardVersionInfo = Card.getVersionInfo();
-
-	QTableWidgetItem* newItem = NULL;
-
-	int			RowNr = 0;
-	int			ColNr = 0;
-	QMap<QString,const char*> Data;
-
-	Data[tr("Serial nr")]							= CardVersionInfo.getSerialNumber();
-	Data[tr("Component Code")]						= CardVersionInfo.getComponentCode();
-	Data[tr("OS Number")]							= CardVersionInfo.getOsNumber();
-	Data[tr("OS Number")]							= CardVersionInfo.getOsVersion();
-	Data[tr("Softmask Number")]						= CardVersionInfo.getSoftmaskNumber();
-	Data[tr("Softmask Version")]					= CardVersionInfo.getSoftmaskVersion();
-	Data[tr("Applet Version")]						= CardVersionInfo.getAppletVersion();
-	Data[tr("Global OS Version")]					= CardVersionInfo.getGlobalOsVersion();
-	Data[tr("Applet Interface Version")]			= CardVersionInfo.getAppletInterfaceVersion();
-	Data[tr("PKCS1 Support")]						= CardVersionInfo.getPKCS1Support();
-	Data[tr("Key Exchange Version")]				= CardVersionInfo.getKeyExchangeVersion();
-	Data[tr("Applet Life Cycle")]					= CardVersionInfo.getAppletLifeCycle();
-	Data[tr("Graphical Personalisation")]			= CardVersionInfo.getGraphicalPersonalisation();
-	Data[tr("Electrical Personalisation Interface")]= CardVersionInfo.getElectricalPersonalisationInterface();
-
-	//--------------------------------------------
-	// make sure we start with a cleaned list
-	//--------------------------------------------
-
-	m_ui.tblCardAndPIN->clear();
-
-	m_ui.tblCardAndPIN->setRowCount( Data.size() );
-	Qt::ItemFlags flags;
-	flags &= !Qt::ItemIsEditable;
-
-	for ( QMap<QString,const char*>::iterator itData = Data.begin()
-		; itData != Data.end()
-		; itData++, ColNr=0, RowNr++
-		)
-	{
-		newItem = new QTableWidgetItem( itData.key() );
-		newItem->setFlags(flags);
-		m_ui.tblCardAndPIN->setItem( RowNr, ColNr++, newItem );
-		newItem = new QTableWidgetItem( itData.value() );
-		newItem->setFlags(flags);
-		m_ui.tblCardAndPIN->setItem( RowNr, ColNr, newItem );
-	}
-
-	QStringList labels;
-	labels.push_back(tr("Field"));
-	labels.push_back(tr("Value"));
-
-	m_ui.tblCardAndPIN->setHorizontalHeaderLabels(labels);
-	 */
-}
-
-//**************************************************
 // clear button clicked
 // - back to the main screen
 // - clear the data of the loaded card
@@ -4892,10 +4850,12 @@ void MainWnd::refreshTabIdentity( void )
 	m_ui.txtIdentity_Country->setAccessibleName	 ( PersonFields[COUNTRY] );
 	m_ui.txtIdentity_DocumentNumber->setText	 ( PersonFields[DOCUMENTNUMBER] );
 	m_ui.txtIdentity_DocumentNumber->setAccessibleName	 ( PersonFields[DOCUMENTNUMBER] );
-	m_ui.txtIdentity_ValidFrom_Until->setText( CardFields[CARD_VALIDFROM] + " - " + CardFields[CARD_VALIDUNTIL] );
-	m_ui.txtIdentity_ValidFrom_Until->setAccessibleName( CardFields[CARD_VALIDFROM] + " - " + CardFields[CARD_VALIDUNTIL] );
-	m_ui.txtIdentity_Parents->setText( PersonFields[PARENTS] );
-	m_ui.txtIdentity_Parents->setAccessibleName( PersonFields[PARENTS] );
+	m_ui.txtIdentity_ValidUntil->setText( CardFields[CARD_VALIDUNTIL] );
+	m_ui.txtIdentity_ValidUntil->setAccessibleName( CardFields[CARD_VALIDUNTIL] );
+	m_ui.txtIdentity_Parents_Father->setText( PersonFields[FATHER] );
+	m_ui.txtIdentity_Parents_Father->setAccessibleName(PersonFields[FATHER]);
+	m_ui.txtIdentity_Parents_Mother->setText( PersonFields[MOTHER] );
+	m_ui.txtIdentity_Parents_Mother->setAccessibleName( PersonFields[MOTHER] );
 }
 
 //*****************************************************
@@ -4930,8 +4890,8 @@ void MainWnd::refreshTabIdentityExtra()
 
 	QString nationalNumber = m_CI_Data.m_PersonInfo.formatNationalNumber( PersonFields[NATIONALNUMBER],m_CI_Data.m_CardInfo.getType() );
 
-	m_ui.txtIdentityExtra_ValidFrom_Until->setText( CardFields[CARD_VALIDFROM] + " - " + CardFields[CARD_VALIDUNTIL] );
-	m_ui.txtIdentityExtra_ValidFrom_Until->setAccessibleName( CardFields[CARD_VALIDFROM] + " - " + CardFields[CARD_VALIDUNTIL] );
+	m_ui.txtIdentityExtra_ValidFrom->setText( CardFields[CARD_VALIDFROM]);
+	m_ui.txtIdentityExtra_ValidFrom->setAccessibleName( CardFields[CARD_VALIDFROM]);
 
 	tFieldMap& PersonExtraFields = m_CI_Data.m_PersonInfo.m_PersonExtraInfo.getFields();
 
@@ -4943,17 +4903,6 @@ void MainWnd::refreshTabIdentityExtra()
 	SpecialStatus["4"] = tr("yellow cane");
 	SpecialStatus["5"] = tr("yellow cane/extended minority");
 
-	/*tFieldMap& AddressFields = m_CI_Data.m_PersonInfo.m_AddressInfo.getFields();
-
-	m_ui.txtIdentityExtra_Adress_Street->setText	( AddressFields[ADDRESS_STREET] );
-	m_ui.txtIdentityExtra_Adress_Street->setAccessibleName	( AddressFields[ADDRESS_STREET] );
-	m_ui.txtIdentityExtra_Adress_PostalCode->setText( AddressFields[ADDRESS_ZIPCODE] );
-	m_ui.txtIdentityExtra_Adress_PostalCode->setAccessibleName( AddressFields[ADDRESS_ZIPCODE] );
-	m_ui.txtIdentityExtra_Adress_Muncipality->setText( AddressFields[ADDRESS_CITY] );
-	m_ui.txtIdentityExtra_Adress_Muncipality->setAccessibleName( AddressFields[ADDRESS_CITY] );
-	m_ui.txtIdentityExtra_Adress_Country->setText	( AddressFields[ADDRESS_COUNTRY] );
-	m_ui.txtIdentityExtra_Adress_Country->setAccessibleName	( AddressFields[ADDRESS_COUNTRY] );*/
-
 	tFieldMap& MiscFields = m_CI_Data.m_MiscInfo.getFields();
 
 	QStringList Remarks = fillRemarksField(MiscFields);
@@ -4962,14 +4911,10 @@ void MainWnd::refreshTabIdentityExtra()
 	int FieldCnt = Remarks.size();
 	if (FieldCnt>0)
 	{
-		//		m_ui.txtIdentityExtra_Remarks1->setText(Remarks[idx++]);
-		//		m_ui.txtIdentityExtra_Remarks1->setAccessibleName(Remarks[idx++]);
 		FieldCnt--;
 	}
 	if (FieldCnt>0)
 	{
-		//		m_ui.txtIdentityExtra_Remarks2->setText(Remarks[idx++]);
-		//		m_ui.txtIdentityExtra_Remarks2->setAccessibleName(Remarks[idx++]);
 		FieldCnt--;
 	}
 	if (FieldCnt>0)
@@ -4986,7 +4931,6 @@ void MainWnd::refreshTabIdentityExtra()
 //*****************************************************
 void MainWnd::refreshTabAddress( void )
 {
-	//DEBUG: m_ui.statusBar->showMessage("Pinactivate flag: "+ QString::number(pinactivate), m_STATUS_MSG_TIME);
 	if (pinactivate == 1)
 	{
 		if (!addressPINRequest_triggered())
@@ -5150,7 +5094,6 @@ QStringList MainWnd::fillRemarksField( tFieldMap& MiscFields )
 }
 
 
-
 //*****************************************************
 // clear the tab with the certificates
 //*****************************************************
@@ -5232,8 +5175,6 @@ void MainWnd::clearTabPins( void )
 void MainWnd::refreshTabCertificates( void )
 {
 	loadCardDataCertificates();
-	//PTEID_Certificates* CertificateFields = m_CI_Data.m_CertifInfo.getCertificates();
-	//We look for the selected item
 	QList<QTreeWidgetItem *> selectedItems = m_ui.treeCert->selectedItems();
 	if(selectedItems.size()==0)
 	{
@@ -5266,14 +5207,32 @@ void MainWnd::refreshTabCardPin( void )
 			case PTEID_CARDTYPE_EID:
 			case PTEID_CARDTYPE_KIDS:
 			case PTEID_CARDTYPE_FOREIGNER:
-			{
-				PTEID_EIDCard&		Card		   = ReaderContext.getEIDCard();
-				fillCardVersionInfo( Card );
-				m_ui.txtPIN_Status->setText(tr("Not available"));
-				m_ui.txtPIN_Status->setAccessibleName(tr("Not available"));
-			}
-			case PTEID_CARDTYPE_SIS:
-			case PTEID_CARDTYPE_UNKNOWN:
+                {
+                    PTEID_EIDCard&	Card	= ReaderContext.getEIDCard();
+                    PTEID_Pins&		Pins	= Card.getPins();
+
+
+                    PTEID_Pin&	Auth_Pin = Pins.getPinByNumber(0);
+                    QString	CurrPinName	= Auth_Pin.getLabel();
+
+                    QString PINStatus;
+                    PINStatus.sprintf("Resta(m) %ld tentativa(s)", Auth_Pin.getTriesLeft());
+
+		    list_of_pins[0].pin_status = PINStatus;
+
+                    //------------------------------------
+                    // fill in the fields
+                    //------------------------------------
+                    m_ui.txtPIN_Name->setText(QString::fromUtf8("PIN da Autentica\xc3\xa7\xc3\xa3o"));
+                    m_ui.txtPIN_Name->setAccessibleName(QString::fromUtf8("PIN da Autentica\xc3\xa7\xc3\xa3o"));
+                    m_ui.txtPIN_ID->setText(QString::number(1));
+                    m_ui.txtPIN_ID->setAccessibleName(QString::number(1));
+                        /*	Fill the default value for the PIN status which is the 
+                    status of the Auth PIN (first one of the list)    */
+                    m_ui.txtPIN_Status->setText(PINStatus);
+                    m_ui.txtPIN_Status->setAccessibleName(PINStatus);
+
+                }
 			default:
 				break;
 			}

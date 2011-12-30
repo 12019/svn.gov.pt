@@ -18,6 +18,12 @@
 
 **************************************************************************** */
 
+#include <time.h>
+
+#include "openssl/evp.h"
+#include "openssl/x509.h"
+#include "openssl/x509v3.h"
+
 #include "APLCertif.h"
 #include "APLConfig.h"
 #include "CardFile.h"
@@ -30,9 +36,23 @@
 #include "MiscUtil.h"
 #include "CardPteidDef.h"
 #include "Log.h"
+#include "MiscUtil.h"
+#include "APLConfig.h"
+
+#ifdef WIN32
+#include <io.h>
+#endif
 
 namespace eIDMW
 {
+
+#ifdef _WIN32
+inline struct tm* localtime_r (const time_t *clock, struct tm *result) {
+       if (!clock || !result) return NULL;
+       memcpy(result,localtime(clock),sizeof(*result));
+       return result;
+}
+#endif
 
 APL_CertifStatus ConvertStatus(FWK_CertifStatus eStatus,APL_ValidationProcess eProcess)
 {
@@ -1582,6 +1602,210 @@ APL_Certifs *APL_Certif::getCertificates()
 	return m_store;
 }
 
+const char *APL_Certif::x509TimeConversion (ASN1_TIME *atime)
+{
+    struct tm r;
+    int cnt;
+    time_t res;
+    char to_buf[256];
+    unsigned buf_size = sizeof(to_buf);
+
+    ASN1_GENERALIZEDTIME* agtime;
+        
+    agtime = ASN1_TIME_to_generalizedtime(atime, NULL);
+        
+    memset(&r, '\0', sizeof(struct tm));
+    cnt = sscanf((char*)agtime->data, "%04d%02d%02d",
+		 &r.tm_year, &r.tm_mon, &r.tm_mday);
+    ASN1_TIME_free(agtime);
+    
+    r.tm_mon--;
+    r.tm_year -= 1900;
+  
+    res = mktime(&r);
+    if ((time_t)-1 != res) {
+	struct tm ltm;
+	res -= timezone;
+	localtime_r(&res, &ltm);
+	// Use the ISO 8601 timestamp format
+	strftime(to_buf, buf_size, "%d/%m/%Y", &ltm);
+	return(to_buf);
+    }
+    return("Date not available");
+}
+
+X509 *APL_Certif::ExternalCert(int certnr)
+{
+	FILE *m_stream;
+	X509 *x509;
+#ifdef WIN32
+	errno_t werr;
+#endif
+
+	APL_Config conf_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_CERTS_DIR);
+	std::string	m_cachedirpath = conf_dir.getString();
+
+	CPathUtil::checkDir (m_cachedirpath.c_str());
+	std::string contents = m_cachedirpath;
+
+	switch (certnr)
+	{
+	case 1:
+#ifdef WIN32
+		contents.append("/eidstore/certs/GTEGlobalRoot.der");
+		if ((werr = fopen_s(&m_stream, contents.c_str(), "rb")) != 0)
+			goto err;
+#else
+		if ((m_stream = fopen("/usr/local/share/certs/GTEGlobalRoot.der", "r")) == NULL)
+			goto err;
+#endif
+		break;
+	case 2:
+#ifdef WIN32
+		contents.append("/eidstore/certs/ECRaizEstado_novo_assinado_GTE.der");
+		if ((werr = fopen_s(&m_stream, contents.c_str(), "rb")) != 0)
+			goto err;
+#else
+		if ((m_stream = fopen("/usr/local/share/certs/ECRaizEstado_novo_assinado_GTE.der", "r")) == NULL)
+			goto err;
+#endif
+		break;
+	case 3:
+#ifdef WIN32
+		contents.append("/eidstore/certs/CartaodeCidadao001.der");
+		if ((werr = fopen_s(&m_stream, contents.c_str(), "rb")) != 0)
+			goto err;
+#else
+		if ((m_stream = fopen("/usr/local/share/certs/CartaodeCidadao001.der", "r")) == NULL)
+			goto err;
+#endif
+		break;
+	default:
+		break;
+	}
+
+	//PEM format
+	//X509* x509 = PEM_read_X509(m_stream, NULL, NULL, NULL);
+	//DER format
+	x509 = d2i_X509_fp(m_stream, NULL);
+	fclose(m_stream);
+	certnr = 0;
+
+	return x509;
+
+err:
+	MWLOG(LEV_DEBUG, MOD_APL, L"APL_Certif::ExternalCert: file %s not found ", contents.c_str());
+	return NULL;
+}
+
+const unsigned char *APL_Certif::ExternalCertData(int certnr)
+{
+	X509 *cert;
+	unsigned char *rdata = NULL;
+	int len;
+
+	if ((cert = ExternalCert(certnr)) == NULL)
+		return NULL;
+
+	len = i2d_X509 (cert, &rdata);
+
+	if (len < 0)
+		return NULL;
+
+	return rdata;
+}
+
+int APL_Certif::ExternalCertDataSize(int certnr)
+{
+	X509 *cert;
+	unsigned char *rdata = NULL;
+	int len;
+
+	if ((cert = ExternalCert(certnr)) == NULL)
+		return NULL;
+
+	len = i2d_X509 (cert, &rdata);
+
+	if (len < 0)
+		return NULL;
+
+	return len;
+}
+
+const char *APL_Certif::ExternalCertSubject(int certnr)
+{
+	//Subject name
+	X509 *cert;
+
+	if ((cert = ExternalCert(certnr)) == NULL)
+		return NULL;
+
+	char sntemp[800] = {0};
+	char subject[800] = {0};
+	X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName, sntemp, sizeof(sntemp));
+	strcat (subject, sntemp);
+
+	return subject;
+}
+
+const char *APL_Certif::ExternalCertIssuer(int certnr)
+{
+	// issuer name
+	char szTemp[800] = {0};
+	char issuer[800] = {0};
+	X509 *cert;
+
+	if ((cert = ExternalCert(certnr)) == NULL)
+		return NULL;
+
+	X509_NAME_get_text_by_NID(X509_get_issuer_name(cert), NID_commonName, szTemp, sizeof(szTemp));
+	strcat (issuer, szTemp);
+
+	return issuer;
+}
+
+unsigned long APL_Certif::ExternalCertKeylenght(int certnr)
+{
+	// Keylength
+	X509 *cert;
+	unsigned long keylen;
+
+	if ((cert = ExternalCert(certnr)) == NULL)
+		return NULL;
+
+	EVP_PKEY *pKey = X509_get_pubkey(cert);
+	keylen = EVP_PKEY_bits(pKey);
+
+	return keylen;
+}
+
+const char* APL_Certif::ExternalCertNotBefore(int certnr)
+{
+	//notbefore
+	const char* result;
+	X509 *cert;
+
+	if ((cert = ExternalCert(certnr)) == NULL)
+		return NULL;
+
+	result = x509TimeConversion(X509_get_notBefore(cert));
+	
+	return result;
+}
+
+const char* APL_Certif::ExternalCertNotAfter(int certnr)
+{
+	// Not after
+	const char* result;
+	X509 *cert;
+
+	if ((cert = ExternalCert(certnr)) == NULL)
+		return NULL;
+
+	result = x509TimeConversion(X509_get_notAfter(cert));
+
+	return result;
+}
 const char *APL_Certif::getSerialNumber()
 {
 	initInfo();

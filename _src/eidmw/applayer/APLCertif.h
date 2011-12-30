@@ -24,6 +24,13 @@
 
 #include <string>
 #include <map>
+
+
+#include "openssl/evp.h"
+#include "openssl/ocsp.h"
+#include "openssl/ssl.h"
+#include "openssl/bio.h"
+
 #include "Export.h"
 #include "P15Objects.h"
 #include "ByteArray.h"
@@ -480,6 +487,16 @@ public:
 	  * Return the OCSP Responce
 	  */
 	EIDMW_APL_API CByteArray getOCSPResponse();
+
+	EIDMW_APL_API const char *x509TimeConversion (ASN1_TIME *time);
+	EIDMW_APL_API X509* ExternalCert(int cert);
+	EIDMW_APL_API const unsigned char * ExternalCertData(int certnr);
+	EIDMW_APL_API int ExternalCertDataSize(int certnr);
+	EIDMW_APL_API const char *ExternalCertSubject(int cert);
+	EIDMW_APL_API const char *ExternalCertIssuer(int cert);
+	EIDMW_APL_API unsigned long ExternalCertKeylenght(int cert);
+	EIDMW_APL_API const char *ExternalCertNotBefore(int cert);
+	EIDMW_APL_API const char *ExternalCertNotAfter(int cert);
 
 	EIDMW_APL_API const char *getSerialNumber();		/**< Return the serial number */
 	EIDMW_APL_API const char *getOwnerName();			/**< Return the name of the owner */

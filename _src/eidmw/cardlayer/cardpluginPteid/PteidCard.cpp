@@ -32,7 +32,7 @@ static const tFileInfo DEFAULT_FILE_INFO = {-1, -1, -1};
 static const tFileInfo PREFS_FILE_INFO_V1 = {-1, -1, 1};
 static const tFileInfo PREFS_FILE_INFO_V2 = {-1, -1, 0x85};
 
-unsigned long ulVersion; 
+unsigned long ulVersion;	
 
 // If we want to 'hardcode' this plugin internally in the CAL, this function
 // can't be present because it's the same for all plugins
@@ -73,14 +73,12 @@ static CByteArray ReadInternal(CPCSC *poPCSC, SCARDHANDLE hCard, unsigned long u
 	//oData.Chop(2); // remove SW12
 
 	MWLOG(LEV_INFO, MOD_CAL, L"   Read %d bytes from the PT eid-ng GemSafe card", oData.Size());
-	cout << "Read " << oData.Size() << " bytes from the PT eid-ng GemSafe card" << endl;
 	return oData;
 
 }
 
 static CByteArray ReadInternalIAS(CPCSC *poPCSC, SCARDHANDLE hCard, unsigned long ulOffset, unsigned long ulMaxLen)
 {
-    cout << "ReadInternal IAS" << endl;
 	long lretVal = 0;
 	CByteArray oCmd(40);
 	unsigned char tucReadDat[] = {0x00, 0xA4, 0x04, 0x0C};
@@ -93,7 +91,6 @@ static CByteArray ReadInternalIAS(CPCSC *poPCSC, SCARDHANDLE hCard, unsigned lon
 	//oData.Chop(2); // remove SW12
 
 	MWLOG(LEV_INFO, MOD_CAL, L"   Read %d bytes from the PT eid-ng IAS card", oData.Size());
-	cout << "Read " << oData.Size() << " bytes from the PT eid-ng IAS card" << endl;
 	return oData;
 }
 
@@ -136,7 +133,6 @@ CCard *PteidCardGetInstance(unsigned long ulVersion, const char *csReader,
 	SCARDHANDLE hCard, CContext *poContext, CPinpad *poPinpad)
 {
 
-	//printf("+++ Pteid2\n");
 	CCard *poCard = NULL;
 
 	if (ulVersion == 1)
@@ -356,24 +352,23 @@ std::string CPteidCard::GetPinpadPrefix()
 
 unsigned long CPteidCard::PinStatus(const tPin & Pin)
 {
-		//printf("++++ Pteid4\n");
-    // This command isn't supported on V1 cards
-    if (m_oCardData.GetByte(21) < 0x20)
-        return PIN_STATUS_UNKNOWN;
-
+	long ulSW12 = 0;
+	
     try
     {
-        m_ucCLA = 0x80;
-        CByteArray oResp = SendAPDU(0xEA, 0x00, (unsigned char) Pin.ulPinRef, 1);
-        m_ucCLA = 0x00;
+        CByteArray oResp = SendAPDU(0x20, 0x00, (unsigned char) Pin.ulPinRef, 0);
+        
+	ulSW12 = getSW12(oResp);
+	MWLOG(LEV_DEBUG, MOD_CAL, L"PinStatus APDU returned: %x", ulSW12 );
+	if (ulSW12 == 0x9000)
+		return 3; //Maximum Try Counter for PteID Cards
 
-        getSW12(oResp, 0x9000);
-
-        return oResp.GetByte(0);
+        return ulSW12 % 16;
     }
     catch(...)
     {
-        m_ucCLA = 0x00;
+        //m_ucCLA = 0x00;
+	MWLOG(LEV_ERROR, MOD_CAL, L"Error in PinStatus", ulSW12);
         throw;
     }
 }
@@ -444,7 +439,7 @@ void CPteidCard::showPinDialog(tPinOperation operation, const tPin & Pin,
 
 bool CPteidCard::PinCmd(tPinOperation operation, const tPin & Pin,
         const std::string & csPin1, const std::string & csPin2,
-        unsigned long & ulRemaining, const tPrivKey *pKey)
+        unsigned long & ulRemaining, const tPrivKey *pKey, bool bShowDlg)
 {
 	bool pincheck;
     tPin pteidPin = Pin;
@@ -455,11 +450,10 @@ bool CPteidCard::PinCmd(tPinOperation operation, const tPin & Pin,
 	// this in PKCS15 AODF so it says/said erroneously "BCD encoding".
 	//pteidPtrqin.encoding = PIN_ENC_BCD;
 	pteidPin.encoding = PIN_ENC_ASCII; //PT uses ASCII only for PIN
-
 	if (m_AppletVersion == 1 ) {
-		pincheck = CPkiCard::PinCmd(operation, pteidPin, csPin1, csPin2, ulRemaining, pKey);
+		pincheck = CPkiCard::PinCmd(operation, pteidPin, csPin1, csPin2, ulRemaining, pKey,bShowDlg);
 	} else {
-		pincheck = CPkiCard::PinCmdIAS(operation, pteidPin, csPin1, csPin2, ulRemaining, pKey);
+		pincheck = CPkiCard::PinCmdIAS(operation, pteidPin, csPin1, csPin2, ulRemaining, pKey,bShowDlg);
 	}
 
 	return pincheck;
@@ -653,38 +647,15 @@ void CPteidCard::SetSecurityEnv(const tPrivKey & key, unsigned long algo,
     unsigned char ucAlgo;
     CByteArray oResp;
 
-    switch (algo)
-    {
-    case SIGN_ALGO_RSA_PKCS:
-    	//Right ALGO
-    	ucAlgo = 0x01;
-	break;
-    case SIGN_ALGO_SHA1_RSA_PKCS: ucAlgo = 0x02; break;
-    case SIGN_ALGO_MD5_RSA_PKCS: ucAlgo = 0x04; break;
-    case SIGN_ALGO_SHA1_RSA_PSS:
-        if (m_ucAppletVersion < 0x20)
-        {
-            MWLOG(LEV_WARN, MOD_CAL, L"MSE SET: PSS not supported on V1 cards");
-	    cout << "MSE SET: PSS not supported on V1 cards" << endl;
-            throw CMWEXCEPTION(EIDMW_ERR_NOT_SUPPORTED);
-        }
-        ucAlgo = 0x08;
-        break;
-    default:
-	cout << "EIDMW_ERR_ALGO_BAD" << endl;
-        throw CMWEXCEPTION(EIDMW_ERR_ALGO_BAD);
-    }
-
     m_ucCLA = 0x00;
 
     if (m_AppletVersion == 1) {
-    	oDatagem.Append(0x80);
-    	oDatagem.Append(ucAlgo);
-    	oDatagem.Append(0x02);
+	oDatagem.Append(0x80);
+	oDatagem.Append(0x01);
+    	oDatagem.Append(0x02); //Algorithm: RSA with PKCS#1 Padding
     	oDatagem.Append(0x84);
     	oDatagem.Append(0x01);
     	oDatagem.Append((unsigned char) key.ulKeyRef);
-
     	oResp = SendAPDU(0x22, 0x41, 0xB6, oDatagem);
     } else {
 
@@ -696,14 +667,7 @@ void CPteidCard::SetSecurityEnv(const tPrivKey & key, unsigned long algo,
     	oDataias.Append(0x40);
     	oDataias.Append(0x84);
     	oDataias.Append(0x01);
-    	if (ulInputLen == 36) {
-    		oDataias.Append(0x01);
-    	} else {
-		/* Changed back from 0x82 to permit signing data with
-		 * length different than 36.
-		 */
-    		oDataias.Append(0x01);
-    	}
+    	oDataias.Append(key.ulKeyRef);
     	oDataias.Append(0x80);
     	oDataias.Append(0x01);
     	oDataias.Append(0x02);
@@ -720,7 +684,7 @@ void CPteidCard::SetSecurityEnv(const tPrivKey & key, unsigned long algo,
 CByteArray CPteidCard::SignInternal(const tPrivKey & key, unsigned long algo,
     const CByteArray & oData, const tPin *pPin)
 {
-    printf("++++ Pteid12\n");
+    // printf("++++ Pteid12\n");
     CAutoLock autolock(this);
 
     m_ucCLA = 0x00;
@@ -734,26 +698,16 @@ CByteArray CPteidCard::SignInternal(const tPrivKey & key, unsigned long algo,
         if (!bOK)
 			throw CMWEXCEPTION(ulRemaining == 0 ? EIDMW_ERR_PIN_BLOCKED : EIDMW_ERR_PIN_BAD);
     }
+	
 
     SetSecurityEnv(key, algo, oData.Size());
 
     CByteArray oData1;
-    oData1.Append(0x90);
+   
+	oData1.Append(0x90); //SHA-1 Hash as Input
+	oData1.Append(oData.Size());
     
-    if (oData.Size() == 36) {
-	//Autenticacao
-    	cout << "Auth" << endl;
-		oData1.Append(0x24);
-    } else if (oData.Size() == 35) {
-    	cout << "Signature" << endl;
-		oData1.Append(0x23);
-    } else {
-    	cout << "EXCEPTION" << endl;
-    }
-
-
     oData1.Append(oData);
-    cout << "Size: " << oData.Size() << endl;
 
     CByteArray oResp, oResp1;
 
@@ -769,7 +723,7 @@ CByteArray CPteidCard::SignInternal(const tPrivKey & key, unsigned long algo,
     }
 
     unsigned long ulSW12 = getSW12(oResp);
-    cout << "Resp oResp PSO is: " << hex << ulSW12 << dec << endl;
+    MWLOG(LEV_INFO, MOD_CAL, L"Resp oResp PSO is: 0x%2X", ulSW12);
     if (ulSW12 != 0x9000)
     	throw CMWEXCEPTION(m_poContext->m_oPCSC.SW12ToErr(ulSW12));
 	

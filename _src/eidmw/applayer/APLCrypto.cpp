@@ -668,12 +668,12 @@ const CByteArray &APL_Pin::getSignature()
 	return *m_signature;
 }
 
-bool APL_Pin::verifyPin(const char *csPin,unsigned long &ulRemaining)
+bool APL_Pin::verifyPin(const char *csPin,unsigned long &ulRemaining,bool bShowDlg)
 {
 	try
 	{
 		if(!m_card->isVirtualCard())
-			return m_card->pinCmd(PIN_OP_VERIFY,m_pinP15,csPin,"",ulRemaining);
+			return m_card->pinCmd(PIN_OP_VERIFY,m_pinP15,csPin,"",ulRemaining,bShowDlg);
 		else
 			return false;
 	}
@@ -690,7 +690,7 @@ bool APL_Pin::verifyPin(const char *csPin,unsigned long &ulRemaining)
 	}
 }
 
-bool APL_Pin::changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName)
+bool APL_Pin::changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName,bool bShowDlg)
 {
 	std::string CurrPinName = PinName;
 
@@ -701,10 +701,12 @@ bool APL_Pin::changePin(const char *csPin1,const char *csPin2,unsigned long &ulR
 	    	n->GetArqc();
 		}*/
 
+
+
 	try
 	{
 		if(!m_card->isVirtualCard())
-			return m_card->pinCmd(PIN_OP_CHANGE,m_pinP15,csPin1,csPin2,ulRemaining);
+			return m_card->pinCmd(PIN_OP_CHANGE,m_pinP15,csPin1,csPin2,ulRemaining, bShowDlg);
 		else
 			return false;
 	}

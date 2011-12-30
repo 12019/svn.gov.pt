@@ -5,6 +5,8 @@ include(_Builds/eidcommon.mak)
 
 TEMPLATE = subdirs
 
+SUBDIRS += FreeImagePTEiD
+
 ## list of the subprojects to build:
 ## qmake expects a <NAME>.pro project file in each <NAME> subdirectory
 
@@ -18,14 +20,12 @@ SUBDIRS += cardlayer
 
 ## build this plugin only if we are building for Portugal
 contains(PKG_NAME,pteid): SUBDIRS += cardlayer/cardpluginPteid
-contains(PKG_NAME,pteid): SUBDIRS += cardlayer/cardpluginSIS
-contains(PKG_NAME,pteid): SUBDIRS += cardlayer/cardpluginSIS_ACR38U
-
 
 SUBDIRS +=	pkcs11 \
 	        applayer \
 	        eidlib \
 		eidlibJava_Wrapper \
+		cardlayer/ppgempc-plugin
 
 !isEmpty(BUILD_SDK) {
 SUBDIRS +=  cardlayerTool
@@ -46,3 +46,7 @@ SUBDIRS += eidgui
 ## the subdirs have to be built in the given order
 CONFIG += ordered
 
+data.path +=  /usr/local/share/certs
+data.files += misc/certs/*
+
+INSTALLS += data

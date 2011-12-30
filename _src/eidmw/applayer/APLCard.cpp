@@ -126,7 +126,7 @@ CByteArray APL_Card::Sign(const CByteArray & oData)
 	oHash->Update(oData);*/
 
 	BEGIN_CAL_OPERATION(m_reader)
-	out = m_reader->getCalReader()->Sign(m_reader->getCalReader()->GetPrivKeyByID(0x45), SIGN_ALGO_SHA1_RSA_PKCS, oData);
+	out = m_reader->getCalReader()->Sign(m_reader->getCalReader()->GetPrivKeyByID(0x45), SIGN_ALGO_RSA_PKCS, oData);
 	END_CAL_OPERATION(m_reader)
 
 	return out;
@@ -341,7 +341,9 @@ unsigned long APL_SmartCard::pinStatus(const tPin &Pin)
 	return out;
 }
 
-bool APL_SmartCard::pinCmd(tPinOperation operation, const tPin &Pin,const char *csPin1In, const char *csPin2In,unsigned long &ulRemaining)
+bool APL_SmartCard::pinCmd(tPinOperation operation, const tPin &Pin,
+		const char *csPin1In, const char *csPin2In,
+		unsigned long &ulRemaining, bool bShowDlg)
 {
 	if(m_reader->isVirtualReader()) //Virtual Reader
 		return false;
@@ -357,7 +359,7 @@ bool APL_SmartCard::pinCmd(tPinOperation operation, const tPin &Pin,const char *
 		csPin2="";
 
 	BEGIN_CAL_OPERATION(m_reader)
-	ret=m_reader->getCalReader()->PinCmd(operation,Pin,csPin1,csPin2,ulRemaining);
+	ret=m_reader->getCalReader()->PinCmd(operation,Pin,csPin1,csPin2,ulRemaining,bShowDlg);
 	END_CAL_OPERATION(m_reader)
 
 	return ret;

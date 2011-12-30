@@ -153,7 +153,7 @@ public:
 	  *
 	  * @return true if success and false if failed
 	  */
-	EIDMW_APL_API bool verifyPin(const char *csPin,unsigned long &ulRemaining);
+	EIDMW_APL_API bool verifyPin(const char *csPin,unsigned long &ulRemaining, bool bShowDlg=true);
 
 	/**
 	  * Call the CAL for changing the pin
@@ -167,7 +167,7 @@ public:
 	  *
 	  * @return true if success and false if failed
 	  */
-	EIDMW_APL_API bool changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName);
+	EIDMW_APL_API bool changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName,bool bShowDlg=true);
 
 protected:
 	/**

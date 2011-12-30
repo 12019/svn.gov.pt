@@ -23,7 +23,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include "eidlibdefines.h"
+#include "../common/xmlUserDataEnum.h"
 
 namespace eIDMW
 {
@@ -682,6 +684,8 @@ class PTEID_Sod;
 class PTEID_CardVersionInfo;
 class PTEID_Certificate;
 class APL_EIDCard;
+class PTEID_XmlUserRequestedInfo;
+class PTEID_CCXML_Doc;
 
 /******************************************************************************//**
   * This class represents a Portugal EID card.
@@ -719,6 +723,7 @@ public:
 	PTEIDSDK_API virtual PTEID_XMLDoc& getDocument(PTEID_DocumentType type);
 
 	PTEIDSDK_API PTEID_EIdFullDoc& getFullDoc();				/**< Get the full document */
+	PTEIDSDK_API PTEID_CCXML_Doc& getXmlCCDoc(PTEID_XmlUserRequestedInfo& userRequestedInfo);
 	PTEIDSDK_API PTEID_EId& getID();							/**< Get the id document */
 	PTEIDSDK_API PTEID_Address& getAddr();					/**< Get the Address document */
 	PTEIDSDK_API PTEID_Sod& getSod();							/**< Get the sod document */
@@ -756,6 +761,26 @@ private:
 	PTEID_EIDCard& operator= (const PTEID_EIDCard& card);			/**< Copy not allowed - not implemented */
 
 friend PTEID_Card &PTEID_ReaderContext::getCard();				/**< For internal use : This method must access protected constructor */
+};
+
+class APL_XmlUserRequestedInfo;
+/******************************************************************************//**
+  * This class will contain information about the data to be returned in the xml file.
+  *********************************************************************************/
+class PTEID_XmlUserRequestedInfo : public PTEID_Object
+{
+public:
+    PTEIDSDK_API PTEID_XmlUserRequestedInfo();
+	PTEIDSDK_API virtual ~PTEID_XmlUserRequestedInfo();			/**< Destructor */
+	PTEIDSDK_API void add(XMLUserData xmlUData);		/**< add string */
+
+protected:
+	APL_XmlUserRequestedInfo *customXml;
+
+private:
+	PTEID_XmlUserRequestedInfo(const PTEID_XmlUserRequestedInfo& info); /**< Copy not allowed - not implemented */
+	PTEID_XmlUserRequestedInfo& operator= (const PTEID_XmlUserRequestedInfo& xmlUserRequestedInfo);	/**< Copy not allowed - not implemented */
+friend PTEID_CCXML_Doc& PTEID_EIDCard::getXmlCCDoc(PTEID_XmlUserRequestedInfo& userRequestedInfo);
 };
 
 class APL_KidsCard;
@@ -1109,6 +1134,26 @@ private:
 
 friend PTEID_EIdFullDoc& PTEID_EIDCard::getFullDoc();				/**< For internal use : This method must access protected constructor */
 };
+
+class APL_CCXML_Doc;
+
+class PTEID_CCXML_Doc : public PTEID_XMLDoc
+{
+public:
+	PTEIDSDK_API virtual ~PTEID_CCXML_Doc();					/**< Destructor */
+	PTEIDSDK_API const char *getCCXML();
+
+protected:
+	PTEID_CCXML_Doc(const SDK_Context *context,APL_CCXML_Doc *impl);	/**< For internal use : Constructor */
+
+private:
+	PTEID_CCXML_Doc(const PTEID_CCXML_Doc& doc);				/**< Copy not allowed - not implemented */
+	PTEID_CCXML_Doc& operator= (const PTEID_CCXML_Doc& doc);	/**< Copy not allowed - not implemented */
+	std::string *xmltemp;
+	friend PTEID_CCXML_Doc& PTEID_EIDCard::getXmlCCDoc(PTEID_XmlUserRequestedInfo& userRequestedInfo);			/**< For internal use : This method must access protected constructor */
+};
+
+
 class PTEID_Pin;
 class APL_Pins;
 
@@ -1181,7 +1226,7 @@ public:
 	  *
 	  * @return true if success and false if failed
 	  */
-	PTEIDSDK_API bool verifyPin(const char *csPin,unsigned long &ulRemaining);
+	PTEIDSDK_API bool verifyPin(const char *csPin,unsigned long &ulRemaining,bool bShowDlg=true);
 
 	/**
 	  * Ask the card to change the pin.
@@ -1201,7 +1246,7 @@ public:
 	  *
 	  * @return true if success and false if failed
 	  */
-	PTEIDSDK_API bool changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName);
+	PTEIDSDK_API bool changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName,bool bShowDlg=true);
 
 private:
 	PTEID_Pin(const PTEID_Pin& pin);									/**< Copy not allowed - not implemented */
@@ -1321,6 +1366,14 @@ public:
 	  * Index will change if new certificates are added with addCert().
 	  */
 	PTEIDSDK_API PTEID_Certificate &getCert(unsigned long ulIndexAll);
+
+	PTEIDSDK_API const char *getExternalCertData(int cert);
+	PTEIDSDK_API int getExternalCertDataSize(int cert);
+	PTEIDSDK_API const char *getExternalCertSubject(int cert);
+	PTEIDSDK_API const char *getExternalCertIssuer(int cert);
+	PTEIDSDK_API const char *getExternalCertNotBefore(int cert);
+	PTEIDSDK_API const char *getExternalCertNotAfter(int cert);
+	PTEIDSDK_API unsigned long getExternalCertKeylenght(int cert);
 
 	/**
 	  * Return the certificate by type.

@@ -57,7 +57,7 @@
        <string notr="true">background-image: url(:/images/Images/bg_Empty.png);</string>
       </property>
       <property name="currentIndex">
-       <number>5</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="page_Wellcome"/>
       <widget class="QWidget" name="page_Identity">
@@ -230,10 +230,10 @@
         </property>
         <property name="geometry">
          <rect>
-          <x>440</x>
-          <y>110</y>
-          <width>111</width>
-          <height>131</height>
+          <x>430</x>
+          <y>10</y>
+          <width>202</width>
+          <height>269</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -258,7 +258,7 @@
          <bool>false</bool>
         </property>
         <property name="styleSheet">
-         <string notr="true"/>
+         <string notr="true">background-image: url(:/images/Images/alpha.png);</string>
         </property>
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
@@ -273,13 +273,13 @@
          <set>Qt::AlignCenter</set>
         </property>
        </widget>
-       <widget class="QLineEdit" name="txtIdentity_Parents">
+       <widget class="QLineEdit" name="txtIdentity_Parents_Father">
         <property name="geometry">
          <rect>
           <x>23</x>
-          <y>314</y>
-          <width>361</width>
-          <height>48</height>
+          <y>313</y>
+          <width>375</width>
+          <height>21</height>
          </rect>
         </property>
         <property name="minimumSize">
@@ -320,7 +320,7 @@
          <bool>true</bool>
         </property>
        </widget>
-       <widget class="QLineEdit" name="txtIdentity_ValidFrom_Until">
+       <widget class="QLineEdit" name="txtIdentity_ValidUntil">
         <property name="geometry">
          <rect>
           <x>186</x>
@@ -345,6 +345,31 @@
          <bool>true</bool>
         </property>
        </widget>
+       <widget class="QLineEdit" name="txtIdentity_Parents_Mother">
+        <property name="geometry">
+         <rect>
+          <x>23</x>
+          <y>344</y>
+          <width>375</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>240</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-image: url(:/images/Images/bg-Blue.png);</string>
+        </property>
+        <property name="frame">
+         <bool>false</bool>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
        <zorder>lblIdentity_ImgPerson</zorder>
        <zorder>txtIdentity_GivenNames</zorder>
        <zorder>txtIdentity_Name</zorder>
@@ -353,13 +378,14 @@
        <zorder>txtIdentity_Country</zorder>
        <zorder>txtIdentity_Nationality</zorder>
        <zorder>txtIdentity_BirthDate</zorder>
-       <zorder>txtIdentity_Parents</zorder>
+       <zorder>txtIdentity_Parents_Father</zorder>
        <zorder>txtIdentity_DocumentNumber</zorder>
-       <zorder>txtIdentity_ValidFrom_Until</zorder>
+       <zorder>txtIdentity_ValidUntil</zorder>
+       <zorder>txtIdentity_Parents_Mother</zorder>
       </widget>
       <widget class="QWidget" name="page_IdentityExtra">
        <property name="styleSheet">
-        <string notr="true">background-image: url(:/images/Images/additional_data.png);</string>
+        <string notr="true">background-image: url(:/images/Images/tab-backgrounds/bg_additional_data2.png);</string>
        </property>
        <widget class="QLineEdit" name="txtIdentityExtra_SocialSecurityNo">
         <property name="geometry">
@@ -440,7 +466,7 @@
         <property name="geometry">
          <rect>
           <x>190</x>
-          <y>275</y>
+          <y>245</y>
           <width>150</width>
           <height>20</height>
          </rect>
@@ -521,7 +547,7 @@
         <property name="geometry">
          <rect>
           <x>27</x>
-          <y>275</y>
+          <y>245</y>
           <width>150</width>
           <height>20</height>
          </rect>
@@ -545,9 +571,9 @@
        <widget class="QLineEdit" name="txtIdentityExtra_Validate">
         <property name="geometry">
          <rect>
-          <x>30</x>
+          <x>27</x>
           <y>320</y>
-          <width>381</width>
+          <width>320</width>
           <height>20</height>
          </rect>
         </property>
@@ -564,7 +590,7 @@
          </size>
         </property>
         <property name="styleSheet">
-         <string/>
+         <string notr="true">background-image: url(:/images/Images/bg-Blue.png);</string>
         </property>
         <property name="frame">
          <bool>false</bool>
@@ -573,7 +599,7 @@
          <bool>true</bool>
         </property>
        </widget>
-       <widget class="QLineEdit" name="txtIdentityExtra_ValidFrom_Until">
+       <widget class="QLineEdit" name="txtIdentityExtra_ValidFrom">
         <property name="geometry">
          <rect>
           <x>190</x>
@@ -1035,8 +1061,14 @@ border-image: url(:/images/Images/bg-Light-Blue.png);
 image: url(:/images/Images/bg-Light-Blue.png);</string>
         </property>
         <property name="sortingEnabled">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
+        <attribute name="headerVisible">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="headerShowSortIndicator" stdset="0">
+         <bool>false</bool>
+        </attribute>
         <column>
          <property name="text">
           <string>Certificates Overview</string>
@@ -1213,6 +1245,38 @@ font: 10pt &quot;Arial&quot;;</string>
          <string>Tamanho da Chave</string>
         </property>
        </widget>
+       <widget class="QPushButton" name="btnCert_Register">
+        <property name="geometry">
+         <rect>
+          <x>400</x>
+          <y>340</y>
+          <width>85</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font/>
+        </property>
+        <property name="text">
+         <string>&amp;Register</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnCert_Details">
+        <property name="geometry">
+         <rect>
+          <x>400</x>
+          <y>370</y>
+          <width>85</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font/>
+        </property>
+        <property name="text">
+         <string>&amp;Details &gt;&gt;</string>
+        </property>
+       </widget>
       </widget>
       <widget class="QWidget" name="page_PINCodes">
        <property name="styleSheet">
@@ -1265,50 +1329,6 @@ font: 10pt &quot;Arial&quot;;</string>
         <property name="readOnly">
          <bool>true</bool>
         </property>
-       </widget>
-       <widget class="QWidget" name="layoutWidget">
-        <property name="geometry">
-         <rect>
-          <x>410</x>
-          <y>210</y>
-          <width>261</width>
-          <height>181</height>
-         </rect>
-        </property>
-        <layout class="QGridLayout" name="_10">
-         <item row="1" column="0" colspan="3">
-          <widget class="QLabel" name="lblCert_InfoAdd">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">background-image: url(:/images/Images/alpha.png);</string>
-           </property>
-           <property name="text">
-            <string>To use your identity card with applications like Internet Explorer, Microsoft Offfice,OpenOffice.org, Adobe Reader, Outlook, ... you first have to register the card in Windows. Select a certificate and click the &quot;Register&quot; button to register your certificates</string>
-           </property>
-           <property name="wordWrap">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="2">
-          <spacer>
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>108</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
        </widget>
        <widget class="QTreeWidget" name="treePIN">
         <property name="geometry">
@@ -1385,38 +1405,6 @@ color: rgb(255, 102, 0);</string>
         </property>
         <property name="text">
          <string>Change PIN</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="btnCert_Register">
-        <property name="geometry">
-         <rect>
-          <x>440</x>
-          <y>390</y>
-          <width>85</width>
-          <height>27</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font/>
-        </property>
-        <property name="text">
-         <string>&amp;Register</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="btnCert_Details">
-        <property name="geometry">
-         <rect>
-          <x>550</x>
-          <y>390</y>
-          <width>85</width>
-          <height>27</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font/>
-        </property>
-        <property name="text">
-         <string>&amp;Details &gt;&gt;</string>
         </property>
        </widget>
        <widget class="QLabel" name="lbl_PIN_type">
