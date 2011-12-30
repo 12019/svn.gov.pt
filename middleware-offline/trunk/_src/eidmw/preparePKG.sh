@@ -7,12 +7,13 @@ mkdir -p pteid-pkg/lib
 mkdir -p pteid-pkg/bin
 mkdir -p pteid-pkg/eidgui
 mkdir -p pteid-pkg/jar
+mkdir -p pteid-pkg/misc/certs/
 
 cp -r lib/*  			pteid-pkg/lib/
 cp -r bin/*  			pteid-pkg/bin/
 cp -r eidgui/*.qm		pteid-pkg/eidgui/
 cp -r jar/pteid35libJava.jar	pteid-pkg/jar/
-
+cp misc/certs/*.der		pteid-pkg/misc/certs/
 
 echo "#!/bin/bash" > pteid-pkg/install_pteid.sh
 
@@ -20,6 +21,16 @@ echo "echo \"Este script instala a aplicação do cartão de cidadao\"" >> pteid
 echo "uid=\`id -u\`"  >> pteid-pkg/install_pteid.sh
 echo "if [ \$uid -eq 0 ]"  >> pteid-pkg/install_pteid.sh
 echo "then"  >> pteid-pkg/install_pteid.sh
+
+
+# Add Certs
+list_of_files=`find misc/certs/ -name "*.der"`
+for file in $list_of_files;
+do
+	echo "  install -m 755 -p \"$file\" \"/usr/local/share/certs\"" >> pteid-pkg/install_pteid.sh
+done
+
+echo "  install -m 755 -p \"lib/libpteidpp2-gempc.so\" \"/usr/local/lib/pteidpp/libpteidpp2-gempc.so\"" >> pteid-pkg/install_pteid.sh
 
 echo "  install -m 755 -p \"lib/libpteidcommon.so.3.5.5\" \"/usr/local/lib/libpteidcommon.so.3.5.5\"" >> pteid-pkg/install_pteid.sh
 echo "  ln -f -s /usr/local/lib/libpteidcommon.so.3.5.5 /usr/local/lib/libpteidcommon.so"  >> pteid-pkg/install_pteid.sh
@@ -43,17 +54,6 @@ echo "  install -m 755 -p \"lib/libcardpluginPteid.so.3.0.1\" \"/usr/local/lib/l
 echo "  ln -s -f /usr/local/lib/libcardpluginPteid.so.3.0.1 /usr/local/lib/libcardpluginPteid.so"  >> pteid-pkg/install_pteid.sh
 echo "  ln -s -f /usr/local/lib/libcardpluginPteid.so.3.0.1 /usr/local/lib/libcardpluginPteid.so.3"  >> pteid-pkg/install_pteid.sh
 echo "  ln -s -f /usr/local/lib/libcardpluginPteid.so.3.0.1 /usr/local/lib/libcardpluginPteid.so.3.0"  >> pteid-pkg/install_pteid.sh
-
-echo "  install -m 755 -p \"lib/libcardpluginFull__ACS__.so.3.5.5\" \"/usr/local/lib/libcardpluginFull__ACS__.so.3.5.5\""  >> pteid-pkg/install_pteid.sh
-echo "  ln -s -f /usr/local/lib/libcardpluginFull__ACS__.so.3.5.5 /usr/local/lib/libcardpluginFull__ACS__.so"  >> pteid-pkg/install_pteid.sh
-echo "  ln -s -f /usr/local/lib/libcardpluginFull__ACS__.so.3.5.5 /usr/local/lib/libcardpluginFull__ACS__.so.3"  >> pteid-pkg/install_pteid.sh
-echo "  ln -s -f /usr/local/lib/libcardpluginFull__ACS__.so.3.5.5 /usr/local/lib/libcardpluginFull__ACS__.so.3.5"  >> pteid-pkg/install_pteid.sh
-
-echo "  install -m 755 -p \"lib/libsiscardplugin1__ACS__.so.3.5.5\" \"/usr/local/lib/libsiscardplugin1__ACS__.so.3.5.5\""  >> pteid-pkg/install_pteid.sh
-echo "  ln -s -f /usr/local/lib/libsiscardplugin1__ACS__.so.3.5.5 /usr/local/lib/libsiscardplugin1__ACS__.so"  >> pteid-pkg/install_pteid.sh
-echo "  ln -s -f /usr/local/lib/libsiscardplugin1__ACS__.so.3.5.5 /usr/local/lib/libsiscardplugin1__ACS__.so.3 "  >> pteid-pkg/install_pteid.sh
-echo "  ln -s -f /usr/local/lib/libsiscardplugin1__ACS__.so.3.5.5 /usr/local/lib/libsiscardplugin1__ACS__.so.3.5"  >> pteid-pkg/install_pteid.sh
-
 
 
 echo "  install -m 755 -p \"lib/libpteidpkcs11.so.3.5.5\" \"/usr/local/lib/libpteidpkcs11.so.3.5.5\""  >> pteid-pkg/install_pteid.sh

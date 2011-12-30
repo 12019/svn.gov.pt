@@ -619,6 +619,104 @@ PTEID_Certificate &PTEID_Certificates::getCert(unsigned long ulIndex)
 	return *out;
 }
 
+const char *PTEID_Certificates::getExternalCertData(int cert)
+{
+	const unsigned char *out;
+	const char *nout;
+	BEGIN_TRY_CATCH
+
+	APL_Certif *pimpl=static_cast<APL_Certif *>(m_impl);
+	out = pimpl->ExternalCertData(cert);
+
+	nout = (const char *)out;
+	END_TRY_CATCH
+
+	return nout;
+}
+
+int PTEID_Certificates::getExternalCertDataSize(int cert)
+{
+	int out;
+	BEGIN_TRY_CATCH
+
+	APL_Certif *pimpl=static_cast<APL_Certif *>(m_impl);
+	out = pimpl->ExternalCertDataSize(cert);
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Certificates::getExternalCertSubject(int cert)
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_Certif *pimpl=static_cast<APL_Certif *>(m_impl);
+	out = pimpl->ExternalCertSubject(cert);
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Certificates::getExternalCertIssuer(int cert)
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_Certif *pimpl=static_cast<APL_Certif *>(m_impl);
+	out = pimpl->ExternalCertIssuer(cert);
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Certificates::getExternalCertNotBefore(int cert)
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_Certif *pimpl=static_cast<APL_Certif *>(m_impl);
+	out = pimpl->ExternalCertNotBefore(cert);
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Certificates::getExternalCertNotAfter(int cert)
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_Certif *pimpl=static_cast<APL_Certif *>(m_impl);
+	out = pimpl->ExternalCertNotAfter(cert);
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+unsigned long PTEID_Certificates::getExternalCertKeylenght(int cert)
+{
+	unsigned long out;
+
+	BEGIN_TRY_CATCH
+
+	APL_Certif *pimpl=static_cast<APL_Certif *>(m_impl);
+	out = pimpl->ExternalCertKeylenght(cert);
+
+	END_TRY_CATCH
+
+	return out;
+}
+
 PTEID_Certificate &PTEID_Certificates::getCert(PTEID_CertifType type)
 {
 	PTEID_Certificate *out = NULL;
@@ -630,11 +728,9 @@ PTEID_Certificate &PTEID_Certificates::getCert(PTEID_CertifType type)
 	unsigned long idxObject;
 	APL_CertifType aplType;
 	bool bOnlyVisible=true;
-	std::cout << "getcert 1 \n";
  	switch(type)
 	{
 		case PTEID_CERTIF_TYPE_ROOT:
-			std::cout << "root \n";
 			idxObject=INCLUDE_OBJECT_ROOTCERT;
 			aplType=APL_CERTIF_TYPE_ROOT;
 			break;
@@ -709,7 +805,7 @@ PTEID_Certificate &PTEID_Certificates::addCertificate(PTEID_ByteArray &cert)
 	APL_Certifs *pimpl=static_cast<APL_Certifs *>(m_impl);
 
 	CByteArray baCert(cert.GetBytes(),cert.Size());
-	APL_Certif *pAplCert=pimpl->addCert(baCert);
+	APL_Certif *pAplCert=pimpl->addCert(baCert, APL_CERTIF_TYPE_ROOT, false);
 
 	out = dynamic_cast<PTEID_Certificate *>(getObject(pAplCert));
 	
@@ -878,28 +974,29 @@ bool PTEID_Pin::verifyPin()
 	return out;
 }
 
-bool PTEID_Pin::verifyPin(const char *csPin,unsigned long &ulRemaining)
+bool PTEID_Pin::verifyPin(const char *csPin,unsigned long &ulRemaining,bool bShowDlg)
 {
 	bool out = false;
 
 	BEGIN_TRY_CATCH
 
 	APL_Pin *pimpl=static_cast<APL_Pin *>(m_impl);
-	out = pimpl->verifyPin(csPin,ulRemaining);
+	out = pimpl->verifyPin(csPin,ulRemaining,bShowDlg);
 	
 	END_TRY_CATCH
 
 	return out;
 }
 
-bool PTEID_Pin::changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName)
+bool PTEID_Pin::changePin(const char *csPin1,const char *csPin2,unsigned long &ulRemaining, const char *PinName,bool bShowDlg)
 {
+
 	bool out = false;
 
 	BEGIN_TRY_CATCH
 
 	APL_Pin *pimpl=static_cast<APL_Pin *>(m_impl);
-	out = pimpl->changePin(csPin1,csPin2,ulRemaining, PinName);
+	out = pimpl->changePin(csPin1,csPin2,ulRemaining, PinName, bShowDlg);
 	
 	END_TRY_CATCH
 

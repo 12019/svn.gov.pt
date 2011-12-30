@@ -21,14 +21,14 @@
            Language="!(loc.Lang)"
            Codepage="1252"
            Version="$(var.ProductVersion)"
-           Manufacturer="Belgian Government"
+           Manufacturer="Portuguese Government"
            UpgradeCode="$(var.UpgradeCode)">
 
     <Package Id="$(var.PackageCode)"
              InstallerVersion="200"
              Keywords="Portugal e-ID Middleware Installer"
              Platform="x64"
-             Manufacturer="Belgian Government"
+             Manufacturer="Portuguese Government"
              Compressed="yes"
              InstallPrivileges="elevated"
     />
@@ -180,11 +180,9 @@
 
     <DirectoryRef Id="CERTSDIR">
       <Component Id="Certs" Guid="{750F471B-6A83-4118-A0AF-2A138B770AC6}">
-        <File Id="pteidcertportugalrca.der" Name="pteid-cert-portugalrca.der" KeyPath="yes" Source="..\..\certs\pteid-cert-portugalrca.der" />
-        <File Id="pteidcertportugalrca2.der" Name="pteid-cert-portugalrca2.der" KeyPath="no" Source="..\..\certs\pteid-cert-portugalrca2.der" />
-        <File Id="pteidcertgovernment.der" Name="pteid-cert-government.der" KeyPath="no" Source="..\..\..\..\ThirdParty\pteid_sdk\2.6\bin\eidstore\certs\pteid-cert-government.der" />
-        <File Id="pteidcertgovernment2004.der" Name="pteid-cert-government2004.der" KeyPath="no" Source="..\..\..\..\ThirdParty\pteid_sdk\2.6\bin\eidstore\certs\pteid-cert-government2004.der" />
-        <File Id="pteidcertgovernment2005.der" Name="pteid-cert-government2005.der" KeyPath="no" Source="..\..\..\..\ThirdParty\pteid_sdk\2.6\bin\eidstore\certs\pteid-cert-government2005.der" />
+	<File Id="CartaodeCidadao001.der" Name="CartaodeCidadao001.der" KeyPath="yes" Source="..\..\certs\CartaodeCidadao001.der" />
+	<File Id="ECRaizEstado_novo_assinado_GTE.der" Name="ECRaizEstado_novo_assinado_GTE.der" KeyPath="yes" Source="..\..\certs\ECRaizEstado_novo_assinado_GTE.der" />
+	<File Id="GTEGlobalRoot.der" Name="GTEGlobalRoot.der" KeyPath="yes" Source="..\..\certs\GTEGlobalRoot.der" />
       </Component>
     </DirectoryRef>
 
@@ -590,6 +588,7 @@
         <!--File Id="ch44xxeid.dll" Name="ch44xxeid.dll" Source="..\..\..\pinpad\ch44xxeid.dll" /-->
         <!--File Id="sprx32eid.dll" Name="sprx32eid.dll" Source="..\..\..\pinpad\sprx32eid.dll" /-->
         <File Id="xireid.dll" Name="xireid.dll" Source="..\..\..\..\ThirdParty\pteid_sdk\2.6\bin\pinpad\xireid.dll" />
+        <File Id="pteidpp2gempc.dll" Name="pteidpp2-gempc.dll" Source="..\..\..\_Binaries35\Release\pteidpp2-gempc.dll" />
       </Component>
     </DirectoryRef>
     <DirectoryRef Id="TARGETDIR">

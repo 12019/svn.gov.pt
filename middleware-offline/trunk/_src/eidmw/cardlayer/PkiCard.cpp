@@ -170,30 +170,13 @@ void CPkiCard::WriteUncachedFile(const std::string & csPath,
 
 unsigned char CPkiCard::PinUsage2Pinpad(const tPin & Pin, const tPrivKey *pKey)
 {
-	DlgPinUsage dlgUsage = PinUsage2Dlg(Pin, pKey);
-	unsigned char ucPinpadUsage = EIDMW_PP_TYPE_UNKNOWN;
-
-	switch(dlgUsage)
-	{
-	case DLG_PIN_AUTH:
-		ucPinpadUsage = EIDMW_PP_TYPE_AUTH;
-		break;
-	case DLG_PIN_SIGN:
-		ucPinpadUsage = EIDMW_PP_TYPE_SIGN;
-		break;
-	case DLG_PIN_ADDRESS:
-		ucPinpadUsage = EIDMW_PP_TYPE_ADDR;
-		break;
-	default:
-	  break;
-	}
-
-	return ucPinpadUsage;
+	//Its hackish but works for IAS and Gemsafe Cards
+	return (char)Pin.ulID;
 }
 
 bool CPkiCard::PinCmd(tPinOperation operation, const tPin & Pin,
         const std::string & csPin1, const std::string & csPin2,
-        unsigned long & ulRemaining, const tPrivKey *pKey)
+        unsigned long & ulRemaining, const tPrivKey *pKey, bool bShowDlg)
 {
 	// No standard for Logoff, so each card has to implement
 	// it's own command here.
@@ -241,7 +224,7 @@ bad_pin:
 		// Send the command
 		if (csPin1.empty() && bUsePinpad)
 			oResp = m_poPinpad->PinCmd(operation, Pin,
-			PinUsage2Pinpad(Pin, pKey), oAPDU, ulRemaining);
+			PinUsage2Pinpad(Pin, pKey), oAPDU, ulRemaining, bShowDlg);
 		else
 			oResp = SendAPDU(oAPDU);
 	}
@@ -282,7 +265,7 @@ bad_pin:
 
 bool CPkiCard::PinCmdIAS(tPinOperation operation, const tPin & Pin,
         const std::string & csPin1, const std::string & csPin2,
-        unsigned long & ulRemaining, const tPrivKey *pKey)
+        unsigned long & ulRemaining, const tPrivKey *pKey, bool bShowDlg)
 {
 	// No standard for Logoff, so each card has to implement
 	// it's own command here.
@@ -357,7 +340,7 @@ bad_pin:
 		// Send the command
 		if (csPin1.empty() && bUsePinpad) {
 			oResp = m_poPinpad->PinCmd(operation, Pin,
-			PinUsage2Pinpad(Pin, pKey), oAPDU, ulRemaining);
+			PinUsage2Pinpad(Pin, pKey), oAPDU, ulRemaining, bShowDlg);
 		} else {
 			if (operation != PIN_OP_VERIFY) {
 				oResp = SendAPDU(oAPDU);
