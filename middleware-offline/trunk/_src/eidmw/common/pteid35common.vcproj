@@ -101,88 +101,6 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
-			CharacterSet="1"
-			WholeProgramOptimization="1"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-				CommandLine="..\set_build_nbr.bat"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				PreprocessorDefinitions="PTEID_35;WIN32;NDEBUG;_WINDOWS;_USRDLL;EIDMW_CMN_EXPORT"
-				RuntimeLibrary="2"
-				TreatWChar_tAsBuiltInType="true"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-				Detect64BitPortabilityProblems="true"
-				DebugInformationFormat="3"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="PTEID_35;_UNICODE;UNICODE"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				LinkLibraryDependencies="false"
-				AdditionalDependencies="WS2_32.Lib"
-				OutputFile="..\_Binaries35\$(ConfigurationName)\pteid35$(ProjectName).dll"
-				LinkIncremental="1"
-				GenerateDebugInformation="true"
-				SubSystem="2"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				CommandLine="..\misc\pteid\pteid35.bat"
-			/>
-		</Configuration>
-		<Configuration
 			Name="Debug|x64"
 			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
@@ -266,6 +184,88 @@
 			/>
 		</Configuration>
 		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			CharacterSet="1"
+			WholeProgramOptimization="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+				CommandLine="..\set_build_nbr.bat"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				PreprocessorDefinitions="PTEID_35;WIN32;NDEBUG;_WINDOWS;_USRDLL;EIDMW_CMN_EXPORT"
+				RuntimeLibrary="2"
+				TreatWChar_tAsBuiltInType="true"
+				UsePrecompiledHeader="0"
+				WarningLevel="3"
+				Detect64BitPortabilityProblems="true"
+				DebugInformationFormat="3"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="PTEID_35;_UNICODE;UNICODE"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				LinkLibraryDependencies="false"
+				AdditionalDependencies="WS2_32.Lib"
+				OutputFile="..\_Binaries35\$(ConfigurationName)\pteid35$(ProjectName).dll"
+				LinkIncremental="1"
+				GenerateDebugInformation="true"
+				SubSystem="2"
+				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
+				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				CommandLine="..\misc\pteid\pteid35.bat"
+			/>
+		</Configuration>
+		<Configuration
 			Name="Release|x64"
 			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
@@ -297,6 +297,7 @@
 				TreatWChar_tAsBuiltInType="true"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
+				SuppressStartupBanner="false"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
 			/>
@@ -313,7 +314,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkLibraryDependencies="false"
-				AdditionalDependencies="WS2_32.Lib"
+				AdditionalDependencies="WS2_32.lib"
 				OutputFile="..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteid35$(ProjectName).dll"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
@@ -345,7 +346,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine=""
+				CommandLine="..\misc\pteid\pteid35_64.bat"
 			/>
 		</Configuration>
 	</Configurations>
@@ -399,6 +400,10 @@
 			</File>
 			<File
 				RelativePath=".\MWException.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\StringOps.cpp"
 				>
 			</File>
 			<File
@@ -468,6 +473,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\StringOps.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Thread.h"
 				>
 			</File>
@@ -485,6 +494,10 @@
 			</File>
 			<File
 				RelativePath=".\Util.h"
+				>
+			</File>
+			<File
+				RelativePath=".\xmlUserData.h"
 				>
 			</File>
 		</Filter>

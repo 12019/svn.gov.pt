@@ -314,6 +314,18 @@ unsigned long CCard::PinStatus(const tPin & Pin)
 	throw CMWEXCEPTION(EIDMW_ERR_NOT_SUPPORTED);
 }
 
+CByteArray CCard::RootCAPubKey(){
+	throw CMWEXCEPTION(EIDMW_ERR_NOT_SUPPORTED);
+}
+
+bool CCard::Activate(const char *pinCode, CByteArray &BCDDate){
+	throw CMWEXCEPTION(EIDMW_ERR_NOT_SUPPORTED);
+}
+
+bool CCard::unlockPIN(const tPin &pin, const tPin *puk, const char *pszPuk, const char *pszNewPin, unsigned long *triesLeft){
+	throw CMWEXCEPTION(EIDMW_ERR_NOT_SUPPORTED);
+}
+
 bool CCard::PinCmd(tPinOperation operation, const tPin & Pin,
     const std::string & csPin1, const std::string & csPin2,
     unsigned long & ulRemaining, const tPrivKey *pKey,
@@ -365,7 +377,7 @@ CByteArray CCard::SendAPDU(const CByteArray & oCmdAPDU)
 
 	CByteArray oResp = m_poContext->m_oPCSC.Transmit(m_hCard, oCmdAPDU, &lRetVal);
 
-	if ( m_cardType == CARD_PTEID &&
+	if ( (m_cardType == CARD_PTEID_IAS07 || m_cardType == CARD_PTEID_IAS101) &&
 			(lRetVal == SCARD_E_COMM_DATA_LOST || lRetVal == SCARD_E_NOT_TRANSACTED) )
 	{
 		m_poContext->m_oPCSC.Recover(m_hCard, &m_ulLockCount);

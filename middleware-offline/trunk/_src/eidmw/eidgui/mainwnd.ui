@@ -57,7 +57,7 @@
        <string notr="true">background-image: url(:/images/Images/bg_Empty.png);</string>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>6</number>
       </property>
       <widget class="QWidget" name="page_Wellcome"/>
       <widget class="QWidget" name="page_Identity">
@@ -370,18 +370,31 @@
          <bool>true</bool>
         </property>
        </widget>
-       <zorder>lblIdentity_ImgPerson</zorder>
-       <zorder>txtIdentity_GivenNames</zorder>
-       <zorder>txtIdentity_Name</zorder>
-       <zorder>txtIdentity_Sex</zorder>
-       <zorder>txtIdentity_Height</zorder>
-       <zorder>txtIdentity_Country</zorder>
-       <zorder>txtIdentity_Nationality</zorder>
-       <zorder>txtIdentity_BirthDate</zorder>
-       <zorder>txtIdentity_Parents_Father</zorder>
-       <zorder>txtIdentity_DocumentNumber</zorder>
-       <zorder>txtIdentity_ValidUntil</zorder>
-       <zorder>txtIdentity_Parents_Mother</zorder>
+       <widget class="QLineEdit" name="txtIdentity_AccidentalIndications">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>400</y>
+          <width>381</width>
+          <height>61</height>
+         </rect>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>240</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-image: url(:/images/Images/bg-Blue.png);</string>
+        </property>
+        <property name="frame">
+         <bool>false</bool>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
       </widget>
       <widget class="QWidget" name="page_IdentityExtra">
        <property name="styleSheet">
@@ -1521,6 +1534,31 @@ font: 10pt &quot;Arial&quot;;</string>
          <string>Bytes Disponíveis:</string>
         </property>
        </widget>
+       <widget class="QLineEdit" name="txtPersoDataCount">
+        <property name="geometry">
+         <rect>
+          <x>140</x>
+          <y>410</y>
+          <width>87</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">background-image: url(:/images/Images/bg-Blue.png);</string>
+        </property>
+        <property name="frame">
+         <bool>false</bool>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
       </widget>
      </widget>
     </widget>
@@ -1968,7 +2006,7 @@ font: 10pt &quot;Arial&quot;;</string>
      <property name="geometry">
       <rect>
        <x>15</x>
-       <y>65</y>
+       <y>85</y>
        <width>51</width>
        <height>17</height>
       </rect>
@@ -1997,6 +2035,24 @@ background-image: url(:/images/Images/alpha.png);</string>
      </property>
      <property name="text">
       <string/>
+     </property>
+    </widget>
+    <widget class="QLabel" name="lbl_menuCard_Pdf">
+     <property name="geometry">
+      <rect>
+       <x>15</x>
+       <y>65</y>
+       <width>81</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-image: url(:/images/Images/alpha.png);
+color: rgb(108, 108, 108);
+font: 10pt &quot;Arial&quot;;</string>
+     </property>
+     <property name="text">
+      <string>» Pdf</string>
      </property>
     </widget>
    </widget>
@@ -2063,6 +2119,24 @@ background-image: url(:/images/Images/alpha.png);</string>
      </property>
      <property name="text">
       <string/>
+     </property>
+    </widget>
+    <widget class="QLabel" name="lbl_menuTools_Signature">
+     <property name="geometry">
+      <rect>
+       <x>15</x>
+       <y>70</y>
+       <width>81</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-image: url(:/images/Images/alpha.png);
+color: rgb(108, 108, 108);
+font: 10pt &quot;Arial&quot;;</string>
+     </property>
+     <property name="text">
+      <string>» Signature</string>
      </property>
     </widget>
    </widget>
@@ -2156,7 +2230,7 @@ background-image: url(:/images/Images/alpha.png);</string>
       <x>590</x>
       <y>780</y>
       <width>126</width>
-      <height>71</height>
+      <height>111</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -2184,7 +2258,7 @@ font: 10pt &quot;Arial&quot;;</string>
      <property name="geometry">
       <rect>
        <x>15</x>
-       <y>45</y>
+       <y>68</y>
        <width>81</width>
        <height>17</height>
       </rect>
@@ -2213,6 +2287,24 @@ background-image: url(:/images/Images/alpha.png);</string>
      </property>
      <property name="text">
       <string/>
+     </property>
+    </widget>
+    <widget class="QLabel" name="lbl_menuHelp_updates">
+     <property name="geometry">
+      <rect>
+       <x>15</x>
+       <y>45</y>
+       <width>81</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-image: url(:/images/Images/alpha.png);
+color: rgb(108, 108, 108);
+font: 10pt &quot;Arial&quot;;</string>
+     </property>
+     <property name="text">
+      <string>» Updates</string>
      </property>
     </widget>
    </widget>
@@ -2447,22 +2539,6 @@ background-image: url(:/images/Images/alpha.png);</string>
   <action name="actionIdentity_Card">
    <property name="text">
     <string>&amp;Identity Card</string>
-   </property>
-  </action>
-  <action name="actionSIS_Card">
-   <property name="text">
-    <string>SIS Card</string>
-   </property>
-   <property name="iconText">
-    <string>SIS Card</string>
-   </property>
-   <property name="toolTip">
-    <string>SIS Card</string>
-   </property>
-  </action>
-  <action name="actionKids_Card">
-   <property name="text">
-    <string>Kids Card</string>
    </property>
   </action>
   <action name="actionForeigner_Card">

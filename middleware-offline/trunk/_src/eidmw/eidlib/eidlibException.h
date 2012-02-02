@@ -141,9 +141,6 @@ public:
   * Used in : - PTEID_ReaderContext::getCardType()
   *           - PTEID_ReaderContext::getCard()
   *           - PTEID_ReaderContext::getEIDCard()
-  *           - PTEID_ReaderContext::getKidsCard()
-  *           - PTEID_ReaderContext::getForeignerCard()
-  *           - PTEID_ReaderContext::getSISCard()
   *********************************************************************************/
 class PTEID_ExNoCardPresent: public PTEID_Exception
 {
@@ -157,9 +154,6 @@ public:
   *
   *	Throw when the card type doesn't correspond to what is asked
   * Used in : - PTEID_ReaderContext::getEIDCard()
-  *           - PTEID_ReaderContext::getKidsCard()
-  *           - PTEID_ReaderContext::getForeignerCard()
-  *           - PTEID_ReaderContext::getSISCard()
   *********************************************************************************/
 class PTEID_ExCardBadType: public PTEID_Exception
 {
@@ -192,32 +186,6 @@ class PTEID_ExCertNoIssuer: public PTEID_Exception
 public:
 	PTEIDSDK_API PTEID_ExCertNoIssuer();				/**< Constructor */
 	PTEIDSDK_API virtual ~PTEID_ExCertNoIssuer();		/**< Destructor */
-};
-
-/******************************************************************************//**
-  * Exception class Certificate No CRL (error code = EIDMW_ERR_CERT_NOCRL)
-  *
-  *	Throw when ask for the CRL when the certificate contains no CDP
-  * Used in : - PTEID_Certificate::getCrl()
-  *********************************************************************************/
-class PTEID_ExCertNoCrl: public PTEID_Exception
-{
-public:
-	PTEIDSDK_API PTEID_ExCertNoCrl();					/**< Constructor */
-	PTEIDSDK_API virtual ~PTEID_ExCertNoCrl();		/**< Destructor */
-};
-
-/******************************************************************************//**
-  * Exception class Certificate No OCSP responder (error code = EIDMW_ERR_CERT_NOOCSP)
-  *
-  *	Throw when ask for the OCSP response when there is no responder
-  * Used in : - PTEID_Certificate::getOcspResponse()
-  *********************************************************************************/
-class PTEID_ExCertNoOcsp: public PTEID_Exception
-{
-public:
-	PTEIDSDK_API PTEID_ExCertNoOcsp();					/**< Constructor */
-	PTEIDSDK_API virtual ~PTEID_ExCertNoOcsp();		/**< Destructor */
 };
 
 /******************************************************************************//**

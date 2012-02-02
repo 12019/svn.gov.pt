@@ -9,6 +9,8 @@ TEMPLATE = app
 TARGET = $${EIDGUI} 
 VERSION = $${EIDGUI_MAJ}.$${EIDGUI_MIN}.$${EIDGUI_REV}
 
+QT += network
+
 message("Compile $$TARGET")
 
 ###
@@ -97,13 +99,17 @@ PRE_TARGETDEPS += $${translation_de.target} \
 
 DEPENDPATH += . ../dialogs 
 INCLUDEPATH += . ../dialogs ../eidlib ../_Builds ../common
+INCLUDEPATH += /usr/include/cairo
 
 LIBS += -Wl,-rpath,/usr/local/lib/pteidqt
 
 LIBS += -L../lib  \
         -l$${EIDLIB} \
 	-l$${COMMONLIB} \
-        -l$${APPLAYERLIB}
+        -l$${APPLAYERLIB} \
+        -lfreeimagePTEiD
+
+LIBS += -lcairo
 
 isEmpty(EMULATE_CARDLAYER) {
   LIBS +=	-l$${CARDLAYERLIB} 
@@ -121,23 +127,29 @@ macx:LIBS += -L../../ThirdParty/Xerces/Xerces-2.8.0-mac/lib
 HEADERS += CardInformation.h \
            dlgAbout.h \
            dlgOptions.h \
+           httpwindow.h \
+           AutoUpdates.h \
            mainwnd.h \
            Settings.h \
            genpur.h \
            picturepopup.h \
            qtsingleapplication.h \
            dlgprint.h \
+           dlgsignature.h \
 	   ../_Builds/pteidversions.h \
            ../dialogs/dialogs.h 
            
-FORMS += dlgAbout.ui dlgOptions.ui mainwnd.ui picturepopup.ui dlgPrint.ui
+FORMS += dlgAbout.ui dlgOptions.ui mainwnd.ui picturepopup.ui dlgPrint.ui dlgSignature.ui
 
 SOURCES += CardInformation.cpp \
            dlgAbout.cpp \
            dlgOptions.cpp \
+           httpwindow.cpp \
+           AutoUpdates.cpp \
            main.cpp \
            mainwnd.cpp \
            dlgprint.cpp \
+           dlgsignature.cpp \
            picturepopup.cpp \
            qtsingleapplication.cpp \
            genpur.cpp

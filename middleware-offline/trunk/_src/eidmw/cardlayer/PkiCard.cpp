@@ -98,21 +98,18 @@ CByteArray CPkiCard::ReadUncachedFile(const std::string & csPath,
     bool bEOF = false;
     for (unsigned long i = 0; i < ulMaxLen && !bEOF; i += MAX_APDU_READ_LEN)
     {
-        //unsigned long ulLen = ulMaxLen - i <= MAX_APDU_READ_LEN ?
-	//	ulMaxLen - i : MAX_APDU_READ_LEN;
-		
-        unsigned long ulLen = ulMaxLen - i <= 256 ?
-		ulMaxLen - i : 0;
+        unsigned long ulLen = ulMaxLen - i <= MAX_APDU_READ_LEN ?
+	    ulMaxLen - i : 0;
 	
 	
-        CByteArray oResp = ReadBinary(ulOffset + i, ulLen);//62);//ulLen);
+        CByteArray oResp = ReadBinary(ulOffset + i, ulLen);
 
 
         unsigned long ulSW12 = getSW12(oResp);
 
 
 		// If the file is a multiple of the block read size, you will get
-		// an SW12 = 6B00 (at least with BE eID) but that OK then..
+		// an SW12 = 6B00 (at least with PT eID) but that OK then..
         if (ulSW12 == 0x9000 || (i != 0 && ulSW12 == 0x6B00))
             oData.Append(oResp.GetBytes(), oResp.Size() - 2);
 		else if (ulSW12 == 0x6982) {
@@ -309,20 +306,23 @@ bad_pin:
 	init.Append(0x02);
 	SendAPDU(init);
 
-    if (operation != PIN_OP_VERIFY) {
-        //oPinBuf.Append(MakePinBuf(Pin, *pcsPin2, bUsePinpad));*/
-    	oAPDU = MakePinCmdIAS(PIN_OP_VERIFY, Pin); // add CLA, INS, P1, P2
-    	oAPDU.Append((unsigned char) oPinBuf.Size());  // add P3
-    	oAPDU.Append(oPinBuf);
-    	oAPDUCHANGE = MakePinCmdIAS(PIN_OP_CHANGE, Pin); // add CLA, INS, P1, P2
-    	oAPDUCHANGE.Append((unsigned char) oPinBuf.Size());  // add P3
-    	oAPDUCHANGE.Append(MakePinBuf(Pin, *pcsPin2, bUsePinpad));
-    } else {
-    	oAPDU = MakePinCmdIAS(PIN_OP_VERIFY, Pin); // add CLA, INS, P1, P2
-    	oAPDU.Append((unsigned char) oPinBuf.Size());  // add P3
-    	oAPDU.Append(oPinBuf);
-    }
 
+	switch(operation){
+	case PIN_OP_VERIFY:
+	case PIN_OP_RESET:
+		oAPDU = MakePinCmdIAS(operation, Pin); // add CLA, INS, P1, P2
+		oAPDU.Append((unsigned char) oPinBuf.Size());  // add P3
+		oAPDU.Append(oPinBuf);
+		break;
+	case PIN_OP_CHANGE:
+		oAPDU = MakePinCmdIAS(PIN_OP_VERIFY, Pin); // add CLA, INS, P1, P2
+		oAPDU.Append((unsigned char) oPinBuf.Size());  // add P3
+		oAPDU.Append(oPinBuf);
+		oAPDUCHANGE = MakePinCmdIAS(operation, Pin); // add CLA, INS, P1, P2
+		oAPDUCHANGE.Append((unsigned char) oPinBuf.Size());  // add P3
+		oAPDUCHANGE.Append(MakePinBuf(Pin, *pcsPin2, bUsePinpad));
+		break;
+	}
 
 	bool bSelected = false;
 
@@ -342,11 +342,15 @@ bad_pin:
 			oResp = m_poPinpad->PinCmd(operation, Pin,
 			PinUsage2Pinpad(Pin, pKey), oAPDU, ulRemaining, bShowDlg);
 		} else {
-			if (operation != PIN_OP_VERIFY) {
+			switch(operation){
+			case PIN_OP_VERIFY:
+			case PIN_OP_RESET:
+				oResp = SendAPDU(oAPDU);
+				break;
+			case PIN_OP_CHANGE:
 				oResp = SendAPDU(oAPDU);
 				oResp = SendAPDU(oAPDUCHANGE);
-			} else {
-				oResp = SendAPDU(oAPDU);
+				break;
 			}
 		}
 	}
@@ -417,7 +421,7 @@ CByteArray CPkiCard::Sign(const tPrivKey & key, const tPin & Pin,
     // then first do a Pin verify and then try again
 	MWLOG(LEV_INFO, MOD_CAL, L"     Trying to Sign (key: ID=0x%0x, algo=0x%0x, "
 		L"%d bytes input)", key.ulID, algo, oData.Size());
-	printf ("Trying to Sign (key: ID=0x%0x, algo=0x%0x, %d bytes input\n", key.ulID, algo, oData.Size());
+	//printf ("Trying to Sign (key: ID=0x%0x, algo=0x%0x, %d bytes input\n", key.ulID, algo, oData.Size());
     try
     {
         return SignInternal(key, algo, oData, &Pin);
@@ -650,6 +654,10 @@ CByteArray CPkiCard::MakePinCmdIAS(tPinOperation operation, const tPin & Pin)
         oCmd.Append(0x24);
         oCmd.Append(0x01); // P1
         break;
+    case PIN_OP_RESET:
+    	oCmd.Append(0x2C);
+    	oCmd.Append(0x02); // P1
+    	break;
     default:
         throw CMWEXCEPTION(EIDMW_ERR_PIN_OPERATION);
     }

@@ -45,6 +45,7 @@ typedef enum
 {
     PIN_OP_VERIFY,
     PIN_OP_CHANGE,
+    PIN_OP_RESET,
     PIN_OP_LOGOFF,
 } tPinOperation;
 
@@ -67,9 +68,9 @@ typedef enum
 
 typedef enum
 {
-    CARD_PTEID,
-    CARD_SIS,
-	CARD_UNKNOWN,
+	CARD_PTEID_IAS07,
+	CARD_PTEID_IAS101,
+    CARD_UNKNOWN,
 } tCardType;
 
 typedef enum

@@ -46,7 +46,6 @@
 #include "ByteArray.h"
 
 #include "CardPteidDef.h"
-#include "CardSISDef.h"
 
 XERCES_CPP_NAMESPACE_USE 
 
@@ -266,19 +265,7 @@ void EIDCardType_Processor::process( const XMLCh *const  chars
 	std::wstring w_chars = FromXMLCh(chars);
 	if ( 0 == w_chars.compare( utilStringWiden(CARDTYPE_NAME_PTEID_EID) ) )
 	{
-		((EID_DataStorage&)dataStorage).m_CardType = APL_CARDTYPE_PTEID_EID;
-	}
-	else if ( 0 == w_chars.compare(utilStringWiden(CARDTYPE_NAME_PTEID_KIDS)) )
-	{
-		((EID_DataStorage&)dataStorage).m_CardType = APL_CARDTYPE_PTEID_KIDS;
-	}
-	else if ( 0 == w_chars.compare(utilStringWiden(CARDTYPE_NAME_PTEID_FOREIGNER)) )
-	{
-		((EID_DataStorage&)dataStorage).m_CardType = APL_CARDTYPE_PTEID_FOREIGNER;
-	}
-	else if ( 0 == w_chars.compare(utilStringWiden(CARDTYPE_NAME_PTEID_SIS)) )
-	{
-		((EID_DataStorage&)dataStorage).m_CardType = APL_CARDTYPE_PTEID_SIS;
+		((EID_DataStorage&)dataStorage).m_CardType = APL_CARDTYPE_PTEID_IAS101;
 	}
 	else
 	{
@@ -441,8 +428,6 @@ size_t DataStorage::getDataSize(std::wstring const& path)
 EID_DataStorage::EID_DataStorage( void )
 	: m_CardType( APL_CARDTYPE_UNKNOWN )
 {
-	m_EIDStoreFields.push_back(utilStringWiden(SIS_XML_PATH_FILE_ID).c_str());
-
 	m_EIDStoreFields.push_back(utilStringWiden(PTEID_XML_PATH_FILE_ID).c_str());
 	m_EIDStoreFields.push_back(utilStringWiden(PTEID_XML_PATH_FILE_IDSIGN).c_str());
 	m_EIDStoreFields.push_back(utilStringWiden(PTEID_XML_PATH_FILE_ADDR).c_str());
@@ -620,7 +605,6 @@ bool EIDMW_XMLParser::parse( MemBufInputSource* pMemBufIS				//<! The memory inp
 	catch (const XMLException& e) 
 	{
 		char* message = XMLString::transcode(e.getMessage());
-		std::cout << "Exception message is: \n"	<< message << "\n";
 		XMLString::release(&message);
 		return false;
 	}
@@ -678,7 +662,6 @@ bool EIDMW_XMLParser::parse( void )
 	catch (const XMLException& e) 
 	{
 		char* message = XMLString::transcode(e.getMessage());
-		std::cout << "Exception message is: \n"	<< message << "\n";
 		XMLString::release(&message);
 		return false;
 	}
@@ -1037,7 +1020,7 @@ TagProcessor* XML_EIDTagHandler::createProcessor(const XMLCh* const localname, c
 
 //***************************************************
 // Xerces implemented functions to interpret the tags
-// of an EID XML file (EID, KIDS, FOREIGNER)
+// of an EID XML file (EID)
 //***************************************************
 void XML_EIDTagHandler::startDocument( void )
 {

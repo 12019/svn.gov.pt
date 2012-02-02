@@ -32,6 +32,17 @@ static const tFileInfo DEFAULT_FILE_INFO = {-1, -1, -1};
 static const tFileInfo PREFS_FILE_INFO_V1 = {-1, -1, 1};
 static const tFileInfo PREFS_FILE_INFO_V2 = {-1, -1, 0x85};
 
+/* martinho - the id must not be changed */
+static const unsigned long PTEIDNG_ACTIVATION_CODE_ID = 4;
+/* martinho - ANY_ID_BIGGER_THAN_6 will be the ulID in the tPin struct 1-6 are already taken */
+static const unsigned long ANY_ID_BIGGER_THAN_6 = 7;
+/* martinho - some meaningful label */
+static const string LABEL = "ACTIVATION_CODE";
+/* martinho - date in bcd format must have 4 bytes*/
+static const unsigned long BCDSIZE = 4;
+/* martinho - trace file*/
+static const string TRACEFILE = "3F000003";
+
 unsigned long ulVersion;	
 
 // If we want to 'hardcode' this plugin internally in the CAL, this function
@@ -60,7 +71,7 @@ static bool PteidCardSelectApplet(CContext *poContext, SCARDHANDLE hCard)
 
 static CByteArray ReadInternal(CPCSC *poPCSC, SCARDHANDLE hCard, unsigned long ulOffset, unsigned long ulMaxLen)
 {
-  	cout << "ReadInternal" << endl;
+
 	long lretVal = 0;
 	CByteArray oCmd(40);
 	unsigned char tucReadDat[] = {0x00, 0xA4, 0x04, 0x0C};
@@ -111,12 +122,10 @@ CCard *PTeidCardGetVersion (unsigned long ulVersion, const char *csReader,
 
 	if (bIsPtgemCard) 
 	{
-		cout << "IS Ptgemsafe" <<endl;
 		ulVersion = 1;
 		poContext->m_oPCSC.EndTransaction(hCard);
 		poCard = PteidCardGetInstance(ulVersion, csReader, hCard, poContext, poPinpad);
 	} else {
-		cout << "NOT Ptgemsafe" << endl;
 		ulVersion = 2;
 		poContext->m_oPCSC.BeginTransaction(hCard);
 		oData = ReadInternalIAS(&poContext->m_oPCSC, hCard, 0, ulReadLen);
@@ -137,7 +146,6 @@ CCard *PteidCardGetInstance(unsigned long ulVersion, const char *csReader,
 
 	if (ulVersion == 1)
 	{
-		cout << "selecionou gemsafe" << endl;
 		try {
 			bool bNeedToSelectApplet = false;
 			CByteArray oData;
@@ -145,7 +153,6 @@ CCard *PteidCardGetInstance(unsigned long ulVersion, const char *csReader,
 			// lmedinas CONFIRMED
 			unsigned char tucSelectApp[] = {0x00, 0xA4, 0x04, 0x00};
 			oCmd.Append(tucSelectApp, sizeof(tucSelectApp));
-			cout << "PteidCard.cpp: PteidCardGetInstance - oCmd.Append(tucSelectApp, sizeof(tucSelectApp));" << endl;
 			oCmd.Append((unsigned char) sizeof(GEMSAFE_PTEID_APPLET_AID));
 			oCmd.Append(GEMSAFE_PTEID_APPLET_AID, sizeof(GEMSAFE_PTEID_APPLET_AID));
 			long lRetVal;
@@ -156,7 +163,6 @@ CCard *PteidCardGetInstance(unsigned long ulVersion, const char *csReader,
 				oData = poContext->m_oPCSC.Transmit(hCard, oCmd, &lRetVal);
 				if (lRetVal == SCARD_E_COMM_DATA_LOST || lRetVal == SCARD_E_NOT_TRANSACTED)
 				{
-					cout << "PteidCard.cpp COMM_DATA_LOST " << endl;
 					unsigned long ulLockCount = 0;
 					poContext->m_oPCSC.Recover(hCard, &ulLockCount);
 
@@ -205,7 +211,6 @@ CCard *PteidCardGetInstance(unsigned long ulVersion, const char *csReader,
 
 	} else {
 		try {
-			cout << "Seleccionou ias" << endl;
 			bool bNeedToSelectApplet = false;
 			CByteArray oData;
 			CByteArray oCmd(40);
@@ -278,7 +283,14 @@ CPkiCard(hCard, poContext, poPinpad)
 {
 		//printf("++++ Pteid3\n");
 
-  m_cardType = CARD_PTEID;
+	switch (ulVersion){
+		case 1:
+			m_cardType = CARD_PTEID_IAS07;
+			break;
+		case 2:
+			m_cardType = CARD_PTEID_IAS101;
+			break;
+	}
   try {
 	  m_ucCLA = 0x00;
 	  if (ulVersion == 1 )
@@ -299,10 +311,10 @@ CPkiCard(hCard, poContext, poPinpad)
 
 		m_oCardData.Chop(2); // remove SW12 = '90 00'
 
-		m_oSerialNr = CByteArray(m_oCardData.GetBytes(), 16);
-
+		m_oSerialNr = CByteArray(m_oCardData.GetBytes(), m_oCardData.Size());
 		// Get Card Applet Version
 		m_AppletVersion = ulVersion;
+
 
 		//m_ucAppletVersion = m_oCardData.GetByte(21);
         /*if (m_ucAppletVersion < 0x20)
@@ -332,7 +344,7 @@ CPteidCard::~CPteidCard(void)
 
 tCardType CPteidCard::GetType()
 {
-    return CARD_PTEID;
+    return m_cardType;
 }
 
 CByteArray CPteidCard::GetSerialNrBytes()
@@ -353,24 +365,100 @@ std::string CPteidCard::GetPinpadPrefix()
 unsigned long CPteidCard::PinStatus(const tPin & Pin)
 {
 	long ulSW12 = 0;
-	
-    try
-    {
-        CByteArray oResp = SendAPDU(0x20, 0x00, (unsigned char) Pin.ulPinRef, 0);
-        
-	ulSW12 = getSW12(oResp);
-	MWLOG(LEV_DEBUG, MOD_CAL, L"PinStatus APDU returned: %x", ulSW12 );
-	if (ulSW12 == 0x9000)
-		return 3; //Maximum Try Counter for PteID Cards
 
-        return ulSW12 % 16;
-    }
-    catch(...)
-    {
-        //m_ucCLA = 0x00;
-	MWLOG(LEV_ERROR, MOD_CAL, L"Error in PinStatus", ulSW12);
-        throw;
-    }
+	try
+	{
+
+		if (m_cardType == CARD_PTEID_IAS101)
+			SelectFile((!Pin.csPath.empty()) ? Pin.csPath : "3F005F00"); // martinho pin 1 does not have cspath... why?
+
+		CByteArray oResp = SendAPDU(0x20, 0x00, (unsigned char) Pin.ulPinRef, 0);
+		ulSW12 = getSW12(oResp);
+		MWLOG(LEV_DEBUG, MOD_CAL, L"PinStatus APDU returned: %x", ulSW12 );
+		if (ulSW12 == 0x9000)
+			return 3; //Maximum Try Counter for PteID Cards
+
+		return ulSW12 % 16;
+	}
+	catch(...)
+	{
+		//m_ucCLA = 0x00;
+		MWLOG(LEV_ERROR, MOD_CAL, L"Error in PinStatus", ulSW12);
+		throw;
+	}
+}
+
+CByteArray CPteidCard::RootCAPubKey(){
+	CByteArray oResp;
+
+	try
+	{
+		CByteArray select("3F00",true);
+		oResp = SendAPDU(0xA4, 0x00, 0x0C, select);
+		getSW12(oResp, 0x9000);
+
+		//4D - extended header list, 04 - size, FFA001 - SDO root CA, 80 - give me all?
+		CByteArray getData("4D04FFA00180",true);
+		oResp = SendAPDU(0xCB, 0x3F, 0xFF, getData);
+		getSW12(oResp, 0x9000);
+		oResp.Chop(2); //martinho: remove the returning code 0x9000
+	}
+	catch(...)
+	{
+		MWLOG(LEV_ERROR, MOD_CAL, L"Error in RootCAPubKey");
+		throw;
+	}
+	return oResp;
+}
+
+
+bool CPteidCard::Activate(const char *pinCode, CByteArray &BCDDate){
+	/* the activation code is not listed in the internal card structures */
+	tPin activationPin = {true,LABEL,0,0,0,ANY_ID_BIGGER_THAN_6,0,0,8,8,8,PTEIDNG_ACTIVATION_CODE_ID,0x20,PIN_ENC_ASCII,"",""};
+	unsigned long ulRemaining;
+
+	bool bOK = PinCmd(PIN_OP_VERIFY, activationPin, pinCode, "", ulRemaining, NULL);
+	if (!bOK)
+		return bOK;
+
+	if (BCDDate.Size() != BCDSIZE)
+		return false;
+
+	CByteArray oResp;
+	CByteArray data(BCDDate);
+	data.Append(0);
+	data.Append(1); // data = day month year 0 1   -- 6 bytes written to 3F000003 trace file
+
+	WriteFile(TRACEFILE,0,data);
+
+	return true;
+}
+
+bool CPteidCard::unlockPIN(const tPin &pin, const tPin *puk, const char *pszPuk, const char *pszNewPin, unsigned long *triesLeft){
+	CByteArray oResp;
+	bool bOK = false;
+	unsigned long ulRemaining;
+
+	try
+	{
+		if (m_cardType == CARD_PTEID_IAS101){
+			if (PinCmd(PIN_OP_VERIFY, *puk, pszPuk, "", ulRemaining, NULL)) //martinho - verify puk
+				bOK = PinCmd(PIN_OP_RESET, pin, pszNewPin, "", *triesLeft, NULL); // martinho - reset pin
+		} else if (m_cardType == CARD_PTEID_IAS07){
+			// need a gemsafe card!
+			//bOK = PinCmd(PIN_OP_RESET, pin, pszNewPin, "", *triesLeft, NULL); // martinho - reset pin
+			bOK = false;
+		}
+		if (bOK)
+			*triesLeft = PinStatus(pin);
+	}
+	catch(...)
+	{
+		MWLOG(LEV_ERROR, MOD_CAL, L"Error in RootCAPubKey");
+		throw;
+	}
+
+	return bOK;
 }
 
 DlgPinUsage CPteidCard::PinUsage2Dlg(const tPin & Pin, const tPrivKey *pKey)
@@ -676,7 +764,6 @@ void CPteidCard::SetSecurityEnv(const tPrivKey & key, unsigned long algo,
     }
 
     unsigned long ulSW12 = getSW12(oResp);
-    cout << "SetEnvironment: " << hex << ulSW12 << dec << endl;
 
     getSW12(oResp, 0x9000);
 }
@@ -718,7 +805,6 @@ CByteArray CPteidCard::SignInternal(const tPrivKey & key, unsigned long algo,
 		oResp = SendAPDU(0x2A, 0x9E, 0x9A, 0x80);
     } else {
     	// PSO:Hash IAS - does CDS
-		cout << "IAS" << endl;
     	oResp = SendAPDU(0x88, 0x02, 0x00, oData);
     }
 
@@ -771,7 +857,6 @@ tBelpicDF CPteidCard::getDF(const std::string & csPath, unsigned long & ulOffset
 tFileInfo CPteidCard::SelectFile(const std::string & csPath, bool bReturnFileInfo)
 {
 		//printf("++++ Pteid15 select file: ");
-		std::cout << csPath << "\n";
 		CPkiCard::SelectFile(csPath, false);
 
 	// The EF(Preferences) file can be written using the authentication PIN;
@@ -816,8 +901,6 @@ CByteArray CPteidCard::SelectByPath(const std::string & csPath, bool bReturnFile
 			CByteArray oPath(ulPathLen);
 			oPath.Append(Hex2Byte(csPath, ulOffset));
 			oPath.Append(Hex2Byte(csPath, ulOffset + 1));
-			
-			std::cout << "Try by path. APDU: 0xA4 0x00 0x0C " << oPath.ToString() << "\n"; 
 			
 			CByteArray oResp = SendAPDU(0xA4, 0x00, 0x0C, oPath);
 			unsigned long ulSW12 = getSW12(oResp);
@@ -907,7 +990,7 @@ unsigned long CPteidCard::Get6CDelay()
 tCacheInfo CPteidCard::GetCacheInfo(const std::string &csPath)
 {
 	tCacheInfo dontCache = {DONT_CACHE, 0};
-/*	tCacheInfo simpleCache = {SIMPLE_CACHE, 0};
+	tCacheInfo simpleCache = {SIMPLE_CACHE, 0};
 	tCacheInfo certCache = {CERT_CACHE, 0};
 	tCacheInfo check16Cache = {CHECK_16_CACHE, 0}; // Check 16 bytes at offset 0
 	tCacheInfo checkSerial = {CHECK_SERIAL, 0}; // Check if the card serial nr is present
@@ -916,20 +999,23 @@ tCacheInfo CPteidCard::GetCacheInfo(const std::string &csPath)
 	unsigned int uiFileID = 0;
 	unsigned long ulLen = (unsigned long) (csPath.size() / 2);
 	if (ulLen >= 2)
-		uiFileID = 256 * Hex2Byte(csPath, ulLen - 2) + Hex2Byte(csPath, ulLen - 1);
+	  uiFileID = Hex2Byte(csPath, ulLen - 2) + Hex2Byte(csPath, ulLen - 1);
 
 	switch(uiFileID)
 	{
 	case 0x2F00: // EF(DIR)
-		return m_ucAppletVersion < 0x20 ? simpleCache : dontCache;
-	case 0x5031: // EF(ODF)
+	  return simpleCache;
+	case 129: // EF(ODF) 4F005031 (Dont cache otherwise will cause issues on IAS cards)
+	  return dontCache;
 	case 0x5032: // EF(TokenInfo)
-	case 0x5034: // EF(AODF)
-	case 0x5035: // EF(PrKDF)
-	case 0x5037: // EF(CDF)
-	case 0x503C: // EF(Cert#8) (RRN)
-	case 0x503D: // EF(Cert#9) (ID CA)
-	case 0x4035: // EF(ID#Photo)
+	case 69: // AOD (4401)
+	case 3: // 0003 (TRACE)
+	case 246: // EF07 (PersoData)
+	  return simpleCache;
+	case 244: // EF05 (Address)
+	  return dontCache;
+	case 241: // EF02 (ID)
+	case 245: // EF06 (SOD)
 #ifdef CAL_EMULATION  // the EF(ID#RN) of the emulated test cards have the same serial nr
 	case 0x4031: // EF(ID#RN)
 #endif
@@ -938,15 +1024,12 @@ tCacheInfo CPteidCard::GetCacheInfo(const std::string &csPath)
 	case 0x4031: // EF(ID#RN)
 		return checkSerial;
 #endif	
-	case 0x4032: // EF(SGN#RN)
-	case 0x4034: // EF(SGN#Adress)
-		return check16Cache;
-	case 0x5038: // EF(Cert#2) (authentication)
-	case 0x5039: // EF(Cert#3) (non repudiation)
-	case 0x503A: // EF(Cert#4) (Citizen CA)
-	case 0x503B: // EF(Cert#6) (root)
+	case 251: // EF0C (CertD)
+	case 248: // EF09 (Cert Auth)
+	case 247: // EF08 (Cert Sign)
+	case 254: // EF0F (Cert Root Sign)
+	case 255: // EF10 (Cert Root Auth)
+	case 256: // EF11 (CERT ROOT CA)
 		return certCache;
 	}
-*/
-	return dontCache;
 }

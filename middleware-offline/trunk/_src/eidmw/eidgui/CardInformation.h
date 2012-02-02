@@ -22,6 +22,7 @@
 #define _CARDINFORMATION_H_
 
 #include <iostream>
+#include <string.h>
 #include <QtGui>
 
 #include "eidlib.h"
@@ -63,9 +64,6 @@ enum eCARD_SUBTYPE
 enum eCARD_BASETYPE
 {
 	  BASETYPE_BELGIUM = 1
-	, BASETYPE_KIDS	   = 6
-	, BASETYPE_FOREIGNER = 11
-	, BASETYPE_SIS = 99
 };
 
 	//----------------------------------------------
@@ -91,12 +89,12 @@ enum eCARD_BASETYPE
 		{
 			PTEID_EId& pteid_eid	= Card.getID();
 
-			m_Fields[CARD_TYPE]			= QString::fromUtf8(pteid_eid.getDocumentType());
-			m_Fields[CHIP_NUMBER]		= QString::fromUtf8(pteid_eid.getDocumentPAN());
-			m_Fields[CARD_NUMBER]		= QString::fromUtf8(pteid_eid.getLogicalNumber());
-			//m_Fields[CARD_PLACEOFISSUE]	= QString::fromUtf8(pteid_eid.getIssuingMunicipality());
-			m_Fields[CARD_VALIDFROM]	= QString::fromUtf8(pteid_eid.getValidityBeginDate());
-			m_Fields[CARD_VALIDUNTIL]	= QString::fromUtf8(pteid_eid.getValidityEndDate());
+			m_Fields[CARD_TYPE]			=  pteid_eid.getDocumentType();
+			m_Fields[CHIP_NUMBER]		=  pteid_eid.getDocumentPAN();
+			m_Fields[CARD_NUMBER]		=  pteid_eid.getLogicalNumber();
+			//m_Fields[CARD_PLACEOFISSUE]	=  pteid_eid.getIssuingMunicipality());
+			m_Fields[CARD_VALIDFROM]	=  pteid_eid.getValidityBeginDate();
+			m_Fields[CARD_VALIDUNTIL]	=  pteid_eid.getValidityEndDate();
 		}
 		catch (PTEID_ExNotAllowByUser& e)
 		{
@@ -114,27 +112,6 @@ enum eCARD_BASETYPE
 		return bRetVal;
 
 	}
-	//----------------------------------------------
-	// Retrieve the card specific data 
-	//----------------------------------------------
-	bool RetrieveData(PTEID_SISCard& Card)
-	{
-		bool bRetVal = false;
-		PTEID_SisId& pteid_sisid	= Card.getID();
-
-		m_Fields[CARD_TYPE]			= "99";
-		m_Fields[CARD_NUMBER]		= QString::fromUtf8(pteid_sisid.getLogicalNumber());
-		m_Fields[CARD_VALIDFROM]	= QString::fromUtf8(pteid_sisid.getValidityBeginDate());
-		m_Fields[CARD_VALIDUNTIL]	= QString::fromUtf8(pteid_sisid.getValidityEndDate());
-
-// 		qDebug() << "CardInfo::RetrieveData()";
-// 		for (tFieldMap::iterator it=m_Fields.begin(); it!=m_Fields.end(); it++)
-// 		{
-// 			qDebug() << "[" << it.key() << "] = " << "Value: " << it.value();
-// 		}
-		bRetVal = true;
-		return bRetVal;
-	}
 
 	//----------------------------------------------
 	// get reference to all fields
@@ -143,84 +120,9 @@ enum eCARD_BASETYPE
 	{
 		return m_Fields;
 	}
-	PTEID_CardType getType( void )
-	{
-		QString cardType = m_Fields[CARD_TYPE];
-		PTEID_CardType cType = PTEID_CARDTYPE_UNKNOWN;
-		if( cardType.size() > 0 )
-		{
-			int iCardType = cardType.toInt();
-			switch(iCardType)
-			{
-			case 1:
-				cType = PTEID_CARDTYPE_EID;
-				break;
-			case 6:
-				cType = PTEID_CARDTYPE_KIDS;
-				break;
-			case 11:
-			case 12:
-			case 13:
-			case 14:
-			case 15:
-			case 16:
-			case 17:
-			case 18:
-				cType = PTEID_CARDTYPE_FOREIGNER;
-				break;
-			case 99:
-				cType = PTEID_CARDTYPE_SIS;
-				break;
-			default:
-				break;
-			}
-		}
-		return cType;
-	}
-	eCARD_SUBTYPE getSubType( void )
-	{
-		QString cardType = m_Fields[CARD_TYPE];
-		eCARD_SUBTYPE subType = EUROPEAN_UNKNOWN;
-		if( cardType.size() > 0 )
-		{
-			int iCardType = cardType.toInt();
-			switch(iCardType)
-			{
-			case 1:
-			case 6:
-			case 99:
-				break;
-			case 11:
-				subType = NON_EUROPEAN_A;
-				break;
-			case 12:
-				subType = NON_EUROPEAN_B;
-				break;
-			case 13:
-				subType = NON_EUROPEAN_C;
-				break;
-			case 14:
-				subType = NON_EUROPEAN_D;
-				break;
-			case 15:
-				subType = EUROPEAN_E;
-				break;
-			case 16:
-				subType = EUROPEAN_E_PLUS;
-				break;
-			case 17:
-				subType = EUROPEAN_F;
-				break;
-			case 18:
-				subType = EUROPEAN_F_PLUS;
-				break;
-			default:
-				break;
-			}
-		}
-		return subType;
-	}
-	static QString formatCardNumber(QString const& card_number, PTEID_CardType type)
+
+
+	static QString formatCardNumber(QString const& card_number)
 	{
 		QString formatted="";
 
@@ -229,29 +131,6 @@ enum eCARD_BASETYPE
 			return formatted;
 		}
 
-		switch ( type )
-		{
-		case PTEID_CARDTYPE_EID:
-		case PTEID_CARDTYPE_KIDS:
-			formatted += card_number.mid(0,3);
-			formatted += "-";
-			formatted += card_number.mid(3,7);
-			formatted += "-";
-			formatted += card_number.mid(10,2);
-			break;
-		case PTEID_CARDTYPE_FOREIGNER:
-			formatted += card_number.mid(0,1);
-			formatted += " ";
-			formatted += card_number.mid(1,7);
-			formatted += " ";
-			formatted += card_number.mid(8,2);
-			break;
-		case PTEID_CARDTYPE_SIS:
-			formatted = card_number;
-			break;
-		default:
-			break;
-		}
 		return formatted;
 	}
 private:
@@ -273,11 +152,11 @@ public:
 #define ADDRESS_DISTRICT		"address_district"
 #define ADDRESS_MUNICIPALITY 	"address_municipality"
 #define ADDRESS_CIVILPARISH		"address_parish"
-#define ADDRESS_STREETTYPE1		"address_streettype1"
-#define ADDRESS_STREETTYPE2		"address_streettype2"
+#define ADDRESS_ABBRSTREETTYPE	"address_abbrstreettype"
+#define ADDRESS_STREETTYPE		"address_streettype"
 #define ADDRESS_STREETNAME		"address_streetname"
-#define ADDRESS_BUILDINGTYPE1	"address_buildingtype1"
-#define ADDRESS_BUILDINGTYPE2	"address_buildingtype2"
+#define ADDRESS_ABBRBUILDINGTYPE	"address_abbrbuildingtype"
+#define ADDRESS_BUILDINGTYPE	"address_buildingtype"
 #define ADDRESS_DOORNO			"address_doorno"
 #define ADDRESS_FLOOR			"address_floor"
 #define ADDRESS_SIDE			"address_side"
@@ -319,25 +198,25 @@ public:
 		//TODO marker set
 		PTEID_Address&	pteid_eid = Card.getAddr();
 		
-		/*m_Fields[ADDRESS_STREET]			= QString::fromUtf8(pteid_eid.getStreet());
-		m_Fields[ADDRESS_ZIPCODE]			= QString::fromUtf8(pteid_eid.getZipCode());
-		m_Fields[ADDRESS_COUNTRY]			= QString::fromUtf8(pteid_eid.getCountry());*/
-		m_Fields[ADDRESS_DISTRICT]			= QString::fromUtf8(pteid_eid.getDistrict());
-		m_Fields[ADDRESS_MUNICIPALITY] 		= QString::fromUtf8(pteid_eid.getMunicipality());
-		m_Fields[ADDRESS_CIVILPARISH]  		= QString::fromUtf8(pteid_eid.getCivilParish());
-		m_Fields[ADDRESS_STREETTYPE1]  		= QString::fromUtf8(pteid_eid.getStreetType1());
-		m_Fields[ADDRESS_STREETTYPE2]  		= QString::fromUtf8(pteid_eid.getStreetType2());
-		m_Fields[ADDRESS_STREETNAME]   		= QString::fromUtf8(pteid_eid.getStreetName());
-		m_Fields[ADDRESS_BUILDINGTYPE1] 	= QString::fromUtf8(pteid_eid.getBuildingType1());
-		m_Fields[ADDRESS_BUILDINGTYPE2] 	= QString::fromUtf8(pteid_eid.getBuildingType2());
-		m_Fields[ADDRESS_DOORNO] 			= QString::fromUtf8(pteid_eid.getDoorNo());
-		m_Fields[ADDRESS_FLOOR] 			= QString::fromUtf8(pteid_eid.getFloor());
-		m_Fields[ADDRESS_SIDE] 				= QString::fromUtf8(pteid_eid.getSide());
-		m_Fields[ADDRESS_PLACE] 			= QString::fromUtf8(pteid_eid.getPlace());
-		m_Fields[ADDRESS_LOCALITY] 			= QString::fromUtf8(pteid_eid.getLocality());
-		m_Fields[ADDRESS_ZIP4] 				= QString::fromUtf8(pteid_eid.getZip4());
-		m_Fields[ADDRESS_ZIP3] 				= QString::fromUtf8(pteid_eid.getZip3());
-		m_Fields[ADDRESS_POSTALLOCALITY]	= QString::fromUtf8(pteid_eid.getPostalLocality());
+		/*m_Fields[ADDRESS_STREET]			=  pteid_eid.getStreet());
+		m_Fields[ADDRESS_ZIPCODE]			=  pteid_eid.getZipCode());
+		m_Fields[ADDRESS_COUNTRY]			=  pteid_eid.getCountry());*/
+		m_Fields[ADDRESS_DISTRICT]			=  pteid_eid.getDistrict();
+		m_Fields[ADDRESS_MUNICIPALITY] 		=  pteid_eid.getMunicipality();
+		m_Fields[ADDRESS_CIVILPARISH]  		=  pteid_eid.getCivilParish();
+		m_Fields[ADDRESS_ABBRSTREETTYPE]  	=  pteid_eid.getAbbrStreetType();
+		m_Fields[ADDRESS_STREETTYPE]  		=  pteid_eid.getStreetType();
+		m_Fields[ADDRESS_STREETNAME]   		=  pteid_eid.getStreetName();
+		m_Fields[ADDRESS_ABBRBUILDINGTYPE] 	=  pteid_eid.getAbbrBuildingType();
+		m_Fields[ADDRESS_BUILDINGTYPE] 		=  pteid_eid.getBuildingType();
+		m_Fields[ADDRESS_DOORNO] 			=  pteid_eid.getDoorNo();
+		m_Fields[ADDRESS_FLOOR] 			=  pteid_eid.getFloor();
+		m_Fields[ADDRESS_SIDE] 				=  pteid_eid.getSide();
+		m_Fields[ADDRESS_PLACE] 			=  pteid_eid.getPlace();
+		m_Fields[ADDRESS_LOCALITY] 			=  pteid_eid.getLocality();
+		m_Fields[ADDRESS_ZIP4] 				=  pteid_eid.getZip4();
+		m_Fields[ADDRESS_ZIP3] 				=  pteid_eid.getZip3();
+		m_Fields[ADDRESS_POSTALLOCALITY]	=  pteid_eid.getPostalLocality();
 
 // 		qDebug() << "AddressInfo::RetrieveData()";
 // 		for (tFieldMap::iterator it=m_Fields.begin(); it!=m_Fields.end(); it++)
@@ -467,25 +346,6 @@ public:
 	}
 
 	//----------------------------------------------
-	// Retrieve data from SIS card
-	//----------------------------------------------
-	bool RetrieveData( PTEID_SISCard& Card )
-	{
-		bool bRetVal = false;
-		PTEID_SisId& pteid_SisId = Card.getID();
-
-		m_Fields[SOCIALSECURITYNUMBER] = QString::fromUtf8(pteid_SisId.getSocialSecurityNumber());
-
-
-// 		qDebug() << "PersonExtraInfo::RetrieveData()";
-// 		for (tFieldMap::iterator it=m_Fields.begin(); it!=m_Fields.end(); it++)
-// 		{
-// 			qDebug() << "[" << it.key() << "] = " << "Value: " << it.value();
-// 		}
-		return bRetVal;
-	}
-
-	//----------------------------------------------
 	// get reference to all fields
 	//----------------------------------------------
 	tFieldMap& getFields( void )
@@ -548,18 +408,6 @@ public:
 	}
 
 	//----------------------------------------------
-	// Retrieve data from SIS card
-	//----------------------------------------------
-	bool RetrieveData( PTEID_SISCard& Card )
-	{
-		Card.getType();
-		bool bRetVal = false;
-
-		bRetVal = true;
-		return bRetVal;
-	}
-
-	//----------------------------------------------
 	// get reference to all fields
 	//----------------------------------------------
 	tFieldMap& getFields( void )
@@ -604,20 +452,16 @@ public:
 	bool RetrieveData( PTEID_EIDCard& Card	)
 	{
 		bool					bRetVal = false;
-		//PTEID_Picture&			Picture = Card.getPicture();
-		//const unsigned char*	PictureData = Picture.getData().GetBytes();
 
-// 		qDebug() << "BiometricInfo::RetrieveData()";
-// 		qDebug() << "Retrieving picture...";
 		PTEID_EId& pteid_eid = Card.getID();
-		m_pPictureData = QByteArray((const char *)pteid_eid.getPhoto().GetBytes(),pteid_eid.getPhoto().Size());
-
+		PTEID_ByteArray & p = pteid_eid.getPhotoObj().getphoto();
+		m_pPictureData = QByteArray((const char *)p.GetBytes(),p.Size());
 		bRetVal = true;
 		return bRetVal;
 	}
 
 public:
-	QByteArray m_pPictureData;			//!< picture on card
+	QByteArray m_pPictureData;			//!< picture on card in png format
 };
 
 class PersoDataInfo
@@ -655,7 +499,7 @@ public:
     	bool            bRetVal = false;
     	PTEID_EId&       pteid_eid= Card.getID();
 
-    	m_Fields[PERSODATA_INFO]	= QString::fromUtf8(pteid_eid.getPersoData());
+    	m_Fields[PERSODATA_INFO]	=  pteid_eid.getPersoData();
     	return bRetVal;
 	}
     //----------------------------------------------
@@ -678,7 +522,7 @@ class PersonInfo
 {
 public:
 #define NAME				"name"
-#define FIRSTNAME			"firstname"
+#define GIVENNAME			"givenname"
 #define BIRTHPLACE			"birthplace"
 #define BIRTHDATE			"birthdate"
 #define COUNTRY				"country"
@@ -742,38 +586,53 @@ public:
 	bool RetrieveData(PTEID_EIDCard& Card)
 	{
 		bool bRetVal = false;
+		unsigned int fatherlen, motherlen;
 		//m_imgPicture=QPixmap("IDFace.jpg");
 
 		PTEID_EId& pteid_eid = Card.getID();
 
-		m_Fields[NAME]						= QString::fromUtf8(pteid_eid.getSurname());
-		m_Fields[FIRSTNAME]					= QString::fromUtf8(pteid_eid.getFirstName1());
-		m_Fields[NATIONALITY]				= QString::fromUtf8(pteid_eid.getNationality());
-		m_Fields[NATIONALNUMBER]			= QString::fromUtf8(pteid_eid.getCivilianIdNumber());
-		m_Fields[BIRTHDATE]					= QString::fromUtf8(pteid_eid.getDateOfBirth());
-		m_Fields[COUNTRY]					= QString::fromUtf8(pteid_eid.getCountry());
-		m_Fields[SEX]						= QString::fromUtf8(pteid_eid.getGender());
-		m_Fields[HEIGHT]					= QString::fromUtf8(pteid_eid.getHeight());
-		m_Fields[DOCUMENTNUMBER] 			= QString::fromUtf8(pteid_eid.getDocumentNumber());
-		m_Fields[TAXNO]						= QString::fromUtf8(pteid_eid.getTaxNo());
-		m_Fields[HEALTHNO]					= QString::fromUtf8(pteid_eid.getHealthNumber());
-		m_Fields[SOCIALSECURITYNO]			= QString::fromUtf8(pteid_eid.getSocialSecurityNumber());
-		m_Fields[CARDVERSION]				= QString::fromUtf8(pteid_eid.getDocumentVersion());
-		m_Fields[DOCUMENTTYPE]				= QString::fromUtf8(pteid_eid.getDocumentType());
-		m_Fields[ISSUINGENTITY]				= QString::fromUtf8(pteid_eid.getIssuingEntity());
-		m_Fields[FATHER]					= QString::fromUtf8(pteid_eid.getGivenNameFather());
-		m_Fields[FATHER]					+= " " + QString::fromUtf8(pteid_eid.getSurnameFather());
-		m_Fields[MOTHER]					= QString::fromUtf8(pteid_eid.getGivenNameMother());
-		m_Fields[MOTHER]					+= " " + QString::fromUtf8(pteid_eid.getSurnameMother());
+		m_Fields[NAME]						= pteid_eid.getSurname();
+		m_Fields[GIVENNAME]					= pteid_eid.getGivenName();
+		m_Fields[NATIONALITY]				= pteid_eid.getNationality();
+		m_Fields[NATIONALNUMBER]			= pteid_eid.getCivilianIdNumber();
+		m_Fields[BIRTHDATE]					= pteid_eid.getDateOfBirth();
+		m_Fields[COUNTRY]					= pteid_eid.getCountry();
+		m_Fields[SEX]						= pteid_eid.getGender();
+		m_Fields[HEIGHT]					= pteid_eid.getHeight();
+		m_Fields[DOCUMENTNUMBER] 			= pteid_eid.getDocumentNumber();
+		m_Fields[TAXNO]						= pteid_eid.getTaxNo();
+		m_Fields[HEALTHNO]					= pteid_eid.getHealthNumber();
+		m_Fields[SOCIALSECURITYNO]			= pteid_eid.getSocialSecurityNumber();
+		m_Fields[CARDVERSION]				= pteid_eid.getDocumentVersion();
+		m_Fields[DOCUMENTTYPE]				= pteid_eid.getDocumentType();
+		m_Fields[ISSUINGENTITY]				= pteid_eid.getIssuingEntity();
 
-		m_Fields[PARENTS]					= m_Fields[FATHER] + " * " + m_Fields[MOTHER];
+		fatherlen = strlen(pteid_eid.getGivenNameFather()) + strlen(pteid_eid.getSurnameFather()) + 2;
 
-		m_Fields[LOCALOFREQUEST]			= QString::fromUtf8(pteid_eid.getLocalofRequest());
-		m_Fields[VALIDATION]				= QString::fromUtf8(pteid_eid.getValidation());
-		m_Fields[MRZ1]						= QString::fromUtf8(pteid_eid.getMRZ1());
-		m_Fields[MRZ2]						= QString::fromUtf8(pteid_eid.getMRZ2());
-		m_Fields[MRZ3]						= QString::fromUtf8(pteid_eid.getMRZ3());
-		m_Fields[ACCIDENTALINDICATIONS]		= QString::fromUtf8(pteid_eid.getAccidentalIndications());
+		char* father = new char[fatherlen];
+		strcpy(father, pteid_eid.getGivenNameFather());
+		strcat(father, " ");
+		strcat(father, pteid_eid.getSurnameFather());
+
+		m_Fields[FATHER] = father;
+
+		motherlen = strlen(pteid_eid.getGivenNameMother()) + strlen(pteid_eid.getSurnameMother()) + 2;
+
+		char* mother = new char[motherlen];
+		strcpy(mother, pteid_eid.getGivenNameMother());
+		strcat(mother, " ");
+		strcat(mother, pteid_eid.getSurnameMother());
+
+		m_Fields[MOTHER] = mother;
+
+		//m_Fields[PARENTS]					= m_Fields[FATHER] + " * " + m_Fields[MOTHER];
+
+		m_Fields[LOCALOFREQUEST]			= pteid_eid.getLocalofRequest();
+		m_Fields[VALIDATION]				= pteid_eid.getValidation();
+		m_Fields[MRZ1]						= pteid_eid.getMRZ1();
+		m_Fields[MRZ2]						= pteid_eid.getMRZ2();
+		m_Fields[MRZ3]						= pteid_eid.getMRZ3();
+		m_Fields[ACCIDENTALINDICATIONS]		= pteid_eid.getAccidentalIndications();
 
 		m_RelativesInfo.RetrieveData(Card);
 		m_PersonExtraInfo.RetrieveData(Card);
@@ -781,24 +640,6 @@ public:
 
 		return bRetVal;
 
-	}
-
-	//----------------------------------------------
-	// retrieve data from SIS card
-	//----------------------------------------------
-	bool RetrieveData(PTEID_SISCard& Card)
-	{
-		PTEID_SisId& pteid_SisId = Card.getID();
-
-		m_Fields[NAME]      = QString::fromUtf8(pteid_SisId.getSurname()); 
-		m_Fields[FIRSTNAME] = QString::fromUtf8(pteid_SisId.getName()); 
-		m_Fields[INITIALS]  = QString::fromUtf8(pteid_SisId.getInitials()); 
-		m_Fields[BIRTHDATE] = QString::fromUtf8(pteid_SisId.getDateOfBirth()); 
-		m_Fields[SEX]	    = QString::fromUtf8(pteid_SisId.getGender()); 
-
-		m_PersonExtraInfo.RetrieveData(Card);
-
-		return true;
 	}
 
 	//----------------------------------------------
@@ -837,7 +678,7 @@ public:
 		}
 		return bRetVal;
 	}
-	static QString formatNationalNumber( QString const& number, PTEID_CardType type /*, CardInfo::eCARD_SUBTYPE subType*/)
+	static QString formatNationalNumber( QString const& number)
 	{
 		QString formatted="";
 
@@ -846,28 +687,6 @@ public:
 			return formatted;
 		}
 
-		switch ( type )
-		{
-		case PTEID_CARDTYPE_EID:
-		case PTEID_CARDTYPE_KIDS:
-		case PTEID_CARDTYPE_FOREIGNER:
-			formatted += number.mid(0,2);
-			formatted += ".";
-			formatted += number.mid(2,2);
-			formatted += ".";
-			formatted += number.mid(4,2);
-			formatted += "-";
-			formatted += number.mid(6,3);
-			formatted += ".";
-			formatted += number.mid(9,2);
-			break;
-			break;
-		case PTEID_CARDTYPE_SIS:
-			formatted = number;
-			break;
-		default:
-			break;
-		}
 		return formatted;
 	}
 
@@ -1058,32 +877,6 @@ private:
 
 		return bRetVal;
 
-	}
-
-	//----------------------------------------------
-	// retrieve data from SIS card
-	//----------------------------------------------
-	bool RetrieveData( PTEID_SISCard& Card )
-	{
-		bool bRetVal = false;
-
-		if(!m_CardInfo.RetrieveData(Card))
-		{
-			return false;
-		}
-		if (!m_PersonInfo.RetrieveData(Card))
-		{
-			return false;
-		}
-		if (!m_MiscInfo.RetrieveData(Card))
-		{
-			return false;
-		}
-		
-		m_pCard = &Card;
-		bRetVal = true;
-
-		return bRetVal;
 	}
 
 public:

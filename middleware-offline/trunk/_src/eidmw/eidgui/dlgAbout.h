@@ -28,13 +28,11 @@ class dlgAbout : public QDialog
 {
     Q_OBJECT
 
+private slots:
+
 public:
-    dlgAbout(QString const& version, QWidget *parent = 0) 
-		: QDialog(parent)
-	{
-		ui.setupUi(this); 
-		ui.lblVersion->setText(version);
-	};
+    dlgAbout(QString const& version, QWidget *parent = 0);
+    ~dlgAbout();
 
 private:
     Ui_dlgAbout ui;

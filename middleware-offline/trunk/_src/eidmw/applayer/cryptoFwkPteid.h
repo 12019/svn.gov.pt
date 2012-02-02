@@ -23,14 +23,17 @@
 #define __CRYPTOPTEIDFWK_H__
 
 #include <memory>
-#include "Mutex.h"
+
 #include "ByteArray.h"
 #include "openssl/evp.h"
 #include "cryptoFramework.h"
+#include "Mutex.h"
 #include "APLReader.h"
 
 namespace eIDMW
 {
+
+	class XadesSignature;
 
 /******************************************************************************//**
   * Class for all Pteid cryptographic features 
@@ -61,6 +64,7 @@ private:
 	APL_CryptoFwkPteid &operator=(const APL_CryptoFwkPteid &service);	/**< Copy not allowed - not implemented */
 
 friend void CAppLayer::startAllServices();			/**< This method must access private constructor */
+
 };
 
 }

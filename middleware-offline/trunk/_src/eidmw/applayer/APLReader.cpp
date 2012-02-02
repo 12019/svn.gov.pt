@@ -34,10 +34,8 @@
 #include "Util.h"
 #include "TLVBuffer.h"
 #include "CardPteidDef.h"
-#include "CardSISDef.h"
 #include "APLCard.h"
 #include "APLCardPteid.h"
-#include "APLCardSIS.h"
 #include "eidErrors.h"
 #include "MWException.h"
 #include "CRLService.h"
@@ -52,6 +50,8 @@ std::string m_InitSerialNumber;								/**< Field ChipNumber */
 
 namespace eIDMW
 {
+
+APL_CardType ConvertCardType(tCardType cardType);
 
 /*****************************************************************************************
 ------------------------------------ APL_ReaderContext ---------------------------------------
@@ -129,24 +129,6 @@ APL_ReaderContext::APL_ReaderContext(const APL_RawData_Eid &data)
 	connectVirtualCard();
 }
 
-APL_ReaderContext::APL_ReaderContext(const APL_RawData_Sis &data)
-{
-	m_calreader=NULL;
-	m_card=NULL;
-	m_cardid=0;
-
-	m_cal_lock=false;
-	m_transaction_lock=false;
-
-	m_virtual=true;
-
-	m_status=CARD_NOT_PRESENT;
-
-	m_parser=new APL_SuperParser(data);
-
-	connectVirtualCard();
-
-}
 APL_ReaderContext::~APL_ReaderContext()
 {
 	if(m_transaction_lock)
@@ -291,7 +273,8 @@ APL_CardType APL_ReaderContext::getPhysicalCardType()
 
 	switch(CalCarType)
 	{
-	case CARD_PTEID:
+	case CARD_PTEID_IAS07:
+	case CARD_PTEID_IAS101:
 	{
 		//Check the document type in the ID file
 		long lDocType=-1;
@@ -311,9 +294,8 @@ APL_CardType APL_ReaderContext::getPhysicalCardType()
 			oTLVBuffer.ParseTLV(file.GetBytes(), file.Size());
 			oTLVBuffer.FillLongData(PTEID_FIELD_TAG_ID_DocumentType, &lDocType);*/
 
-			//////////////////////////////////////////////////////////// READ SOD INIT
-			/*std::cout << "MAPFIELDS Address " << std::endl;
-			CByteArray pteidngSodBuffer;
+			/////////READ SOD INIT as a possible fallback for Identify Citizens
+			/*CByteArray pteidngSodBuffer;
 			ofstream myfile;
 			std::string m_sodfile;
 			std::string pteidfile = "/home/metalgod/.pteid-ng/pteidgui-ng-";
@@ -340,21 +322,10 @@ APL_CardType APL_ReaderContext::getPhysicalCardType()
 		}
 		CalUnlock();
 		
-		if(lDocType==PTEID_CARDTYPE_KIDS_CODE)
-			ret=APL_CARDTYPE_PTEID_KIDS;
-
-		else if(lDocType>=PTEID_CARDTYPE_FOREIGNER_CODE_MIN 
-			&& lDocType<=PTEID_CARDTYPE_FOREIGNER_CODE_MAX)
-			ret=APL_CARDTYPE_PTEID_FOREIGNER;
-
-		else
-			ret=APL_CARDTYPE_PTEID_EID;
+       		ret=ConvertCardType(CalCarType);
 
 		break;
 	}
-	case CARD_SIS:
-		ret=APL_CARDTYPE_PTEID_SIS;
-		break;
 	case CARD_UNKNOWN:
 	default:
 		break;
@@ -420,17 +391,9 @@ bool APL_ReaderContext::connectCard()
 
 	switch(cardType)
 	{
-	case APL_CARDTYPE_PTEID_EID:
-		m_card = new APL_EIDCard(this);
-		break;
-	case APL_CARDTYPE_PTEID_KIDS:
-		m_card = new APL_KidsCard(this);
-		break;
-	case APL_CARDTYPE_PTEID_FOREIGNER:
-		m_card = new APL_ForeignerCard(this);
-		break;
-	case APL_CARDTYPE_PTEID_SIS:
-		m_card = new APL_SISCard(this);
+	case APL_CARDTYPE_PTEID_IAS07:
+	case APL_CARDTYPE_PTEID_IAS101:
+		m_card = new APL_EIDCard(this, cardType);
 		break;
 	default:
 		return false;
@@ -465,38 +428,8 @@ APL_EIDCard *APL_ReaderContext::getEIDCard()
 {
 	connectCard();
 
-	if(m_card != NULL && m_card->getType()==APL_CARDTYPE_PTEID_EID)
+	if(m_card != NULL && m_card->getType()!=APL_CARDTYPE_UNKNOWN)
 		return dynamic_cast<APL_EIDCard *>(m_card);
-	
-	return NULL;
-}
-
-APL_KidsCard *APL_ReaderContext::getKidsCard()
-{
-	connectCard();
-
-	if(m_card->getType()==APL_CARDTYPE_PTEID_KIDS)
-		return dynamic_cast<APL_KidsCard *>(m_card);
-	
-	return NULL;
-}
-
-APL_ForeignerCard *APL_ReaderContext::getForeignerCard()
-{
-	connectCard();
-
-	if(m_card->getType()==APL_CARDTYPE_PTEID_FOREIGNER)
-		return dynamic_cast<APL_ForeignerCard *>(m_card);
-	
-	return NULL;
-}
-
-APL_SISCard *APL_ReaderContext::getSISCard()
-{
-	connectCard();
-
-	if(m_card->getType()==APL_CARDTYPE_PTEID_SIS)
-		return dynamic_cast<APL_SISCard *>(m_card);
 	
 	return NULL;
 }
@@ -636,7 +569,7 @@ public:
 	{
 		if(!m_ReleaseOk)
 		{
-			printf("ERROR : Please do not forget to release the SDK\n");
+			printf("ERRORere : Please do not forget to release the SDK\n");
 			throw CMWEXCEPTION(EIDMW_ERR_RELEASE_NEEDED);
 		}
 	}
@@ -1107,7 +1040,6 @@ APL_SuperParser::APL_SuperParser(const char *fileName, APL_SaveFileType fileType
 	m_parserXml=NULL;
 
 	m_rawdata_eid=NULL;
-	m_rawdata_sis=NULL;
 
 	m_fctReadDataRAW=NULL;
 	m_fctReadDataTLV=NULL;
@@ -1147,7 +1079,6 @@ APL_SuperParser::APL_SuperParser(const CByteArray &data, APL_SaveFileType fileTy
 	m_parserXml=NULL;
 
 	m_rawdata_eid=NULL;
-	m_rawdata_sis=NULL;
 
 	m_fctReadDataRAW=NULL;
 	m_fctReadDataTLV=NULL;
@@ -1188,7 +1119,6 @@ APL_SuperParser::APL_SuperParser(const APL_RawData_Eid &data)
 	m_parserXml=NULL;
 
 	m_rawdata_eid=NULL;
-	m_rawdata_sis=NULL;
 
 	m_fctReadDataRAW=NULL;
 	m_fctReadDataTLV=NULL;
@@ -1212,44 +1142,9 @@ APL_SuperParser::APL_SuperParser(const APL_RawData_Eid &data)
 		err = err;
 		return;
 	}
-	
-	if(lDocType==PTEID_CARDTYPE_KIDS_CODE)
-		m_cardType=APL_CARDTYPE_PTEID_KIDS;
+		// MARTINHO: one type had to be chosen
+       	m_cardType=APL_CARDTYPE_PTEID_IAS101;
 
-	else if(lDocType>=PTEID_CARDTYPE_FOREIGNER_CODE_MIN 
-		&& lDocType<=PTEID_CARDTYPE_FOREIGNER_CODE_MAX)
-		m_cardType=APL_CARDTYPE_PTEID_FOREIGNER;
-
-	else
-		m_cardType=APL_CARDTYPE_PTEID_EID;
-
-}
-
-APL_SuperParser::APL_SuperParser(const APL_RawData_Sis &data)
-{
-	m_cardType=APL_CARDTYPE_UNKNOWN;
-
-	m_fileType=APL_SAVEFILETYPE_RAWDATA;
-	m_fileName="Raw data";
-
-	m_fileData=NULL;
-
-	m_parserTlv=NULL;
-	m_parserCsv=NULL;
-	m_parserXml=NULL;
-
-	m_rawdata_eid=NULL;
-	m_rawdata_sis=NULL;
-
-	m_fctReadDataRAW=NULL;
-	m_fctReadDataTLV=NULL;
-	m_fctReadDataCSV=NULL;
-	m_fctReadDataXML=NULL;
-
-	m_rawdata_sis= new APL_RawData_Sis(data);;
-
-	m_version=m_rawdata_sis->version;
-	m_cardType=APL_CARDTYPE_PTEID_SIS;
 }
 
 APL_SuperParser::~APL_SuperParser()
@@ -1279,11 +1174,6 @@ APL_SuperParser::~APL_SuperParser()
 	{
 		delete m_rawdata_eid;
 		m_rawdata_eid=NULL;
-	}
-	if(m_rawdata_sis)
-	{
-		delete m_rawdata_sis;
-		m_rawdata_sis=NULL;
 	}
 }
 
@@ -1454,13 +1344,8 @@ bool APL_SuperParser::parse()
 	}
 
 	if(strcmp(type,CARDTYPE_NAME_PTEID_EID)==0)
-		m_cardType=APL_CARDTYPE_PTEID_EID;
-	else if(strcmp(type,CARDTYPE_NAME_PTEID_KIDS)==0)
-		m_cardType=APL_CARDTYPE_PTEID_KIDS;
-	else if(strcmp(type,CARDTYPE_NAME_PTEID_FOREIGNER)==0)
-		m_cardType=APL_CARDTYPE_PTEID_FOREIGNER;
-	else if(strcmp(type,CARDTYPE_NAME_PTEID_SIS)==0)
-		m_cardType=APL_CARDTYPE_PTEID_SIS;
+		// MARTINHO one type had to be chosen
+		m_cardType=APL_CARDTYPE_PTEID_IAS101;
 
 	if(type)
 		delete[] type;
@@ -1496,11 +1381,6 @@ APL_RawData_Eid *APL_SuperParser::getRawDataEid()
 	return m_rawdata_eid;
 }
 
-APL_RawData_Sis *APL_SuperParser::getRawDataSis()
-{
-	return m_rawdata_sis;
-}
-
 void APL_SuperParser::initReadFunction(
 			unsigned long (*fctReadDataRAW)(APL_SuperParser *parser,const char *fileID, CByteArray &in,unsigned long idx),
 			unsigned long (*fctReadDataTLV)(APL_SuperParser *parser,const char *fileID, CByteArray &in,unsigned long idx),
@@ -1518,9 +1398,8 @@ unsigned long APL_SuperParser::readData(const char *fileID, CByteArray &in,unsig
 	switch(m_fileType)
 	{
 	case APL_SAVEFILETYPE_RAWDATA:
-		if((m_cardType==APL_CARDTYPE_PTEID_SIS && !m_rawdata_sis)
-			|| ((m_cardType==APL_CARDTYPE_PTEID_EID || m_cardType==APL_CARDTYPE_PTEID_KIDS || m_cardType==APL_CARDTYPE_PTEID_FOREIGNER) && !m_rawdata_eid)
-			|| m_cardType==APL_CARDTYPE_UNKNOWN)
+			//MARTINHO: one type had to be chosen
+	    	if(((m_cardType==APL_CARDTYPE_PTEID_IAS101) && !m_rawdata_eid) || m_cardType==APL_CARDTYPE_UNKNOWN)
 			throw CMWEXCEPTION(EIDMW_ERR_CHECK);
 
 		if(!m_fctReadDataRAW)
@@ -1638,4 +1517,18 @@ unsigned long APL_SuperParser::readDataCsv(CByteArray &in, unsigned long count, 
 
 	return in.Size();
 }
+
+APL_CardType ConvertCardType(tCardType cardType)
+{
+	switch(cardType)
+	{
+	case CARD_PTEID_IAS07:
+		return APL_CARDTYPE_PTEID_IAS07;
+	case CARD_PTEID_IAS101:
+		return APL_CARDTYPE_PTEID_IAS101;
+	default:
+		return APL_CARDTYPE_UNKNOWN;
+	}
+}
+
 }

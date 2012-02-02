@@ -29,6 +29,8 @@
 #include "APLCardPteid.h"
 #include "CardFile.h"
 #include "ByteArray.h"
+#include "PhotoPteid.h"
+#include "APLPublicKey.h"
 
 namespace eIDMW
 {
@@ -50,6 +52,7 @@ public:
 	  */
 	virtual ~APL_EidFile_Trace();
 	const char *getValidation();				/**< Return field Validation */
+	bool isActive();							/**< Return the card activation state (true = active) */
 
 protected:
 	/**
@@ -87,6 +90,7 @@ private:
 	virtual bool ShowData();
 
 	std::string m_Validation;							/**< Field Validation */
+	bool isCardActive;
 
 	friend 	APL_EidFile_Trace *APL_EIDCard::getFileTrace();	/**< This method must access protected constructor */
 };
@@ -109,7 +113,7 @@ public:
 	const char *getDocumentVersion();				/**< Return field DocumentVersion */
 	const char *getCountry();						/**< Return field Country */
 	const char *getDocumentType();					/**< Return field DocumentType */
-	const char *getFirstName1();					/**< Return field FirstName1 */
+	const char *getGivenName();						/**< Return field GivenName */
 	const char *getSurname();						/**< Return field Surname */
 	const char *getGender();						/**< Return field Gender */
 	const char *getDateOfBirth();					/**< Return field DateOfBirth */
@@ -137,7 +141,8 @@ public:
 	const char *getGivenNameMother();				/**< Return field GivenNameMother */
 	const char *getSurnameMother();					/**< Return field SurnameMother */
 	const char *getParents();						/**< Return field Parents */
-	const char *getPhoto();							/**< Return field Photo */
+	PhotoPteid *getPhotoObj();						/**< Return object Photo */
+	APLPublicKey *getCardAuthKeyObj();				/**< Return object Authentication Key */
 	const char *getMRZ1();							/**< Return field MRZ block 1*/
 	const char *getMRZ2();							/**< Return field MRZ block 2*/
 	const char *getMRZ3();							/**< Return field MRZ block 3*/
@@ -183,7 +188,7 @@ private:
 	std::string m_DocumentVersion;							/**< Field DocumentVersion */
 	std::string m_Country;									/**< Field Country */
 	std::string m_DocumentType;								/**< Field DocumentType */
-	std::string m_FirstName1;								/**< Field FirstName1 */
+	std::string m_GivenName;								/**< Field GivenName */
 	std::string m_Surname;									/**< Field Surname */
 	std::string m_Gender;									/**< Field Gender */
 	std::string m_DateOfBirth;								/**< Field DateOfBirth */
@@ -210,11 +215,12 @@ private:
 	std::string m_GivenNameMother;							/**< Field GivenNameMother */
 	std::string m_SurnameMother;							/**< Field SurnameMother */
 	std::string m_AccidentalIndications;					/**< Field AccidentalIndications */
-	std::string m_Photo;									/**< Field Photo */
+	PhotoPteid* photo;										/**< object photo */
 	std::string m_MRZ1;										/**< Field MRZ block 1 */
 	std::string m_MRZ2;										/**< Field MRZ block 2 */
 	std::string m_MRZ3;										/**< Field MRZ block 3 */
 	CByteArray m_PhotoHash;									/**< Field PhotoHash */	
+	APLPublicKey* cardKey;
 
 friend 	APL_EidFile_ID *APL_EIDCard::getFileID();	/**< This method must access protected constructor */
 };
@@ -273,14 +279,20 @@ public:
 	virtual ~APL_EidFile_Address();
 
 	/*New status for PTeid-ng */
-	const char *getMunicipality();						/**< Return field Municipality */
+	bool isNationalAddress();							/**<is the address a portuguese address? */
+	const char *getCountryCode();						/**<residence country */
+
 	const char *getDistrict();
-	const char *getStreetName();
+	const char *getDistrictCode();
+	const char *getMunicipality();						/**< Return field Municipality */
+	const char *getMunicipalityCode();
 	const char *getCivilParish();
-	const char *getStreetType1();
-	const char *getStreetType2();
-	const char *getBuildingType1();
-	const char *getBuildingType2();
+	const char *getCivilParishCode();
+	const char *getAbbrStreetType();
+	const char *getStreetType();
+	const char *getStreetName();
+	const char *getAbbrBuildingType();
+	const char *getBuildingType();
 	const char *getDoorNo();
 	const char *getFloor();
 	const char *getSide();
@@ -289,10 +301,14 @@ public:
 	const char *getZip3();
 	const char *getPlace();
 	const char *getPostalLocality();
-	const char *getAddressVersion();					/**< Return field AddressVersion */
-	const char *getStreet();							/**< Return field Street */
-	const char *getZipCode();							/**< Return field ZipCode */
+	const char *getGeneratedAddressCode();
 
+	const char *getForeignCountry();
+	const char *getForeignAddress();
+	const char *getForeignCity();
+	const char *getForeignRegion();
+	const char *getForeignLocality();
+	const char *getForeignPostalCode();
 
 protected:
 	/**
@@ -327,20 +343,23 @@ private:
 	  */
 	virtual bool ShowData();
 
+
 	std::string m_AddressFile;
+
 	std::string m_AddressType;								/**< Field Address type */
-	std::string m_Country;									/**< Field Country*/
-	std::string m_District;									/**< Field District */
-	std::string m_StreetName;								/**< Field StreetName */
-	std::string m_AddressVersion;							/**< Field AddressVersion */
-	std::string m_Street;									/**< Field Street */
-	std::string m_ZipCode;									/**< Field ZipCode */
-	std::string m_Municipality;								/**< Field Municipality */
-	std::string m_CivilParish;
-	std::string m_StreetType1;
-	std::string m_StreetType2;
-	std::string m_BuildingType1;
-	std::string m_BuildingType2;
+	std::string m_CountryCode;								/**< Field Country code*/
+
+	std::string m_DistrictCode;								/**< Field District Code*/
+	std::string m_DistrictDescription;						/**< Field District Description*/
+	std::string m_MunicipalityCode;							/**< Field Municipality Code*/
+	std::string m_MunicipalityDescription;					/**< Field Municipality Description*/
+	std::string m_CivilParishCode;							/**< Field Civil Parish Code*/
+	std::string m_CivilParishDescription;					/**< Field Civil Parish Description*/
+	std::string m_AbbrStreetType;							/**< Field Abbreviated Street Type*/
+	std::string m_StreetType;								/**< Field Street Type*/
+	std::string m_StreetName;								/**< Field Street Name*/
+	std::string m_AbbrBuildingType;
+	std::string m_BuildingType;
 	std::string m_DoorNo;
 	std::string m_Floor;
 	std::string m_Side;
@@ -349,6 +368,18 @@ private:
 	std::string m_Zip3;
 	std::string m_PostalLocality;
 	std::string m_Place;
+
+	std::string m_Foreign_Country;
+	std::string m_Foreign_Generic_Address;
+	std::string m_Foreign_City;
+	std::string m_Foreign_Region;
+	std::string m_Foreign_Locality;
+	std::string m_Foreign_Postal_Code;
+
+	std::string m_Generated_Address_Code;
+
+	static const std::string m_NATIONAL;			/**< portuguese addresses 'N' in the address type field*/
+	static const std::string m_FOREIGN;				/**< foreign addresses have 'I' in the address type field*/
 
 friend 	APL_EidFile_Address *APL_EIDCard::getFileAddress();	/**< This method must access protected constructor */
 
@@ -507,6 +538,8 @@ public:
 	const char *getGraphicalPersonalisation();				/**< Return the Graphical Personalisation of the file */
 	const char *getElectricalPersonalisation();				/**< Return the Electrical Personalisation of the file */
 	const char *getElectricalPersonalisationInterface();	/**< Return the Electrical Personalisation Interface of the file */
+	const char *getTokenLabel();
+	const char *getTokenSerialNumber();
 
 protected:
 	/**
@@ -526,6 +559,8 @@ private:
 	std::string m_GraphicalPersonalisation;				/**< The Graphical Personalisation of the file */
 	std::string m_ElectricalPersonalisation;			/**< The Electrical Personalisation of the file */
 	std::string m_ElectricalPersonalisationInterface;	/**< The Electrical Personalisation Interface of the file */
+	std::string m_label;
+	std::string m_TokenSerialNumber;
 
 friend 	APL_EidFile_TokenInfo *APL_EIDCard::getFileTokenInfo();	/**< This method must access protected constructor */
 };

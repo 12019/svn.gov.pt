@@ -172,8 +172,9 @@ static const inline wchar_t * Type2String(tCardType cardType)
 {
 	switch(cardType)
 	{
-	case CARD_PTEID: return L"PT eID";;
-	case CARD_SIS: return L"SIS";
+	case CARD_PTEID_IAS07:
+	case CARD_PTEID_IAS101:
+		return L"PT eID";;
 	default: return L"unknown";
 	}
 }
@@ -391,6 +392,29 @@ unsigned long CReader::PinStatus(const tPin & Pin)
 
     return m_poCard->PinStatus(Pin);
 }
+
+
+CByteArray CReader::RootCAPubKey(){
+    if (m_poCard == NULL)
+        throw CMWEXCEPTION(EIDMW_ERR_NO_CARD);
+
+    return m_poCard->RootCAPubKey();
+}
+
+bool CReader::Activate(const char *pinCode, CByteArray &BCDDate){
+    if (m_poCard == NULL)
+        throw CMWEXCEPTION(EIDMW_ERR_NO_CARD);
+
+    return m_poCard->Activate(pinCode,BCDDate);
+}
+
+bool CReader::unlockPIN(const tPin &pin, const tPin *puk, const char *pszPuk, const char *pszNewPin, unsigned long *triesLeft){
+	if (m_poCard == NULL)
+		throw CMWEXCEPTION(EIDMW_ERR_NO_CARD);
+
+	return m_poCard->unlockPIN(pin, puk, pszPuk, pszNewPin, triesLeft);
+}
+
 
 bool CReader::PinCmd(tPinOperation operation, const tPin & Pin,
     const std::string & csPin1, const std::string & csPin2,

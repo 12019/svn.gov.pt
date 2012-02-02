@@ -27,9 +27,7 @@
 
 #include "APLDoc.h"
 #include "APLCrypto.h"
-#include "APLCardSIS.h"
 #include "APLCardPteid.h"
-
 #include <string.h>
 
 //UNIQUE INDEX FOR RETRIEVING OBJECT
@@ -189,6 +187,219 @@ bool PTEID_ByteArray::writeToFile(const char * csFilePath)
 }
 
 /*****************************************************************************************
+------------------------------------ PTEID_Photo -----------------------------------------
+*****************************************************************************************/
+
+PTEID_Photo::PTEID_Photo(const SDK_Context *context,const PhotoPteid &impl):PTEID_Object(context,(void *)&impl)
+{
+}
+
+PTEID_Photo::~PTEID_Photo()
+{
+	if(m_delimpl)
+	{
+		PhotoPteid *pimpl=static_cast<PhotoPteid *>(m_impl);
+		delete pimpl;
+		m_impl=NULL;
+	}
+}
+
+PTEID_ByteArray& PTEID_Photo::getphotoRAW() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	PhotoPteid *pimpl=static_cast<PhotoPteid *>(m_impl);
+	CByteArray *ca = pimpl->getPhotoRaw();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getPhotoRaw()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+PTEID_ByteArray& PTEID_Photo::getphoto() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	PhotoPteid *pimpl=static_cast<PhotoPteid *>(m_impl);
+	CByteArray *ca = pimpl->getPhotoPNG();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getPhotoPNG()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+PTEID_ByteArray& PTEID_Photo::getphotoCbeff() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	PhotoPteid *pimpl=static_cast<PhotoPteid *>(m_impl);
+	CByteArray *ca = pimpl->getCbeff();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getCbeff()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+PTEID_ByteArray& PTEID_Photo::getphotoFacialrechdr() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	PhotoPteid *pimpl=static_cast<PhotoPteid *>(m_impl);
+	CByteArray *ca = pimpl->getFacialrechdr();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getFacialrechdr()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+PTEID_ByteArray& PTEID_Photo::getphotoFacialinfo() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	PhotoPteid *pimpl=static_cast<PhotoPteid *>(m_impl);
+	CByteArray *ca = pimpl->getFacialinfo();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getFacialinfo()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+PTEID_ByteArray& PTEID_Photo::getphotoImageinfo() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	PhotoPteid *pimpl=static_cast<PhotoPteid *>(m_impl);
+	CByteArray *ca = pimpl->getImageinfo();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getImageinfo()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+
+/*****************************************************************************************
+---------------------------------- PTEID_CardAuthKey ------------------------------------
+*****************************************************************************************/
+PTEID_PublicKey::PTEID_PublicKey(const SDK_Context *context,const APLPublicKey &impl):PTEID_Object(context,(void *)&impl)
+{
+}
+
+PTEID_PublicKey::~PTEID_PublicKey()
+{
+	if(m_delimpl)
+	{
+		APLPublicKey *pimpl=static_cast<APLPublicKey *>(m_impl);
+		delete pimpl;
+		m_impl=NULL;
+	}
+}
+
+PTEID_ByteArray& PTEID_PublicKey::getCardAuthKeyModulus() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APLPublicKey *pimpl=static_cast<APLPublicKey *>(m_impl);
+	CByteArray *ca = pimpl->getModulus();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getModulus()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+PTEID_ByteArray& PTEID_PublicKey::getCardAuthKeyExponent() {
+	PTEID_ByteArray *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APLPublicKey *pimpl=static_cast<APLPublicKey *>(m_impl);
+	CByteArray *ca = pimpl->getExponent();
+
+	out = dynamic_cast<PTEID_ByteArray *>(getObject(ca));
+	if (!out){
+		out = new PTEID_ByteArray(m_context,*(pimpl->getExponent()));
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+/*****************************************************************************************
 ---------------------------------------- PTEID_XMLDoc -------------------------------------------
 *****************************************************************************************/
 PTEID_XMLDoc::PTEID_XMLDoc(const SDK_Context *context,APL_XMLDoc *impl):PTEID_Object(context,impl)
@@ -333,17 +544,6 @@ PTEID_Crypto::~PTEID_Crypto()
 }
 
 /*****************************************************************************************
----------------------------------------- PTEID_SisFullDoc -------------------------------------------
-*****************************************************************************************/
-PTEID_SisFullDoc::PTEID_SisFullDoc(const SDK_Context *context,APL_SisFullDoc *impl):PTEID_XMLDoc(context,impl)
-{
-}
-
-PTEID_SisFullDoc::~PTEID_SisFullDoc()
-{
-}
-
-/*****************************************************************************************
 ---------------------------------------- PTEID_EIdFullDoc -------------------------------------------
 *****************************************************************************************/
 PTEID_EIdFullDoc::PTEID_EIdFullDoc(const SDK_Context *context,APL_EIdFullDoc *impl):PTEID_XMLDoc(context,impl)
@@ -406,6 +606,20 @@ const char *PTEID_CardVersionInfo::getSerialNumber()
 	APL_DocVersionInfo *pimpl=static_cast<APL_DocVersionInfo *>(m_impl);
 	out = pimpl->getSerialNumber();
 	
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_CardVersionInfo::getTokenLabel()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_DocVersionInfo *pimpl=static_cast<APL_DocVersionInfo *>(m_impl);
+	out = pimpl->getTokenLabel();
+
 	END_TRY_CATCH
 
 	return out;
@@ -636,158 +850,6 @@ const PTEID_ByteArray &PTEID_CardVersionInfo::getSignature()
 
 	return *out;
 }
-/*****************************************************************************************
----------------------------------------- SisId -------------------------------------------
-*****************************************************************************************/
-PTEID_SisId::PTEID_SisId(const SDK_Context *context,APL_DocSisId *impl):PTEID_XMLDoc(context,impl)
-{
-}
-
-PTEID_SisId::~PTEID_SisId()
-{
-}
-
-const char *PTEID_SisId::getName()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getName();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getSurname()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getSurname();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getInitials()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getInitials();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getGender()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getGender();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getDateOfBirth()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getDateOfBirth();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getSocialSecurityNumber()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getSocialSecurityNumber();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getLogicalNumber()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getLogicalNumber();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getDateOfIssue()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getDateOfIssue();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getValidityBeginDate()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getValidityBeginDate();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-const char *PTEID_SisId::getValidityEndDate()
-{
-	const char *out = NULL;
-
-	BEGIN_TRY_CATCH
-
-	APL_DocSisId *pimpl=static_cast<APL_DocSisId *>(m_impl);
-	out = pimpl->getValidityEndDate();
-	
-	END_TRY_CATCH
-
-	return out;
-}
-
-
 
 /*****************************************************************************************
 ---------------------------------------- PTEID_EId ---------------------------------------------
@@ -842,14 +904,14 @@ const char *PTEID_EId::getCountry()
 	return out;
 }
 
-const char *PTEID_EId::getFirstName1()
+const char *PTEID_EId::getGivenName()
 {
 	const char *out = NULL;
 
 	BEGIN_TRY_CATCH
 
 	APL_DocEId *pimpl=static_cast<APL_DocEId *>(m_impl);
-	out = pimpl->getFirstName1();
+	out = pimpl->getGivenName();
 	
 	END_TRY_CATCH
 
@@ -1263,15 +1325,48 @@ const char *PTEID_EId::getLocalofRequest()
 	return out;
 }
 
-const PTEID_ByteArray& PTEID_EId::getPhoto()
+PTEID_Photo& PTEID_EId::getPhotoObj()
 {
-	PTEID_ByteArray *out = NULL;
+	PTEID_Photo *out = NULL;
 
 	BEGIN_TRY_CATCH
 
 	APL_DocEId *pimpl=static_cast<APL_DocEId *>(m_impl);
+	PhotoPteid *photo = pimpl->getPhotoObj();
 
-	out = new PTEID_ByteArray((const unsigned char*)pimpl->getPhoto(), 14128);
+	out = dynamic_cast<PTEID_Photo *>(getObject(photo));
+	if (!out){
+		out = new PTEID_Photo(m_context,*photo);
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+
+	}
+
+	END_TRY_CATCH
+
+	return *out;
+}
+
+PTEID_PublicKey& PTEID_EId::getCardAuthKeyObj()
+{
+	PTEID_PublicKey *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_DocEId *pimpl=static_cast<APL_DocEId *>(m_impl);
+	APLPublicKey *cardKey = pimpl->getCardAuthKeyObj();
+
+	out = dynamic_cast<PTEID_PublicKey *>(getObject(cardKey));
+	if (!out){
+		out = new PTEID_PublicKey(m_context,*cardKey);
+		if(out)
+			addObject(out);
+		else
+			throw PTEID_ExParamRange();
+
+	}
 
 	END_TRY_CATCH
 
@@ -1401,6 +1496,20 @@ const char *PTEID_Address::getCivilParish()
 	return out;
 }
 
+const char *PTEID_Address::getCivilParishCode()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getCivilParishCode();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
 const char *PTEID_Address::getStreetName()
 {
 	const char *out = NULL;
@@ -1415,56 +1524,56 @@ const char *PTEID_Address::getStreetName()
 	return out;
 }
 
-const char *PTEID_Address::getStreetType1()
+const char *PTEID_Address::getAbbrStreetType()
 {
 	const char *out = NULL;
 
 	BEGIN_TRY_CATCH
 
 	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
-	out = pimpl->getStreetType1();
+	out = pimpl->getAbbrStreetType();
 
 	END_TRY_CATCH
 
 	return out;
 }
 
-const char *PTEID_Address::getStreetType2()
+const char *PTEID_Address::getStreetType()
 {
 	const char *out = NULL;
 
 	BEGIN_TRY_CATCH
 
 	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
-	out = pimpl->getStreetType2();
+	out = pimpl->getStreetType();
 
 	END_TRY_CATCH
 
 	return out;
 }
 
-const char *PTEID_Address::getBuildingType1()
+const char *PTEID_Address::getAbbrBuildingType()
 {
 	const char *out = NULL;
 
 	BEGIN_TRY_CATCH
 
 	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
-	out = pimpl->getBuildingType1();
+	out = pimpl->getAbbrBuildingType();
 
 	END_TRY_CATCH
 
 	return out;
 }
 
-const char *PTEID_Address::getBuildingType2()
+const char *PTEID_Address::getBuildingType()
 {
 	const char *out = NULL;
 
 	BEGIN_TRY_CATCH
 
 	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
-	out = pimpl->getBuildingType2();
+	out = pimpl->getBuildingType();
 
 	END_TRY_CATCH
 
@@ -1569,6 +1678,20 @@ const char *PTEID_Address::getPostalLocality()
 	return out;
 }
 
+const char *PTEID_Address::getGeneratedAddressCode()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getGeneratedAddressCode();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
 const char *PTEID_Address::getDistrict()
 {
 	const char *out = NULL;
@@ -1577,6 +1700,20 @@ const char *PTEID_Address::getDistrict()
 
 	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
 	out = pimpl->getDistrict();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Address::getDistrictCode()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getDistrictCode();
 
 	END_TRY_CATCH
 
@@ -1597,6 +1734,20 @@ const char *PTEID_Address::getMunicipality()
 	return out;
 }
 
+const char *PTEID_Address::getMunicipalityCode()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getMunicipalityCode();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
 const char *PTEID_Address::getPlace()
 {
 	const char *out = NULL;
@@ -1605,6 +1756,118 @@ const char *PTEID_Address::getPlace()
 
 	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
 	out = pimpl->getPlace();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Address::getCountryCode()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getCountryCode();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+bool PTEID_Address::isNationalAddress()
+{
+	bool is;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	is =  pimpl->isNationalAddress();
+
+	END_TRY_CATCH
+
+	return is;
+}
+
+const char *PTEID_Address::getForeignCountry()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getForeignCountry();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Address::getForeignAddress()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getForeignAddress();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Address::getForeignCity()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getForeignCity();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Address::getForeignRegion()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getForeignRegion();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Address::getForeignLocality()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getForeignLocality();
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+const char *PTEID_Address::getForeignPostalCode()
+{
+	const char *out = NULL;
+
+	BEGIN_TRY_CATCH
+
+	APL_AddrEId *pimpl=static_cast<APL_AddrEId *>(m_impl);
+	out = pimpl->getForeignPostalCode();
 
 	END_TRY_CATCH
 
