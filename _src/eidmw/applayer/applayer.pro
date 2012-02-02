@@ -32,7 +32,11 @@ LIBS += -L../lib \
 	    -l$${COMMONLIB} \
 	    -l$${DLGLIB} \
 	    -lcrypto -lssl \
-	    -lxerces-c
+	    -lxerces-c \
+	    -lfreeimagePTEiD \
+	    -lcurl
+
+LIBS += -Wl,-R,'../lib' -lxml-security-c
 
 macx: LIBS += -L../../ThirdParty/Xerces/Xerces-2.8.0-mac/lib
 macx: LIBS += -Wl,-framework -Wl,CoreFoundation
@@ -52,7 +56,7 @@ isEmpty(EMULATE_CARDLAYER) {
 }
 
 DEPENDPATH += .
-INCLUDEPATH += . ../common ../cardlayer ../eidlib ../dialogs
+INCLUDEPATH += . ../common ../cardlayer ../eidlib ../dialogs ../FreeImagePTEiD/Source ../xml-security-c-1.6.1
 INCLUDEPATH += $${PCSC_INCLUDE_DIR}
 DEFINES += APPLAYER_EXPORTS
 # Input
@@ -76,7 +80,11 @@ HEADERS += \
 	eidmw_XML_datastorage.h \
 	eidmw_XML_DefHandler.h \
 	eidmw_XMLParser.h \
-	MiscUtil.h
+	MiscUtil.h \
+	PhotoPteid.h \
+	APLPublicKey.h \
+	XadesSignature.h
+
 
 ### EMV-CAP support
 ###        EMV-Cap-Helper.h \
@@ -96,8 +104,12 @@ SOURCES += \
     APLCard.cpp          \ 
     CRLService.cpp       \
     XMLParser.cpp       \
-    MiscUtil.cpp
-
+    MiscUtil.cpp \
+    PhotoPteid.cpp \
+    APLPublicKey.cpp \
+    XadesSignature.cpp
+    
+    
 ### EMV-CAP support
 ###    EMV-Cap-Helper.cpp \
 ###    sslcommon.cpp		\
@@ -112,16 +124,13 @@ SOURCES += \
 ## do not define a conditional block with contains(PKG_NAME,pteid)
 ## otherwise the script which prepares the tarball will not
 ## be able to parse the project file correctly!
-contains(PKG_NAME,pteid): HEADERS += CardSIS.h       \
-           			    CardPteid.h	    \
+contains(PKG_NAME,pteid): HEADERS += CardPteid.h	    \
 	  			    CardPteidDef.h   \
 	   			    cryptoFwkPteid.h \
-	   			    APLCardSIS.h    \
-	   			    CardSISDef.h    \
            			    APLCardPteid.h       
 
-contains(PKG_NAME,pteid): SOURCES +=  CardSIS.cpp \
-           		             CardPteid.cpp     \
-           			     APLCardPteid.cpp  \	
-			             APLCardSIS.cpp   \
+contains(PKG_NAME,pteid): SOURCES +=  CardPteid.cpp     \
+           			     APLCardPteid.cpp  \
 	   			     cryptoFwkPteid.cpp
+
+QMAKE_PRE_LINK=cp --no-dereference ../xml-security-c-1.6.1/xsec/.libs/libxml-security-c.so* ../lib				     

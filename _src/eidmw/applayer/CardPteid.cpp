@@ -30,6 +30,8 @@
 #include "MWException.h"
 #include "eidErrors.h"
 #include "APLConfig.h"
+#include "PhotoPteid.h"
+#include "APLPublicKey.h"
 
 #include "Log.h"
 
@@ -107,26 +109,35 @@ tCardFileStatus APL_EidFile_Trace::VerifyFile()
 void APL_EidFile_Trace::EmptyFields()
 {
 	m_Validation.clear();
+	m_mappedFields = false;
 }
 
 bool APL_EidFile_Trace::MapFields()
 {
+	if (m_mappedFields)
+		return true;
+
 	CByteArray pteidngtraceBuffer;
 	char cBuffer[15500];
 	unsigned char ucBuffer[15500];
 	unsigned long ulLen=0;
 	CTLVBuffer oTLVBuffer;
     oTLVBuffer.ParseTLV(m_data.GetBytes(), m_data.Size());
+    CByteArray Validation;
 
 	//Card Validation
     pteidngtraceBuffer = m_data.GetBytes(PTEIDNG_FIELD_TRACE_POS_VALIDATION, PTEIDNG_FIELD_TRACE_LEN_VALIDATION);
-    pteidngtraceBuffer.TrimRight(' ');
-    m_Validation.assign((char*)(pteidngtraceBuffer.GetBytes()), pteidngtraceBuffer.Size());
 
-    if (m_Validation == "$")
+    Validation = pteidngtraceBuffer;
+    if (Validation.ToString() == "01")
     	m_Validation = "O Cartão de Cidadão encontra-se activo";
     else
     	m_Validation = "O Cartão de Cidadão não encontra-se activo";
+
+
+    isCardActive = (pteidngtraceBuffer.GetByte(0) == PTEIDNG_ACTIVE_CARD);
+
+    m_mappedFields = true;
 
     return true;
 }
@@ -162,11 +173,18 @@ const char *APL_EidFile_Trace::getValidation()
 	return "";
 }
 
+bool APL_EidFile_Trace::isActive(){
+	if(ShowData())
+		return isCardActive;
+	return false;
+}
+
 /*****************************************************************************************
 ---------------------------------------- APL_EidFile_ID -----------------------------------------
 *****************************************************************************************/
 APL_EidFile_ID::APL_EidFile_ID(APL_EIDCard *card):APL_CardFile(card,PTEID_FILE_ID,NULL)
 {
+	photo = NULL;
 }
 
 APL_EidFile_ID::~APL_EidFile_ID()
@@ -239,7 +257,7 @@ void APL_EidFile_ID::EmptyFields()
 	m_LocalofRequest.clear();
 	m_CivilianIdNumber.clear();
 	m_Surname.clear();
-	m_FirstName1.clear();
+	m_GivenName.clear();
 	m_Nationality.clear();
 	m_LocationOfBirth.clear();
 	m_DateOfBirth.clear();
@@ -256,12 +274,24 @@ void APL_EidFile_ID::EmptyFields()
 	m_SurnameFather.clear();
 	m_GivenNameMother.clear();
 	m_SurnameMother.clear();
-	m_Photo.clear();
+	if (photo){
+		delete photo;
+		photo = NULL;
+	}
 	m_PhotoHash.ClearContents();
+	if (cardKey){
+		delete cardKey;
+		cardKey = NULL;
+	}
+	m_mappedFields = false;
 }
 
 bool APL_EidFile_ID::MapFields()
 {
+	// we dont want to read the fields every time
+	if (m_mappedFields)
+		return true;
+
 	CByteArray pteidngidBuffer;
 	char cBuffer[15500];
 	unsigned char ucBuffer[15500];
@@ -313,7 +343,7 @@ bool APL_EidFile_ID::MapFields()
 	//FirstName_1
 	pteidngidBuffer = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_Name, PTEIDNG_FIELD_ID_LEN_Name);
 	pteidngidBuffer.TrimRight(' ');
-	m_FirstName1.assign((char*)(pteidngidBuffer.GetBytes()), pteidngidBuffer.Size());
+	m_GivenName.assign((char*)(pteidngidBuffer.GetBytes()), pteidngidBuffer.Size());
 	/*std::string in_utf8;
 	in_utf8 = IBM850_toUtf8(m_FirstName1);
 	m_FirstName1 = in_utf8;*/
@@ -420,10 +450,29 @@ bool APL_EidFile_ID::MapFields()
 	m_SurnameMother.assign((char*)(pteidngidBuffer.GetBytes()), pteidngidBuffer.Size());
 
 	//Photo
-	pteidngidBuffer = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_Photo, PTEIDNG_FIELD_ID_LEN_Photo);
-	pteidngidBuffer.TrimRight(' ');
-	m_Photo.assign((char*)(pteidngidBuffer.GetBytes()), pteidngidBuffer.Size());
+	{
+		CByteArray cbeff;
+		CByteArray facialrechdr;
+		CByteArray facialinfo;
+		CByteArray imageinfo;
+		CByteArray photoRAW;
 
+		photoRAW = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_Photo, PTEIDNG_FIELD_ID_LEN_Photo);
+		photoRAW.TrimRight(0);
+		cbeff = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_CBEFF, PTEIDNG_FIELD_ID_LEN_CBEFF);
+		facialrechdr = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_FACIALRECHDR, PTEIDNG_FIELD_ID_LEN_FACIALRECHDR);
+		facialinfo = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_FACIALINFO, PTEIDNG_FIELD_ID_LEN_FACIALINFO);
+		imageinfo = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_IMAGEINFO, PTEIDNG_FIELD_ID_LEN_IMAGEINFO);
+		photo = new PhotoPteid(photoRAW, cbeff, facialrechdr, facialinfo, imageinfo);
+	}
+
+	//Card Authentication Key (modulus + exponent)
+	{
+		CByteArray modulus = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_MODULUS, PTEIDNG_FIELD_ID_LEN_MODULUS);
+		CByteArray exponent = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_EXPONENT, PTEIDNG_FIELD_ID_LEN_EXPONENT);
+
+		cardKey = new APLPublicKey(modulus,exponent);
+	}
 	//MRZ1
 	pteidngidBuffer = m_data.GetBytes(PTEIDNG_FIELD_ID_POS_Mrz1, PTEIDNG_FIELD_ID_LEN_Mrz1);
 	pteidngidBuffer.TrimRight(' ');
@@ -444,7 +493,8 @@ bool APL_EidFile_ID::MapFields()
 	pteidngidBuffer.TrimRight(' ');
 	m_AccidentalIndications.assign((char*)(pteidngidBuffer.GetBytes()), pteidngidBuffer.Size());
 
-	try
+	/* ID File Caching
+	 * try
 	{
 		ofstream myfile;
 		APL_Config conf_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_PTEID_CACHEDIR);
@@ -464,10 +514,12 @@ bool APL_EidFile_ID::MapFields()
 	catch(CMWException& e)
 	{
 		MWLOG(LEV_INFO, MOD_APL, L"Write cache file %ls on disk failed", PTEID_FILE_ID);
-	}
+	}*/
 
 	//MemberOfFamily - See if this segfaults in every platform
 	//m_MemberOfFamily = m_GivenNameMother + " " + m_SurnameMother + " * " + m_GivenNameFather + " " + m_SurnameFather;
+
+	m_mappedFields = true;
 
 	return true;
 }
@@ -482,7 +534,6 @@ bool APL_EidFile_ID::ShowData()
 	tCardFileStatus status=getStatus(true,&bAllowTest,&bAllowBadDate);
 	if(status==CARDFILESTATUS_OK)
 		return true;
-
 	//If the autorisation changed, we read the card again
 	if((status==CARDFILESTATUS_ERROR_TEST && pcard->getAllowTestCard())
 		|| (status==CARDFILESTATUS_ERROR_DATE && pcard->getAllowBadDate()))
@@ -519,10 +570,10 @@ const char *APL_EidFile_ID::getDocumentType()
 	return "";
 }
 
-const char *APL_EidFile_ID::getFirstName1()
+const char *APL_EidFile_ID::getGivenName()
 {
 	if(ShowData())
-		return m_FirstName1.c_str();
+		return m_GivenName.c_str();
 
 	return "";
 }
@@ -730,12 +781,20 @@ const char *APL_EidFile_ID::getParents()
 	return "";
 }
 
-const char *APL_EidFile_ID::getPhoto()
+PhotoPteid *APL_EidFile_ID::getPhotoObj()
 {
-	if(ShowData())
-		return m_Photo.c_str();
 
-	return "";
+	if(ShowData())
+		return photo;
+
+	return NULL;
+}
+
+APLPublicKey *APL_EidFile_ID::getCardAuthKeyObj(){
+	if(ShowData())
+		return cardKey;
+
+	return NULL;
 }
 
 const char *APL_EidFile_ID::getMRZ1()
@@ -811,6 +870,8 @@ tCardFileStatus APL_EidFile_IDSign::VerifyFile()
 /*****************************************************************************************
 ---------------------------------------- APL_EidFile_Address -----------------------------------------
 *****************************************************************************************/
+const string APL_EidFile_Address::m_NATIONAL = "N";
+const string APL_EidFile_Address::m_FOREIGN = "I";
 APL_EidFile_Address::APL_EidFile_Address(APL_EIDCard *card):APL_CardFile(card,PTEID_FILE_ADDRESS,NULL)
 {
 }
@@ -909,27 +970,42 @@ bool APL_EidFile_Address::ShowData()
 void APL_EidFile_Address::EmptyFields()
 {
 	m_AddressFile.clear();
+
+	// common address fields
 	m_AddressType.clear();
-	m_Country.clear();
-	m_District.clear();
+	m_CountryCode.clear();
+	m_Generated_Address_Code.clear();
+
+	// portuguese address fields
+	m_DistrictCode.clear();
+	m_DistrictDescription.clear();
+	m_MunicipalityCode.clear();
+	m_MunicipalityDescription.clear();
+	m_CivilParishCode.clear();
+	m_CivilParishDescription.clear();
+	m_AbbrStreetType.clear();
+	m_StreetType.clear();
 	m_StreetName.clear();
-	m_AddressVersion.clear();
-	m_Street.clear();
-	m_ZipCode.clear();
-	m_Municipality.clear();
-	m_CivilParish.clear();
-	m_StreetType1.clear();
-	m_StreetType2.clear();
-	m_BuildingType1.clear();
-	m_BuildingType2.clear();
+	m_AbbrBuildingType.clear();
+	m_BuildingType.clear();
 	m_DoorNo.clear();
 	m_Floor.clear();
 	m_Side.clear();
+	m_Place.clear();
 	m_Locality.clear();
 	m_Zip4.clear();
 	m_Zip3.clear();
 	m_PostalLocality.clear();
-	m_Place.clear();
+
+	// foreign address fields
+	m_Foreign_Country.clear();
+	m_Foreign_Generic_Address.clear();
+	m_Foreign_City.clear();
+	m_Foreign_Region.clear();
+	m_Foreign_Locality.clear();
+	m_Foreign_Postal_Code.clear();
+
+	m_mappedFields = false;
 }
 
 void APL_EidFile_Address::AddressFields()
@@ -941,50 +1017,60 @@ void APL_EidFile_Address::AddressFields()
 		CTLVBuffer oTLVBuffer;
 	    oTLVBuffer.ParseTLV(m_data.GetBytes(), m_data.Size());
 
-	    //Country
-	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_COUNTRY, PTEIDNG_FIELD_ADDRESS_LEN_COUNTRY);
-	    pteidngAddressBuffer.TrimRight(' ');
-	    m_Country.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
-
-		//District
+		//District Code
 	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_DISTRICT, PTEIDNG_FIELD_ADDRESS_LEN_DISTRICT);
 	    pteidngAddressBuffer.TrimRight(' ');
-	    m_District.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+	    m_DistrictCode.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-	    //Municipality
+	    //District Description
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_DISTRICT_DESCRIPTION, PTEIDNG_FIELD_ADDRESS_LEN_DISTRICT_DESCRIPTION);
+	    pteidngAddressBuffer.TrimRight(' ');
+	    m_DistrictDescription.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+	    //Municipality Code
 	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_MUNICIPALITY, PTEIDNG_FIELD_ADDRESS_LEN_MUNICIPALITY);
 	    pteidngAddressBuffer.TrimRight(' ');
-	    m_Municipality.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+	    m_MunicipalityCode.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-		//StreetName
+	    //Municipality Description
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_MUNICIPALITY_DESCRIPTION, PTEIDNG_FIELD_ADDRESS_LEN_MUNICIPALITY_DESCRIPTION);
+	    pteidngAddressBuffer.TrimRight(' ');
+	    m_MunicipalityDescription.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+	    //CivilParish Code
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_CIVILPARISH, PTEIDNG_FIELD_ADDRESS_LEN_CIVILPARISH);
+	    pteidngAddressBuffer.TrimRight(' ');
+	    m_CivilParishCode.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+	    //CivilParish Description
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_CIVILPARISH_DESCRIPTION, PTEIDNG_FIELD_ADDRESS_LEN_CIVILPARISH_DESCRIPTION);
+	    pteidngAddressBuffer.TrimRight(' ');
+	    m_CivilParishDescription.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+	    //Abbreviated Street Type
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_ABBR_STREET_TYPE, PTEIDNG_FIELD_ADDRESS_LEN_ABBR_STREET_TYPE);
+	    pteidngAddressBuffer.TrimRight(' ');
+	    m_AbbrStreetType.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+	    //Street Type
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_STREET_TYPE, PTEIDNG_FIELD_ADDRESS_LEN_STREET_TYPE);
+	    pteidngAddressBuffer.TrimRight(' ');
+	    m_StreetType.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+	    //Street Name
 	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_STREETNAME, PTEIDNG_FIELD_ADDRESS_LEN_STREETNAME);
 	    pteidngAddressBuffer.TrimRight(' ');
 	    m_StreetName.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-	    //CivilParish
-	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_CIVILPARISH, PTEIDNG_FIELD_ADDRESS_LEN_CIVILPARISH);
+	    //Abbreviated Building Type
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_ABBR_BUILDING_TYPE, PTEIDNG_FIELD_ADDRESS_LEN_ABBR_BUILDING_TYPE);
 	    pteidngAddressBuffer.TrimRight(' ');
-	    m_CivilParish.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+	    m_AbbrBuildingType.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-	    //StreetType1
-	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_STREETTYPE1, PTEIDNG_FIELD_ADDRESS_LEN_STREETTYPE1);
+	    //Building Type
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_BUILDING_TYPE, PTEIDNG_FIELD_ADDRESS_LEN_BUILDING_TYPE);
 	    pteidngAddressBuffer.TrimRight(' ');
-	    m_StreetType1.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
-
-	    //StreetType2
-	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_STREETTYPE2, PTEIDNG_FIELD_ADDRESS_LEN_STREETTYPE2);
-	    pteidngAddressBuffer.TrimRight(' ');
-	    m_StreetType2.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
-
-	    //BuildingType1
-	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_BUILDINGTYPE1, PTEIDNG_FIELD_ADDRESS_LEN_BUILDINGTYPE1);
-	    pteidngAddressBuffer.TrimRight(' ');
-	    m_BuildingType1.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
-
-	    //BuildingType2
-	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_BUILDINGTYPE2, PTEIDNG_FIELD_ADDRESS_LEN_BUILDINGTYPE2);
-	    pteidngAddressBuffer.TrimRight(' ');
-	    m_BuildingType2.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+	    m_BuildingType.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
 	    //DoorNo
 	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_DOORNO, PTEIDNG_FIELD_ADDRESS_LEN_DOORNO);
@@ -1001,15 +1087,15 @@ void APL_EidFile_Address::AddressFields()
 	    pteidngAddressBuffer.TrimRight(' ');
 	    m_Side.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
+	    //Place
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_PLACE, PTEIDNG_FIELD_ADDRESS_LEN_PLACE);
+	    pteidngAddressBuffer.TrimRight(' ');
+	    m_Place.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
 	    //Locality
 	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_LOCALITY, PTEIDNG_FIELD_ADDRESS_LEN_LOCALITY);
 	    pteidngAddressBuffer.TrimRight(' ');
 	    m_Locality.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
-
-	    //Zip3
-	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_PLACE, PTEIDNG_FIELD_ADDRESS_LEN_PLACE);
-	    pteidngAddressBuffer.TrimRight(' ');
-	    m_Place.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
 	    //Zip4
 	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_ZIP4, PTEIDNG_FIELD_ADDRESS_LEN_ZIP4);
@@ -1021,17 +1107,15 @@ void APL_EidFile_Address::AddressFields()
 	    pteidngAddressBuffer.TrimRight(' ');
 	    m_Zip3.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-	    //PostalLocality
+	    //Postal Locality
 	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_POSTALLOCALITY, PTEIDNG_FIELD_ADDRESS_LEN_POSTALLOCALITY);
 	    pteidngAddressBuffer.TrimRight(' ');
 	    m_PostalLocality.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-		//ZipCode
-	    /*ulLen = sizeof(cBuffer);
-		memset(cBuffer,0,ulLen);
-		oTLVBuffer.FillASCIIData(PTEID_FIELD_TAG_ADDR_ZipCode, cBuffer, &ulLen);
-		m_ZipCode.assign(cBuffer, 0, ulLen);*/
-
+	    //Generated Address Code
+	    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_GENADDRESS_NUM, PTEIDNG_FIELD_ADDRESS_LEN_GENADDRESS_NUM);
+	    pteidngAddressBuffer.TrimRight('\0');
+	    m_Generated_Address_Code.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
 	    /* lmedinas: Address File caching */
 	    /*ofstream myfile;
@@ -1048,7 +1132,6 @@ void APL_EidFile_Address::AddressFields()
 	    m_AddressFile.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 	    myfile << m_AddressFile;
 	    myfile.close();*/
-
 }
 
 void APL_EidFile_Address::ForeignerAddressFields()
@@ -1060,35 +1143,40 @@ void APL_EidFile_Address::ForeignerAddressFields()
 	CTLVBuffer oTLVBuffer;
     oTLVBuffer.ParseTLV(m_data.GetBytes(), m_data.Size());
 
-	//Country Type
-	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_FOREIGNER_COUNTRYTYPE, PTEIDNG_FIELD_ADDRESS_LEN_FOREIGNER_COUNTRYTYPE);
+	//Foreign Country
+	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_FOREIGN_ADDRESS_POS_COUNTRY_DESCRIPTION, PTEIDNG_FIELD_FOREIGN_ADDRESS_LEN_COUNTRY_DESCRIPTION);
 	pteidngAddressBuffer.TrimRight(' ');
-	m_Country.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+	m_Foreign_Country.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-	//District
-	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_FOREIGNER_ADDRESS, PTEIDNG_FIELD_ADDRESS_LEN_FOREIGNER_ADDRESS);
+	//Foreign Generic Address
+	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_FOREIGN_ADDRESS_POS_ADDRESS, PTEIDNG_FIELD_FOREIGN_ADDRESS_LEN_ADDRESS);
 	pteidngAddressBuffer.TrimRight(' ');
-	m_District.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+	m_Foreign_Generic_Address.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-	//Municipality
-	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_FOREIGNER_CITY, PTEIDNG_FIELD_ADDRESS_LEN_FOREIGNER_CITY);
+	//Foreign City
+	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_FOREIGN_ADDRESS_POS_CITY, PTEIDNG_FIELD_FOREIGN_ADDRESS_LEN_CITY);
 	pteidngAddressBuffer.TrimRight(' ');
-	m_Municipality.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+	m_Foreign_City.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-    //Locality
-    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_FOREIGNER_LOCALITY, PTEIDNG_FIELD_ADDRESS_LEN_FOREIGNER_LOCALITY);
+    //Foreign Region
+    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_FOREIGN_ADDRESS_POS_REGION, PTEIDNG_FIELD_FOREIGN_ADDRESS_LEN_REGION);
     pteidngAddressBuffer.TrimRight(' ');
-    m_Locality.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+    m_Foreign_Region.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-    //Zip4
-    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_FOREIGNER_POSTAL_CODE, PTEIDNG_FIELD_ADDRESS_LEN_FOREIGNER_POSTAL_CODE);
+    //Foreign Locality
+    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_FOREIGN_ADDRESS_POS_LOCALITY, PTEIDNG_FIELD_FOREIGN_ADDRESS_LEN_LOCALITY);
     pteidngAddressBuffer.TrimRight(' ');
-    m_Zip4.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+    m_Foreign_Locality.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-    //DoorNo
-    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_FOREIGNER_ADDRESS_NUMBER, PTEIDNG_FIELD_ADDRESS_LEN_FOREIGNER_ADDRESS_NUMBER);
+    //Foreign Postal Code
+    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_FOREIGN_ADDRESS_POS_POSTAL_CODE, PTEIDNG_FIELD_FOREIGN_ADDRESS_LEN_POSTAL_CODE);
     pteidngAddressBuffer.TrimRight(' ');
-    m_DoorNo.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+    m_Foreign_Postal_Code.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+    //Foreign Generated Address Code
+    pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_FOREIGN_ADDRESS_POS_GENADDRESS_NUM, PTEIDNG_FIELD_FOREIGN_ADDRESS_LEN_GENADDRESS_NUM);
+    pteidngAddressBuffer.TrimRight(' ');
+    m_Generated_Address_Code.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
     /* martinho - do not cache the address file
     ofstream myfile;
@@ -1110,6 +1198,10 @@ void APL_EidFile_Address::ForeignerAddressFields()
 
 bool APL_EidFile_Address::MapFields()
 {
+	// MARTINHO: have we mapped the fields yet?
+	if (m_mappedFields)
+		return true;
+
 	CByteArray pteidngAddressBuffer;
 	char cBuffer[1200];
 	unsigned long ulLen=0;
@@ -1117,55 +1209,72 @@ bool APL_EidFile_Address::MapFields()
 	CTLVBuffer oTLVBuffer;
 	oTLVBuffer.ParseTLV(m_data.GetBytes(), m_data.Size());
 
-	//Address Type
-	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_ADDRESSTYPE, PTEIDNG_FIELD_ADDRESS_LEN_ADDRESSTYPE);
+	// Address Type
+	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_TYPE, PTEIDNG_FIELD_ADDRESS_LEN_TYPE);
 	pteidngAddressBuffer.TrimRight(' ');
 	m_AddressType.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
 
-	if (m_AddressType == "I")
+	// Country code
+	pteidngAddressBuffer = m_data.GetBytes(PTEIDNG_FIELD_ADDRESS_POS_COUNTRY, PTEIDNG_FIELD_ADDRESS_LEN_COUNTRY);
+	pteidngAddressBuffer.TrimRight('\0');
+	m_CountryCode.assign((char*)(pteidngAddressBuffer.GetBytes()), pteidngAddressBuffer.Size());
+
+	if (m_AddressType == m_FOREIGN)
 		ForeignerAddressFields();
 	else
 		AddressFields();
 
+	// MARTINHO: so we've mapped the fields no need to map them again
+	m_mappedFields = true;
+
 	return true;
-}
-
-const char *APL_EidFile_Address::getAddressVersion()
-{
-	if(ShowData())
-		return m_AddressVersion.c_str();
-
-	return "";
-}
-
-const char *APL_EidFile_Address::getStreet()
-{
-	if(ShowData())
-		return m_Street.c_str();
-
-	return "";
-}
-
-const char *APL_EidFile_Address::getZipCode()
-{
-	if(ShowData())
-		return m_ZipCode.c_str();
-
-	return "";
 }
 
 const char *APL_EidFile_Address::getMunicipality()
 {
 	if(ShowData())
-		return m_Municipality.c_str();
+		return m_MunicipalityDescription.c_str();
 
 	return "";
 }
 
+const char *APL_EidFile_Address::getMunicipalityCode()
+{
+	if(ShowData())
+		return m_MunicipalityCode.c_str();
+
+	return "";
+}
+
+
 const char *APL_EidFile_Address::getDistrict()
 {
 	if(ShowData())
-		return m_District.c_str();
+		return m_DistrictDescription.c_str();
+
+	return "";
+}
+
+const char *APL_EidFile_Address::getDistrictCode()
+{
+	if(ShowData())
+		return m_DistrictCode.c_str();
+
+	return "";
+}
+
+const char *APL_EidFile_Address::getCivilParish()
+{
+	if(ShowData())
+		return m_CivilParishDescription.c_str();
+
+	return "";
+}
+
+const char *APL_EidFile_Address::getCivilParishCode()
+{
+	if(ShowData())
+		return m_CivilParishCode.c_str();
 
 	return "";
 }
@@ -1178,42 +1287,34 @@ const char *APL_EidFile_Address::getStreetName()
 	return "";
 }
 
-const char *APL_EidFile_Address::getCivilParish()
+const char *APL_EidFile_Address::getAbbrStreetType()
 {
 	if(ShowData())
-		return m_CivilParish.c_str();
+		return m_AbbrStreetType.c_str();
 
 	return "";
 }
 
-const char *APL_EidFile_Address::getStreetType1()
+const char *APL_EidFile_Address::getStreetType()
 {
 	if(ShowData())
-		return m_StreetType1.c_str();
+		return m_StreetType.c_str();
 
 	return "";
 }
 
-const char *APL_EidFile_Address::getStreetType2()
+const char *APL_EidFile_Address::getAbbrBuildingType()
 {
 	if(ShowData())
-		return m_StreetType2.c_str();
+		return m_AbbrBuildingType.c_str();
 
 	return "";
 }
 
-const char *APL_EidFile_Address::getBuildingType1()
+const char *APL_EidFile_Address::getBuildingType()
 {
 	if(ShowData())
-		return m_BuildingType1.c_str();
-
-	return "";
-}
-
-const char *APL_EidFile_Address::getBuildingType2()
-{
-	if(ShowData())
-		return m_BuildingType2.c_str();
+		return m_BuildingType.c_str();
 
 	return "";
 }
@@ -1280,6 +1381,74 @@ const char *APL_EidFile_Address::getPostalLocality()
 		return m_PostalLocality.c_str();
 
 	return "";
+}
+
+const char *APL_EidFile_Address::getGeneratedAddressCode()
+{
+	if(ShowData())
+		return m_Generated_Address_Code.c_str();
+
+	return "";
+}
+
+const char * APL_EidFile_Address::getCountryCode()
+{
+	if(ShowData())
+			return m_CountryCode.c_str();
+
+		return "";
+}
+
+bool APL_EidFile_Address::isNationalAddress(){
+	return (m_AddressType.compare(m_NATIONAL));
+}
+
+const char *APL_EidFile_Address::getForeignCountry()
+{
+	if(ShowData())
+		return m_Foreign_Country.c_str();
+
+	return "";
+}
+
+const char * APL_EidFile_Address::getForeignAddress()
+{
+	if(ShowData())
+			return m_Foreign_Generic_Address.c_str();
+
+		return "";
+}
+
+const char *APL_EidFile_Address::getForeignCity()
+{
+	if(ShowData())
+		return m_Foreign_City.c_str();
+
+	return "";
+}
+
+const char * APL_EidFile_Address::getForeignRegion()
+{
+	if(ShowData())
+			return m_Foreign_Region.c_str();
+
+		return "";
+}
+
+const char *APL_EidFile_Address::getForeignLocality()
+{
+	if(ShowData())
+		return m_Foreign_Locality.c_str();
+
+	return "";
+}
+
+const char * APL_EidFile_Address::getForeignPostalCode()
+{
+	if(ShowData())
+			return m_Foreign_Postal_Code.c_str();
+
+		return "";
 }
 
 /*****************************************************************************************
@@ -1364,10 +1533,14 @@ bool APL_EidFile_Sod::ShowData()
 void APL_EidFile_Sod::EmptyFields()
 {
 	m_Sod.clear();
+	m_mappedFields = false;
 }
 
 bool APL_EidFile_Sod::MapFields()
 {
+	if (m_mappedFields)
+		return true;
+
 	CByteArray pteidngSodBuffer;
     char cBuffer[1200];
     unsigned long ulLen=0;
@@ -1380,7 +1553,8 @@ bool APL_EidFile_Sod::MapFields()
     pteidngSodBuffer.TrimRight(' ');
     m_Sod.assign((char*)(pteidngSodBuffer.GetBytes()), pteidngSodBuffer.Size());
 
-    try
+    /* File Caching
+     * try
     {
     	ofstream myfile;
     	APL_Config conf_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_PTEID_CACHEDIR);
@@ -1400,7 +1574,10 @@ bool APL_EidFile_Sod::MapFields()
     catch(CMWException& e)
     {
     	MWLOG(LEV_INFO, MOD_APL, L"Write cache file %ls on disk failed", PTEID_FILE_SOD);
-    }
+    }*/
+
+    m_mappedFields = true;
+
     return true;
 }
 
@@ -1473,10 +1650,14 @@ bool APL_EidFile_PersoData::ShowData()
 void APL_EidFile_PersoData::EmptyFields()
 {
 	m_PersoData.clear();
+	m_mappedFields = false;
 }
 
 bool APL_EidFile_PersoData::MapFields()
 {
+	if (m_mappedFields)
+		return true;
+
 	CByteArray pteidngPersoDataBuffer;
     char cBuffer[1200];
     unsigned long ulLen=0;
@@ -1485,9 +1666,11 @@ bool APL_EidFile_PersoData::MapFields()
     oTLVBuffer.ParseTLV(m_data.GetBytes(), m_data.Size());
 
     //PersoData
-    pteidngPersoDataBuffer = m_data.GetBytes(0, 50);
+    pteidngPersoDataBuffer = m_data.GetBytes(PTEIDNG_FIELD_PERSODATA_POS_FILE, PTEIDNG_FIELD_PERSODATA_LEN_FILE);
     pteidngPersoDataBuffer.TrimRight(' ');
     m_PersoData.assign((char*)(pteidngPersoDataBuffer.GetBytes()), pteidngPersoDataBuffer.Size());
+
+    m_mappedFields = true;
 
     return true;
 }
@@ -1521,10 +1704,47 @@ void APL_EidFile_TokenInfo::EmptyFields()
 	m_GraphicalPersonalisation.clear();
 	m_ElectricalPersonalisation.clear();
 	m_ElectricalPersonalisationInterface.clear();
+	m_mappedFields = false;
 }
 
 bool APL_EidFile_TokenInfo::MapFields()
 {
+	if (m_mappedFields)
+		return true;
+
+	CByteArray temp;
+	char *ascii;
+
+	/* 	martinho: yes it is an asn1 file but we only need 2 fields, so lets extract them.
+		TODO: read the file as asn1, this might be useful with the asn1c compiler.
+
+		EFCIAFILE DEFINITIONS ::=
+		BEGIN
+
+	  		EFCIA ::= SEQUENCE {
+	  			value		INTEGER,
+	  			number		OCTET STRING,
+	  			applet		UTF8String,
+				text  [0] IMPLICIT IA5String,
+				whatever	BIT STRING
+	  		}
+		END
+	*/
+
+	temp = m_data.GetBytes(PTEID_FIELD_TOKENINFO_POS_LABEL, PTEID_FIELD_TOKENINFO_LEN_LABEL);
+	temp.TrimRight('\0');
+	m_label.assign((char*)(temp.GetBytes()), temp.Size());
+
+	temp = m_data.GetBytes(PTEID_FIELD_TOKENINFO_POS_SERIAL, PTEID_FIELD_TOKENINFO_LEN_SERIAL);
+	temp.TrimRight('\0');
+	//martinho: no need to create a bcd2ascii, this one works fine
+	ascii = bin2AsciiHex(temp.GetBytes(),temp.Size());
+	m_TokenSerialNumber.assign(ascii);
+
+
+
+
+
 	char buffer[50];
 
 	//Graphical Personalisation
@@ -1539,8 +1759,25 @@ bool APL_EidFile_TokenInfo::MapFields()
 	sprintf_s(buffer,sizeof(buffer),"%02X", m_data.GetByte(PTEID_FIELD_BYTE_TOKENINFO_ElectricalPersonalisationInterface));
 	m_ElectricalPersonalisationInterface=buffer;
 
+	m_mappedFields = true;
+
 	return true;
 
+}
+
+
+const char *APL_EidFile_TokenInfo::getTokenLabel(){
+	if(ShowData())
+			return m_label.c_str();
+
+		return "";
+}
+
+const char *APL_EidFile_TokenInfo::getTokenSerialNumber(){
+	if(ShowData())
+			return m_TokenSerialNumber.c_str();
+
+		return "";
 }
 
 const char *APL_EidFile_TokenInfo::getGraphicalPersonalisation()

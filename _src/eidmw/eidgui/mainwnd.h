@@ -22,6 +22,7 @@
 #define MAINWND_H
 
 #include <QtGui>
+#include <QFutureWatcher>
 #ifdef WIN32
 #include <windows.h>
 #include <Wincrypt.h>
@@ -181,16 +182,12 @@ public:
 	void setKeyLen(QString KeyLen) {m_KeyLen=KeyLen;}
 	QString const& getKeyLen() {return m_KeyLen;}
 
-	void setOcspStatus(PTEID_CertifStatus OcspStatus) {m_OcspStatus=OcspStatus;}
-	PTEID_CertifStatus getOcspStatus() {return m_OcspStatus;}
-
 private:
 	QString m_Issuer;
 	QString m_Owner;
 	QString m_ValidityBegin;
 	QString m_ValidityEnd;
 	QString m_KeyLen;
-	PTEID_CertifStatus m_OcspStatus;
 };
 
 class MainWnd : public QMainWindow
@@ -210,16 +207,13 @@ public:
 	{
 		return m_Settings;
 	}
-	void setEnableReload( bool bEnabled );
+
 
 private slots:
 	void on_actionAbout_triggered( void );
-	void on_actionReload_eID_triggered( void );
 	void on_actionClear_triggered( void );
-	void on_actionOpen_eID_triggered( void );
-	void on_actionSave_eID_triggered( void );
-	void on_actionSave_eID_as_triggered( void );
 	void on_actionPrint_eID_triggered( void );
+	void actionSignature_eID_triggered( void );
 	void on_actionPrinter_Settings_triggered( void );
 	void on_actionPINRequest_triggered( void );
 	void on_actionPINChange_triggered( void );
@@ -227,17 +221,14 @@ private slots:
 	void on_actionE_xit_triggered(void);
 	void authPINRequest_triggered( void );
 	bool addressPINRequest_triggered( void );
+	void updatetext();
 	void PersoDataSaveButtonClicked( void );
-	void tabaddress_select ( int index );
-	void tabpersodata_select ( int index );
-	void tabcertificates_select(int index);
 	void setLanguageEn( void );
 	void setLanguageNl( void );
 	void setLanguageFr( void );
 	void setLanguageDe( void );
 	void restoreWindow( void );
 	void messageRespond( const QString& message);
-
 
 	// eventFilter to Catch actions from "personalized toolbar"
 	bool eventFilter(QObject *,QEvent *);
@@ -280,8 +271,6 @@ private slots:
 	void show_window_parameters();
 	void show_window_about();
 
-
-	void OpenSelectedEid( const QString& fileName );
 	void updateReaderList( void );
 	void customEvent( QEvent * event );
 	void changeEvent( QEvent *event );
@@ -311,6 +300,9 @@ protected:
 	QMenu*				m_pTrayIconMenu;
 	QTranslator			m_translator;
 
+	QProgressDialog *m_progress;
+	QFutureWatcher<void> FutureWatcher;
+
 	PinInfo list_of_pins[3]; 
 
 
@@ -324,12 +316,7 @@ private:
 	void setStatus( unsigned int Status );
 
 	// Refresh Data
-	void hideTabs( void );
 	void showTabs( void );
-
-
-
-	void initAllWidgets(QList<QWidget *> &allWidgets);
 
 	void zoomAllWidgets(QList<QWidget *>& allWidgets);
 	void setWidgetPosition(QList<QWidget *>& allWidgets);
@@ -353,6 +340,7 @@ private:
 	void LoadDataPersoData(PTEID_EIDCard& Card);
 	void LoadDataCertificates(PTEID_EIDCard& Card);
 	void LoadDataMC(PTEID_MemoryCard& Card);
+	void on_actionUpdates_triggered( void );
 
 	void InitLanguageMenu( void );
 	void setLanguage( void );
@@ -374,13 +362,6 @@ private:
 		case PTEID_CERTIF_STATUS_VALID:
 			strCertStatus = tr("Valid");
 			break;
-		case PTEID_CERTIF_STATUS_VALID_CRL:
-			strCertStatus = tr("Valid CRL");
-			break;
-		case PTEID_CERTIF_STATUS_VALID_OCSP:
-			strCertStatus = tr("Valid OCSP");
-			break;
-		case PTEID_CERTIF_STATUS_CONNECT:
 		case PTEID_CERTIF_STATUS_UNKNOWN:
 		default:
 			strCertStatus = tr("Unknown");
@@ -391,16 +372,10 @@ private:
 	{
 		switch(certStatus)
 		{
-		case PTEID_CERTIF_STATUS_OCSP_NOT_CHECKED:
-			strCertStatus = tr("OCSP not checked");
-			break;
 		case PTEID_CERTIF_STATUS_REVOKED:
 			strCertStatus = tr("Revoked");
 			break;
 		case PTEID_CERTIF_STATUS_VALID:
-		case PTEID_CERTIF_STATUS_VALID_OCSP:
-			strCertStatus = tr("Good");
-			break;
 		default:
 			strCertStatus = tr("Unknown");
 			break;
@@ -433,9 +408,7 @@ private:
 	static bool ProviderNameCorrect (PCCERT_CONTEXT pCertContext );
 #endif
 	void showCertImportMessage(bool bImported);
-	bool saveCardDataToFile(QString const& fileName, PTEID_Card& card );
 	bool saveCardDataToFile(QString const& fileName, PTEID_EIDCard& card );
-	QString createBaseFilename( PTEID_CardType const& cardType );
 	void setEnabledPinButtons( bool bEnabled );
 	void setEnabledCertifButtons( bool bEnabled );
 	QString GetCardTypeText(QString const& cardType);
@@ -447,7 +420,6 @@ private:
 	void setWidgetsPointSize(QList<QWidget *> &allWidgets);
 	void setCorrespondingTrayIcon( PopupEvent* callbackEvent );
 	void clearGuiContent( void );
-	QStringList fillRemarksField( tFieldMap& MiscFields );
 	QString getSpecialOrganizationText( QString const& code);
 	QString getDuplicataText( void );
 	QString getFamilyMemberText( void );
@@ -484,8 +456,35 @@ public:
 };
 
 
+/* Helper Class for Threaded Data Loading */
+class CardDataLoader
+{
+private:
+	CardInformation& information;
+	PTEID_EIDCard &card;
+	QString &readerName;
 
+	
+	public:
+	CardDataLoader(CardInformation& info, PTEID_EIDCard& Card, QString& ReaderName): 
+		information(info), card(Card), readerName(ReaderName)
+	{ }
 
+	void Load()
+	{
+		this->information.LoadData(card, readerName);
+	}
+
+	void LoadPersoData()
+	{
+		this->information.LoadDataPersoData(card, readerName);
+	}
+
+	void LoadCertificateData()
+	{
+		this->information.LoadDataCertificates(card, readerName);
+	}
+};
 
 
 #endif

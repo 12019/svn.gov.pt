@@ -27,6 +27,7 @@
 #include "ByteArray.h"
 #include "P15Objects.h"
 #include "APLReader.h"
+#include "APLPublicKey.h"
 
 #define BEGIN_CAL_OPERATION(obj) \
 	obj->CalLock();\
@@ -105,7 +106,20 @@ public:
 
     EIDMW_APL_API virtual CByteArray sendAPDU(const CByteArray& cmd);
 
-    EIDMW_APL_API virtual CByteArray Sign(const CByteArray & oData);
+    EIDMW_APL_API virtual CByteArray Sign(const CByteArray & oData, bool signatureKey=false);
+
+	/* XADeS Signature Methods  */
+
+	EIDMW_APL_API CByteArray &SignXades(CByteArray ba, const char *URL);
+
+	EIDMW_APL_API CByteArray &SignXadesT(CByteArray ba, const char *URL);
+
+	EIDMW_APL_API CByteArray &SignXades(const char ** path, unsigned int n_paths);
+
+	EIDMW_APL_API CByteArray &SignXadesT(const char ** path, unsigned int n_paths);
+	
+	EIDMW_APL_API bool ValidateSignature(const CByteArray &signature, char * errors, unsigned long* error_len);
+
 
 	/**
 	  * Read a file on the card 
@@ -231,6 +245,10 @@ public:
 	  */
 	EIDMW_APL_API virtual unsigned long pinStatus(const tPin & Pin);
 
+	/* Get the CVC CA public key that
+	 * this card uses to verify the CVC key; */
+	EIDMW_APL_API virtual APLPublicKey *getRootCAPubKey()=0;
+
  	/**
 	  * Execute a pin command from the CAL
 	  */
@@ -322,6 +340,7 @@ protected:
 
 	CByteArray *m_challenge;
 	CByteArray *m_challengeResponse;
+	APLPublicKey *m_RootCAPubKey;
 };
 
 /******************************************************************************//**

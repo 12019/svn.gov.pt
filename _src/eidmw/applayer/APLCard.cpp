@@ -26,6 +26,7 @@
 #include "CardLayer.h"
 #include "cryptoFwkPteid.h"
 #include "CardPteidDef.h"
+#include "XadesSignature.h"
 
 #include <time.h>
 #include <sys/types.h>
@@ -115,22 +116,70 @@ CByteArray APL_Card::sendAPDU(const CByteArray& cmd)
 	return out;
 }
 
-CByteArray APL_Card::Sign(const CByteArray & oData)
+CByteArray APL_Card::Sign(const CByteArray & oData, bool signatureKey)
 {
 	if(m_reader->isVirtualReader()) //Virtual Reader
 		return CByteArray();
 
 	CByteArray out;
-	/*CHash *oHash = new CHash();
-	oHash->Init(ALGO_SHA1);
-	oHash->Update(oData);*/
-
 	BEGIN_CAL_OPERATION(m_reader)
-	out = m_reader->getCalReader()->Sign(m_reader->getCalReader()->GetPrivKeyByID(0x45), SIGN_ALGO_RSA_PKCS, oData);
+	tPrivKey signing_key;
+    //Private key IDs can be found with pkcs15-tool --list-keys from OpenSC package
+	if (signatureKey)
+		signing_key = m_reader->getCalReader()->GetPrivKeyByID(0x46); 
+	else
+		signing_key = m_reader->getCalReader()->GetPrivKeyByID(0x45);
+
+	out = m_reader->getCalReader()->Sign(signing_key, SIGN_ALGO_RSA_PKCS, oData);
 	END_CAL_OPERATION(m_reader)
 
 	return out;
 }
+
+
+CByteArray &APL_Card::SignXades(const char ** path, unsigned int n_paths)
+{
+	if (path == NULL || n_paths < 1)
+	   throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+
+	XadesSignature sig(this);
+
+	return sig.SignXades(path,n_paths);
+
+}
+
+CByteArray &APL_Card::SignXades(CByteArray content, const char *URL)
+{
+	CByteArray * ba = new CByteArray();
+	//TODO
+	return *ba;
+}
+
+CByteArray &APL_Card::SignXadesT(CByteArray content, const char *URL)
+{
+	CByteArray * ba = new CByteArray();
+	//TODO
+	return *ba;
+}
+
+CByteArray &APL_Card::SignXadesT(const char ** path, unsigned int n_paths)
+{
+	CByteArray * ba = new CByteArray();
+	//TODO
+	return *ba;
+}
+
+bool APL_Card::ValidateSignature(const CByteArray &signature, char * errors, unsigned long* error_len)
+{
+	if (signature.Size() == 0)
+		throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+	
+	XadesSignature sig(this);
+	
+	return sig.ValidateXades(signature, errors, error_len);
+}
+
+
 
 /*****************************************************************************************
 ---------------------------------------- APL_MemoryCard ----------------------------------
@@ -161,6 +210,7 @@ APL_SmartCard::APL_SmartCard(APL_ReaderContext *reader):APL_Card(reader)
 
 	m_challenge=NULL;
 	m_challengeResponse=NULL;
+	m_RootCAPubKey = NULL;
 
 	m_certificateCount=COUNT_UNDEF;
 	m_pinCount=COUNT_UNDEF;
@@ -196,6 +246,12 @@ APL_SmartCard::~APL_SmartCard()
 	{
 		delete m_challengeResponse;
 		m_challengeResponse=NULL;
+	}
+
+	if (m_RootCAPubKey)
+	{
+		delete m_RootCAPubKey;
+		m_RootCAPubKey = NULL;
 	}
 
 }
@@ -259,9 +315,10 @@ unsigned long APL_SmartCard::readFile(const char *csPath, CByteArray &oData, uns
 unsigned long APL_SmartCard::readFile(const char *fileID, CByteArray &in,APL_Pin *pin,const char *csPinCode)
 {
 	unsigned long lRemaining=0;
-	if(!pin)
-		if(strlen(csPinCode)>0)
+	if(pin)
+		if(csPinCode != NULL)
 			pin->verifyPin(csPinCode,lRemaining);
+
 
 	return readFile(fileID,in,0UL,0UL);
 }
@@ -269,8 +326,9 @@ unsigned long APL_SmartCard::readFile(const char *fileID, CByteArray &in,APL_Pin
 bool APL_SmartCard::writeFile(const char *fileID,const CByteArray &out,APL_Pin *pin,const char *csPinCode)
 {
 	unsigned long lRemaining=0;
-	if(!pin)
-		if(strlen(csPinCode)>0)
+
+	if(pin)
+		if(csPinCode != NULL)
 			pin->verifyPin(csPinCode,lRemaining);
 
 	return APL_Card::writeFile(fileID,out);
@@ -303,7 +361,7 @@ APL_Pins *APL_SmartCard::getPins()
 	if(!m_pins)
 	{
 		CAutoMutex autoMutex(&m_Mutex);		//We lock for unly one instanciation
-		if (!m_pins)						//We test again to be sure it isn't instanciated between the first if and the lock
+		if (!m_pins)				//We test again to be sure it isn't instanciated between the first if and the lock
 		{
 			m_pins=new APL_Pins(this);
 		}

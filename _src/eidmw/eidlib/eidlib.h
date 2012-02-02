@@ -25,7 +25,7 @@
 #include <map>
 #include <set>
 #include "eidlibdefines.h"
-#include "../common/xmlUserDataEnum.h"
+#include "xmlUserData.h"
 
 namespace eIDMW
 {
@@ -147,9 +147,66 @@ public:
 	NOEXPORT_PTEIDSDK PTEID_ByteArray &operator=(const CByteArray &bytearray);			/**< For internal use : copy from lower level object*/
 };
 
+class PhotoPteid;
+
+class PTEID_Photo : public PTEID_Object
+{
+public:
+	PTEIDSDK_API virtual ~PTEID_Photo();												/**< Destructor */
+
+	PTEIDSDK_API PTEID_ByteArray& getphotoRAW();
+	PTEIDSDK_API PTEID_ByteArray& getphoto();
+	PTEIDSDK_API PTEID_ByteArray& getphotoCbeff();
+	PTEIDSDK_API PTEID_ByteArray& getphotoFacialrechdr();
+	PTEIDSDK_API PTEID_ByteArray& getphotoFacialinfo();
+	PTEIDSDK_API PTEID_ByteArray& getphotoImageinfo();
+
+	NOEXPORT_PTEIDSDK PTEID_Photo(const SDK_Context *context,const PhotoPteid &impl);
+
+private:
+	PTEID_Photo(const PTEID_Photo& photo);				/**< Copy not allowed - not implemented */
+	PTEID_Photo& operator= (const PTEID_Photo& photo);	/**< Copy not allowed - not implemented */
+};
+
+
+class APLPublicKey;
+
+class PTEID_PublicKey : public PTEID_Object
+{
+public:
+	PTEIDSDK_API virtual ~PTEID_PublicKey();												/**< Destructor */
+
+	PTEIDSDK_API PTEID_ByteArray& getCardAuthKeyModulus();
+	PTEIDSDK_API PTEID_ByteArray& getCardAuthKeyExponent();
+
+	NOEXPORT_PTEIDSDK PTEID_PublicKey(const SDK_Context *context,const APLPublicKey &impl);
+
+private:
+	PTEID_PublicKey(const PTEID_PublicKey& cardKey);				/**< Copy not allowed - not implemented */
+	PTEID_PublicKey& operator= (const PTEID_PublicKey& cardKey);	/**< Copy not allowed - not implemented */
+};
+
+
 /******************************************************************************//**
   * These structure are used for compatibility with old C sdk.
   *********************************************************************************/
+
+/* General return codes */
+#define PTEID_OK							0 /* Function succeeded */
+#define PTEID_E_BAD_PARAM					1 /* Invalid parameter (NULL pointer, out of bound, etc.) */
+#define PTEID_E_INTERNAL					2 /* An internal consistency check failed */
+#define PTEID_E_INSUFFICIENT_BUFFER	        3 /* The data buffer to receive returned data is too small for the returned data */
+#define PTEID_E_KEYPAD_CANCELLED	        4 /* Input on pinpad cancelled */
+#define PTEID_E_KEYPAD_TIMEOUT				5 /* Timout returned from pinpad */
+#define PTEID_E_KEYPAD_PIN_MISMATCH			6 /* The two PINs did not match */
+#define PTEID_E_KEYPAD_MSG_TOO_LONG			7 /* Message too long on pinpad */
+#define PTEID_E_INVALID_PIN_LENGTH			8 /* Invalid PIN length */
+#define PTEID_E_NOT_INITIALIZED				9 /* Library not initialized */
+#define PTEID_E_UNKNOWN						10 /* An internal error has been detected, but the source is unknown */
+#define PTEID_E_FILE_NOT_FOUND				11 /* Attempt to read a file has failed. */
+#define PTEID_E_USER_CANCELLED				12 /* An operation was cancelled by the user. */
+
+
 struct PTEID_RawData_Eid
 {
     PTEID_ByteArray idData;
@@ -164,11 +221,6 @@ struct PTEID_RawData_Eid
     PTEID_ByteArray response;
     PTEID_ByteArray persoData;
     PTEID_ByteArray trace;
-};
-
-struct PTEID_RawData_Sis
-{
-    PTEID_ByteArray idData;
 };
 
 /**
@@ -296,9 +348,6 @@ private:
 
 class PTEID_Card;
 class PTEID_EIDCard;
-class PTEID_KidsCard;
-class PTEID_ForeignerCard;
-class PTEID_SISCard;
 
 /******************************************************************************//**
   * This class represent a reader.
@@ -307,7 +356,7 @@ class PTEID_SISCard;
   * Once you have a reader object, you can check if a card is present (isCardPresent).
   * Then you can ask which type of card is in the reader with getCardType()
   *		and then get a card object using one of this method :
-  *			getCard, getEIDCard, getKidsCard, getForeignerCard or getSISCard.
+  *			getCard or getEIDCard.
   *********************************************************************************/
 class PTEID_ReaderContext : public PTEID_Object
 {
@@ -329,12 +378,6 @@ public:
 	  *		No physical reader are connected (m_reader=NULL)
 	  */
 	PTEIDSDK_API PTEID_ReaderContext(const PTEID_RawData_Eid &data);
-
-	/**
-	  * Construct using Raw data for Sis.
-	  *		No physical reader are connected (m_reader=NULL)
-	  */
-	PTEIDSDK_API PTEID_ReaderContext(const PTEID_RawData_Sis &data);
 
 	PTEIDSDK_API virtual ~PTEID_ReaderContext();	/**< Destructor */
 
@@ -372,7 +415,7 @@ public:
 	/**
 	 * Get the card in the reader.
 	 *		Instantiation is made regarding the type of the card
-	 *			(PTEID_EIDCard, PTEID_KidsCard, PTEID_ForeignerCard or PTEID_SISCard).
+	 *			(PTEID_EIDCard).
 	 *
 	 * If no card is present in the reader, exception PTEID_ExNoCardPresent is thrown.
 	 * If the card type is not supported, exception PTEID_ExCardTypeUnknown is thrown.
@@ -382,36 +425,12 @@ public:
 	/**
 	 * Get the EIDcard in the reader.
 	 *		Instantiation is made regarding the type of the card
-	 *			(PTEID_EIDCard, PTEID_KidsCard, PTEID_ForeignerCard).
+	 *			(PTEID_EIDCard).
 	 *
 	 * If no card is present in the reader, exception PTEID_ExNoCardPresent is thrown.
 	 * If the card is not an EIDcard, exception PTEID_ExCardBadType is thrown.
 	 */
     PTEIDSDK_API PTEID_EIDCard &getEIDCard();
-
- 	/**
-	 * Get the KidsCard in the reader.
-	 *
-	 * If no card is present in the reader, exception PTEID_ExNoCardPresent is thrown.
-	 * If the card is not a KidsCard, exception PTEID_ExCardBadType is thrown.
-	 */
-	PTEIDSDK_API PTEID_KidsCard &getKidsCard();
-
- 	/**
-	 * Get the ForeignerCard in the reader.
-	 *
-	 * If no card is present in the reader, exception PTEID_ExNoCardPresent is thrown
-	 * If the card is not a ForeignerCard, exception PTEID_ExCardBadType is thrown.
-	 */
-	PTEIDSDK_API PTEID_ForeignerCard &getForeignerCard();
-
- 	/**
-	 * Get the SISCard in the reader.
-	 *
-	 * If no card is present in the reader, exception PTEID_ExNoCardPresent is thrown.
-	 * If the card is not a SISCard, exception PTEID_ExCardBadType is thrown.
-	 */
-	PTEIDSDK_API PTEID_SISCard &getSISCard();
 
 	/**
 	 * Specify a callback function to be called each time a
@@ -627,56 +646,6 @@ private:
 	PTEID_SmartCard& operator= (const PTEID_SmartCard& card);			/**< Copy not allowed - not implemented */
 };
 
-class PTEID_SisFullDoc;
-class PTEID_SisId;
-class APL_SISCard;
-
-/******************************************************************************//**
-  * This class represents a SIS card.
-  * To get such an object you have to ask it from the ReaderContext.
-  *********************************************************************************/
-class PTEID_SISCard : public PTEID_MemoryCard
-{
-public:
-	PTEIDSDK_API virtual ~PTEID_SISCard();				/**< Destructor */
-
- 	/**
-	 * Return a document from the card.
-	 * Throw PTEID_ExDocTypeUnknown exception if the document doesn't exist for this card.
-	 */
-	PTEIDSDK_API virtual PTEID_XMLDoc& getDocument(PTEID_DocumentType type);
-
- 	/**
-	 * Get the full document.
-	 */
-	PTEIDSDK_API PTEID_SisFullDoc& getFullDoc();
-
- 	/**
-	 * Get the id document.
-	 */
- 	PTEIDSDK_API PTEID_SisId& getID();
-
- 	/**
-	 * Return a raw data from the card.
-	 * Throw PTEID_ExFileTypeUnknown exception if the document doesn't exist for this card.
-	 */
-	PTEIDSDK_API virtual const PTEID_ByteArray& getRawData(PTEID_RawDataType type);
-
- 	/**
-	 * Get the id RawData.
-	 */
- 	PTEIDSDK_API const PTEID_ByteArray& getRawData_Id();
-
-private:
-	PTEID_SISCard(const PTEID_SISCard& card);				/**< Copy not allowed - not implemented */
-	PTEID_SISCard& operator= (const PTEID_SISCard& card);	/**< Copy not allowed - not implemented */
-
-	PTEID_SISCard(const SDK_Context *context,APL_Card *impl);	/**< For internal use : Constructor */
-
-friend PTEID_Card &PTEID_ReaderContext::getCard();		/**< For internal use : This method must access protected constructor */
-
-};
-
 class PTEID_EIdFullDoc;
 class PTEID_EId;
 class PTEID_Address;
@@ -735,6 +704,40 @@ public:
 	PTEIDSDK_API PTEID_Certificate &getSignature();			/**< Return the signature certificate from the card */
 	PTEIDSDK_API PTEID_Certificate &getAuthentication();		/**< Return the authentication certificate from the card */
 
+	PTEIDSDK_API PTEID_PublicKey& getRootCAPubKey();						/**< Get the CVC CA public key that this card uses to verify the CVC key */
+	PTEIDSDK_API bool isActive();
+	PTEIDSDK_API void doSODCheck(bool check);								/**< enable/disable the checking of the data against the sod*/
+	PTEIDSDK_API bool Activate(const char *pinCode, CByteArray &BCDDate); 	/**< Activate the pteid card */
+	
+	/** Validates an XML-DSIG or XAdES signature
+	 *
+	 *  This method is intended to validate XADES signatures produced with PTEID_EIDCard::SignXades() method
+	 *  even though any conforming signature should work
+	 *  Implementation note: External references in the <SignedInfo> element are not checked
+	 *
+	 *  @param IN signature is a byte array containing the UTF-8 representation of an XML document
+	 *  @param OUT error_buffer if not NULL should point to a preallocated char buffer that will be filled with 
+	 *  a description of eventual validation problems
+	 *  @param IN/OUT error_size on input it should point to the size of error_buffer while on API return 
+	 *  it points to the length of the string written into error_buffer
+	 */
+	PTEIDSDK_API bool VerifySignature(PTEID_ByteArray signature, char * error_buffer, unsigned long *error_size);
+	/** Produce Xades Signature of Arbitrary Contents (from memory or local files)
+	 *
+	 *  The next 4 Methods return an UTF-8 encoded byte array containing a full XAdES or XAdES-T
+	 *  signature of the content supplied (either as pointer to a memory buffer
+	 *  or as local file paths) signed by the Citizen Signature Key.
+	 *  These method perform interactive PIN authentication if needed
+	 *
+	 *  @param IN paths is an array of null-terminated strings representing absolute paths in
+	 *  the local filesystem. Those files content (hashed with SHA-1 algorithm) will be the input data for the RSA signature 
+	 *  @param IN n_paths is the number of elements in the paths array 
+	 */
+	PTEIDSDK_API PTEID_ByteArray SignXades(const char ** paths, unsigned int n_paths); /** Return a Xades signature as a UTF-8 string (supports multiple files)*/
+	PTEIDSDK_API PTEID_ByteArray SignXades(PTEID_ByteArray to_be_signed, const char *URL); /** Return a Xades signature as a UTF-8 string (supports multiple files)*/
+	PTEIDSDK_API PTEID_ByteArray SignXadesT(const char ** path, unsigned int n_paths); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
+	PTEIDSDK_API PTEID_ByteArray SignXadesT(PTEID_ByteArray to_be_signed, const char *URL); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
+
 	/**
 	 * Return a raw data from the card.
 	 * Throw PTEID_ExFileTypeUnknown exception if the document doesn't exist for this card.
@@ -771,6 +774,7 @@ class PTEID_XmlUserRequestedInfo : public PTEID_Object
 {
 public:
     PTEIDSDK_API PTEID_XmlUserRequestedInfo();
+    PTEIDSDK_API PTEID_XmlUserRequestedInfo(const char *timeStamp, const char *serverName, const char *serverAddress);
 	PTEIDSDK_API virtual ~PTEID_XmlUserRequestedInfo();			/**< Destructor */
 	PTEIDSDK_API void add(XMLUserData xmlUData);		/**< add string */
 
@@ -781,46 +785,6 @@ private:
 	PTEID_XmlUserRequestedInfo(const PTEID_XmlUserRequestedInfo& info); /**< Copy not allowed - not implemented */
 	PTEID_XmlUserRequestedInfo& operator= (const PTEID_XmlUserRequestedInfo& xmlUserRequestedInfo);	/**< Copy not allowed - not implemented */
 friend PTEID_CCXML_Doc& PTEID_EIDCard::getXmlCCDoc(PTEID_XmlUserRequestedInfo& userRequestedInfo);
-};
-
-class APL_KidsCard;
-
-/******************************************************************************//**
-  * This class represents a Kids card which is a particular PTEID_EIDCard.
-  * To get such an object you have to ask it from the ReaderContext.
-  *********************************************************************************/
-class PTEID_KidsCard : public PTEID_EIDCard
-{
-public:
-	PTEIDSDK_API virtual ~PTEID_KidsCard();				/**< Destructor */
-
-private:
-	PTEID_KidsCard(const PTEID_KidsCard& card);				/**< Copy not allowed - not implemented */
-	PTEID_KidsCard& operator= (const PTEID_KidsCard& card);	/**< Copy not allowed - not implemented */
-
-	PTEID_KidsCard(const SDK_Context *context,APL_Card *impl);/**< For internal use : Constructor */
-
-friend PTEID_Card &PTEID_ReaderContext::getCard();			/**< For internal use : This method must access protected constructor */
-};
-
-class APL_ForeignerCard;
-
-/******************************************************************************//**
-  * This class represents a Foreigner card which is a particular PTEID_EIDCard.
-  * To get such an object you have to ask it from the ReaderContext.
-  *********************************************************************************/
-class PTEID_ForeignerCard : public PTEID_EIDCard
-{
-public:
-	PTEIDSDK_API virtual ~PTEID_ForeignerCard();					/**< Destructor */
-
-private:
-	PTEID_ForeignerCard(const PTEID_ForeignerCard& card);				/**< Copy not allowed - not implemented */
-	PTEID_ForeignerCard& operator= (const PTEID_ForeignerCard& card);	/**< Copy not allowed - not implemented */
-
-	PTEID_ForeignerCard(const SDK_Context *context,APL_Card *impl);	/**< For internal use : Constructor */
-
-friend PTEID_Card &PTEID_ReaderContext::getCard();	/**< For internal use : This method must access protected constructor */
 };
 
 class APL_XMLDoc;
@@ -913,8 +877,10 @@ class PTEID_CardVersionInfo : public PTEID_XMLDoc
 public:
 	PTEIDSDK_API  virtual ~PTEID_CardVersionInfo();		/**< Destructor */
 
-    PTEIDSDK_API const char *getSerialNumber();			/**< Return the Serial Number of the card */
-	PTEIDSDK_API const char *getComponentCode();			/**< Return the ComponenCode of the card  */
+	PTEIDSDK_API bool isActive();						/**< Returns the card status (true = active) */
+	PTEIDSDK_API const char *getSerialNumber();			/**< Return the Serial Number of the card */
+    PTEIDSDK_API const char *getTokenLabel();			/**< Return the Token Label (EFCIA 5032) */
+    PTEIDSDK_API const char *getComponentCode();			/**< Return the ComponenCode of the card  */
 	PTEIDSDK_API const char *getOsNumber();				/**< Return the OS Number of the card */
 	PTEIDSDK_API const char *getOsVersion();				/**< Return the OS Version of the card */
 	PTEIDSDK_API const char *getSoftmaskNumber();			/**< Return the Softmask Number of the card */
@@ -962,37 +928,6 @@ private:
 friend PTEID_Sod& PTEID_EIDCard::getSod();		/**< For internal use : This method must access protected constructor */
 };
 
-class APL_DocSisId;
-
-/******************************************************************************//**
-  * Class for the id document on a SIS Card.
-  * You can get such an object from PTEID_SISCard::getID()	(or getDocument).
-  *********************************************************************************/
-class PTEID_SisId : public PTEID_XMLDoc
-{
-public:
-	PTEIDSDK_API virtual ~PTEID_SisId();					/**< Destructor */
-
-    PTEIDSDK_API const char *getName();					/**< Return Name field */
-	PTEIDSDK_API const char *getSurname();				/**< Return Surname field */
-	PTEIDSDK_API const char *getInitials();				/**< Return Initials field */
-	PTEIDSDK_API const char *getGender();					/**< Return Gender field */
-	PTEIDSDK_API const char *getDateOfBirth();			/**< Return Date Of Birth field */
-	PTEIDSDK_API const char *getSocialSecurityNumber();	/**< Return Social Security Number field */
-	PTEIDSDK_API const char *getLogicalNumber();			/**< Return Logical Number field */
-	PTEIDSDK_API const char *getDateOfIssue();			/**< Return Date Of Issue field */
-	PTEIDSDK_API const char *getValidityBeginDate();		/**< Return Validity Begin Date field */
-	PTEIDSDK_API const char *getValidityEndDate();		/**< Return Validity End Date field */
-
-private:
-	PTEID_SisId(const PTEID_SisId& doc);						/**< Copy not allowed - not implemented */
-	PTEID_SisId& operator= (const PTEID_SisId& doc);			/**< Copy not allowed - not implemented */
-
-	PTEID_SisId(const SDK_Context *context,APL_DocSisId *impl);		/**< For internal use : Constructor */
-
-friend PTEID_SisId& PTEID_SISCard::getID();					/**< For internal use : This method must access protected constructor */
-};
-
 class APL_DocEId;
 
 /******************************************************************************//**
@@ -1004,55 +939,52 @@ class PTEID_EId : public PTEID_XMLDoc
 public:
 	PTEIDSDK_API virtual ~PTEID_EId();						/**< Destructor */
 
-	PTEIDSDK_API const char *getDocumentVersion();		/**< Return Document Version field */
-	PTEIDSDK_API const char *getDocumentType();			/**< Return Document Type field */
-	PTEIDSDK_API const char *getCountry();				/**< Return Country field */
-	PTEIDSDK_API const char *getFirstName1();			/**< Return First Name part 1 (2 first given name) */
-	PTEIDSDK_API const char *getSurname();				/**< Return Surname field */
-	PTEIDSDK_API const char *getGender();				/**< Return Gender field */
-	PTEIDSDK_API const char *getDateOfBirth();			/**< Return Date Of Birth field */
-	PTEIDSDK_API const char *getLocationOfBirth();		/**< Return Location Of Birth field */
-	PTEIDSDK_API const char *getNationality();			/**< Return Nationality field */
+	PTEIDSDK_API const char *getDocumentVersion();			/**< Return Document Version field */
+	PTEIDSDK_API const char *getDocumentType();				/**< Return Document Type field */
+	PTEIDSDK_API const char *getCountry();					/**< Return Country field */
+	PTEIDSDK_API const char *getGivenName();				/**< Return GivenName (2 first given name) */
+	PTEIDSDK_API const char *getSurname();					/**< Return Surname field */
+	PTEIDSDK_API const char *getGender();					/**< Return Gender field */
+	PTEIDSDK_API const char *getDateOfBirth();				/**< Return Date Of Birth field */
+	PTEIDSDK_API const char *getLocationOfBirth();			/**< Return Location Of Birth field */
+	PTEIDSDK_API const char *getNationality();				/**< Return Nationality field */
 	PTEIDSDK_API const char *getDuplicata();				/**< Return Duplicata field */
-	PTEIDSDK_API const char *getSpecialOrganization();	/**< Return Special Organization field */
-	PTEIDSDK_API const char *getMemberOfFamily();		/**< Return Member Of Family field */
+	PTEIDSDK_API const char *getSpecialOrganization();		/**< Return Special Organization field */
+	PTEIDSDK_API const char *getMemberOfFamily();			/**< Return Member Of Family field */
 	PTEIDSDK_API const char *getLogicalNumber();			/**< Return Logical Number field */
-	PTEIDSDK_API const char *getDocumentPAN();			/**< Return Document PAN field */
+	PTEIDSDK_API const char *getDocumentPAN();				/**< Return Document PAN field */
 	PTEIDSDK_API const char *getValidityBeginDate();		/**< Return Validity Begin Date field */
-	PTEIDSDK_API const char *getValidityEndDate();		/**< Return Validity End Date field */
-	//PTEIDSDK_API const char *getAddressVersion();		/**< Return Address Version field */
-	//PTEIDSDK_API const char *getStreet();				/**< Return Street field */
-	//PTEIDSDK_API const char *getZipCode();				/**< Return Zip Code field */
+	PTEIDSDK_API const char *getValidityEndDate();			/**< Return Validity End Date field */
 	PTEIDSDK_API const char *getSpecialStatus();			/**< Return Special Status field */
-	/*New status for PTeid-ng */
-	PTEIDSDK_API	const char *getHeight();						/**< Return field Height */
-	PTEIDSDK_API	const char *getDocumentNumber();				/**< Return field DocumentNumber */
-	PTEIDSDK_API	const char *getCivilianIdNumber();				/**< Return field CivlianIdNumber */
-	PTEIDSDK_API	const char *getTaxNo();							/**< Return field TaxNo */
-	PTEIDSDK_API	const char *getSocialSecurityNumber();			/**< Return field SocialSecurityNumber */
-	PTEIDSDK_API	const char *getHealthNumber();					/**< Return field HealthNo */
-	PTEIDSDK_API	const char *getIssuingEntity();					/**< Return field IssuingEntity */
-	PTEIDSDK_API const char *getLocalofRequest();				/**< Return field LocalofRequest*/
-	PTEIDSDK_API	const char *getGivenNameFather();				/**< Return field GivenNameFather */
-	PTEIDSDK_API	const char *getSurnameFather();					/**< Return field SurnameFather */
-	PTEIDSDK_API	const char *getGivenNameMother();				/**< Return field GivenNameMother */
-	PTEIDSDK_API	const char *getSurnameMother();					/**< Return field SurnameMother */
-	PTEIDSDK_API	const char *getParents();						/**< Return field Parents */
-	PTEIDSDK_API	const PTEID_ByteArray& getPhoto();							/**< Return field Photo */
-	PTEIDSDK_API	const char *getPersoData();						/**< Return field PersoData */
-	PTEIDSDK_API	const char *getValidation();					/**< Return field Validation */
-	PTEIDSDK_API const char *getMRZ1();							/**< Return field MRZ block 1 */
-	PTEIDSDK_API const char *getMRZ2();							/**< Return field MRZ block 2 */
-	PTEIDSDK_API const char *getMRZ3();							/**< Return field MRZ block 3 */
-	PTEIDSDK_API const char *getAccidentalIndications();			/**< Return field AccidentalIndications */
+	PTEIDSDK_API const char *getHeight();					/**< Return field Height */
+	PTEIDSDK_API const char *getDocumentNumber();			/**< Return field DocumentNumber */
+	PTEIDSDK_API const char *getCivilianIdNumber();			/**< Return field CivlianIdNumber */
+	PTEIDSDK_API const char *getTaxNo();					/**< Return field TaxNo */
+	PTEIDSDK_API const char *getSocialSecurityNumber();		/**< Return field SocialSecurityNumber */
+	PTEIDSDK_API const char *getHealthNumber();				/**< Return field HealthNo */
+	PTEIDSDK_API const char *getIssuingEntity();			/**< Return field IssuingEntity */
+	PTEIDSDK_API const char *getLocalofRequest();			/**< Return field LocalofRequest*/
+	PTEIDSDK_API const char *getGivenNameFather();			/**< Return field GivenNameFather */
+	PTEIDSDK_API const char *getSurnameFather();			/**< Return field SurnameFather */
+	PTEIDSDK_API const char *getGivenNameMother();			/**< Return field GivenNameMother */
+	PTEIDSDK_API const char *getSurnameMother();			/**< Return field SurnameMother */
+	PTEIDSDK_API const char *getParents();					/**< Return field Parents */
+	PTEIDSDK_API PTEID_Photo& getPhotoObj();				/**< Return object Photo */
+	PTEIDSDK_API PTEID_PublicKey& getCardAuthKeyObj();	/**< Return object CardAuthKey */
+	PTEIDSDK_API const char *getPersoData();				/**< Return field PersoData */
+	PTEIDSDK_API const char *getValidation();				/**< Return field Validation */
+	PTEIDSDK_API const char *getMRZ1();						/**< Return field MRZ block 1 */
+	PTEIDSDK_API const char *getMRZ2();						/**< Return field MRZ block 2 */
+	PTEIDSDK_API const char *getMRZ3();					 	/**< Return field MRZ block 3 */
+	PTEIDSDK_API const char *getAccidentalIndications(); 	/**< Return field AccidentalIndications */
 
 private:
-	PTEID_EId(const PTEID_EId& doc);							/**< Copy not allowed - not implemented */
-	PTEID_EId& operator= (const PTEID_EId& doc);				/**< Copy not allowed - not implemented */
+	PTEID_EId(const PTEID_EId& doc);						/**< Copy not allowed - not implemented */
+	PTEID_EId& operator= (const PTEID_EId& doc);			/**< Copy not allowed - not implemented */
 
-	PTEID_EId(const SDK_Context *context,APL_DocEId *impl);			/**< For internal use : Constructor */
+	PTEID_EId(const SDK_Context *context,APL_DocEId *impl);	/**< For internal use : Constructor */
 
-friend PTEID_EId& PTEID_EIDCard::getID();						/**< For internal use : This method must access protected constructor */
+friend PTEID_EId& PTEID_EIDCard::getID();					/**< For internal use : This method must access protected constructor */
 };
 
 class APL_AddrEId;
@@ -1064,27 +996,41 @@ class APL_AddrEId;
 class PTEID_Address : public PTEID_XMLDoc
 {
 public:
-	PTEIDSDK_API virtual ~PTEID_Address();						/**< Destructor */
+	PTEIDSDK_API virtual ~PTEID_Address();							/**< Destructor */
 
-	//PTEIDSDK_API const char *getAddressVersion();		/**< Return Address Version field */
-	//PTEIDSDK_API const char *getStreet();				/**< Return Street field */
-	//PTEIDSDK_API const char *getZipCode();				/**< Return Zip Code field */
-	PTEIDSDK_API const char *getMunicipality();			/**< Return Municipality field */
+	//PTEIDSDK_API const char *getAddressVersion();					/**< Return Address Version field */
+	//PTEIDSDK_API const char *getStreet();							/**< Return Street field */
+	//PTEIDSDK_API const char *getZipCode();						/**< Return Zip Code field */
+	PTEIDSDK_API	bool isNationalAddress();						/**< is the address a portuguese address? */
+	PTEIDSDK_API	const char *getCountryCode();						/**<residence country */
+
 	PTEIDSDK_API	const char *getDistrict();						/**< Return field District */
-	PTEIDSDK_API	const char *getStreetName();					/**< Return field StreetName */
+	PTEIDSDK_API	const char *getDistrictCode();					/**< Return field District Code*/
+	PTEIDSDK_API 	const char *getMunicipality();					/**< Return Municipality field */
+	PTEIDSDK_API 	const char *getMunicipalityCode();				/**< Return Municipality Code field */
 	PTEIDSDK_API	const char *getCivilParish();					/**< Return field CivilParish */
-	PTEIDSDK_API	const char *getStreetType1();					/**< Return field StreetType1 */
-	PTEIDSDK_API	const char *getStreetType2();					/**< Return field StreetType2 */
-	PTEIDSDK_API	const char *getBuildingType1();					/**< Return field BuildingType1 */
-	PTEIDSDK_API	const char *getBuildingType2();					/**< Return field BuildingType2 */
+	PTEIDSDK_API	const char *getCivilParishCode();				/**< Return field CivilParish Code */
+	PTEIDSDK_API	const char *getAbbrStreetType();				/**< Return field AbbrStreetType */
+	PTEIDSDK_API	const char *getStreetType();					/**< Return field StreetType */
+	PTEIDSDK_API	const char *getStreetName();					/**< Return field StreetName */
+	PTEIDSDK_API	const char *getAbbrBuildingType();				/**< Return field AbbrBuildingType */
+	PTEIDSDK_API	const char *getBuildingType();					/**< Return field BuildingType */
 	PTEIDSDK_API	const char *getDoorNo();						/**< Return field DoorNo */
 	PTEIDSDK_API	const char *getFloor();							/**< Return field Floor */
 	PTEIDSDK_API	const char *getSide();							/**< Return field Side */
 	PTEIDSDK_API	const char *getLocality();						/**< Return field Locality */
-	PTEIDSDK_API	const char *getPlace();						/**< Return field Locality */
+	PTEIDSDK_API	const char *getPlace();							/**< Return field Locality */
 	PTEIDSDK_API	const char *getZip4();							/**< Return field Zip4 */
 	PTEIDSDK_API	const char *getZip3();							/**< Return field Zip3 */
 	PTEIDSDK_API	const char *getPostalLocality();				/**< Return field PostalLocality */
+	PTEIDSDK_API	const char *getGeneratedAddressCode();			/**< Return field Address Code */
+
+	PTEIDSDK_API 	const char *getForeignCountry();
+	PTEIDSDK_API 	const char *getForeignAddress();
+	PTEIDSDK_API 	const char *getForeignCity();
+	PTEIDSDK_API 	const char *getForeignRegion();
+	PTEIDSDK_API 	const char *getForeignLocality();
+	PTEIDSDK_API 	const char *getForeignPostalCode();
 
 private:
 	PTEID_Address(const PTEID_Address& doc);							/**< Copy not allowed - not implemented */
@@ -1093,26 +1039,6 @@ private:
 	PTEID_Address(const SDK_Context *context,APL_AddrEId *impl);			/**< For internal use : Constructor */
 
 friend PTEID_Address& PTEID_EIDCard::getAddr();						/**< For internal use : This method must access protected constructor */
-};
-
-class APL_SisFullDoc;
-
-/******************************************************************************//**
-  * Class for the full document Sis.
-  *********************************************************************************/
-class PTEID_SisFullDoc : public PTEID_XMLDoc
-{
-public:
-	PTEIDSDK_API virtual ~PTEID_SisFullDoc();					/**< Destructor */
-
-protected:
-	PTEID_SisFullDoc(const SDK_Context *context,APL_SisFullDoc *impl);	/**< For internal use : Constructor */
-
-private:
-	PTEID_SisFullDoc(const PTEID_SisFullDoc& doc);				/**< Copy not allowed - not implemented */
-	PTEID_SisFullDoc& operator= (const PTEID_SisFullDoc& doc);	/**< Copy not allowed - not implemented */
-
-friend PTEID_SisFullDoc& PTEID_SISCard::getFullDoc();				/**< For internal use : This method must access protected constructor */
 };
 
 class APL_EIdFullDoc;
@@ -1195,9 +1121,11 @@ public:
 	PTEIDSDK_API unsigned long getIndex();		/**< Get the index of the pin */
 	PTEIDSDK_API unsigned long getType();			/**< Get the type of the pin */
 	PTEIDSDK_API unsigned long getId();			/**< Get the id of the pin */
+	PTEIDSDK_API unsigned long getPinRef();		/**< Get the pinref value of the pin */
 	PTEIDSDK_API PTEID_PinUsage getUsageCode();	/**< Get the usage code of the pin */
 	PTEIDSDK_API unsigned long getFlags();		/**< Get the flags of the pin */
 	PTEIDSDK_API const char *getLabel();			/**< Get the label of the pin */
+	PTEIDSDK_API bool unlockPin(const char *pszPuk, const char *pszNewPin, unsigned long *triesLeft);
 
 	PTEIDSDK_API const PTEID_ByteArray &getSignature();	/**< Return the signature of the pin */
 
@@ -1255,82 +1183,6 @@ private:
 	PTEID_Pin(const SDK_Context *context,APL_Pin *impl);						/**< For internal use : Constructor */
 
 friend PTEID_Pin &PTEID_Pins::getPinByNumber(unsigned long ulIndex);	/**< For internal use : This method must access protected constructor */
-};
-
-class APL_Crl;
-
-/******************************************************************************//**
-  * Class that represents one CRL.
-  *********************************************************************************/
-class PTEID_Crl : public PTEID_Object
-{
-public:
-	/**
-	  * Create a Crl from its uri (without any certificate link).
-	  * As there is no issuer, this CRL can't be verify and some method are not allowed
-	  * (ex. getIssuer).
-	  * These methods throw PTEID_ExBadUsage exception.
-	  */
-	PTEIDSDK_API PTEID_Crl(const char *uri);
-
-	PTEIDSDK_API virtual ~PTEID_Crl(void);				/**< Destructor */
-
-	PTEIDSDK_API const char *getUri();				/**< Return the uri of the CRL */
-
-	PTEIDSDK_API const char *getIssuerName();			/**< Return the name of the issuer of the certificate */
-
-	/**
-	  * Return the issuer certificate.
-	  *
-	  * if there is no issuer (root), PTEID_ExCertNoIssuer exception is thrown.
-	  */
-	PTEIDSDK_API PTEID_Certificate &getIssuer();
-
-	/**
-	  * Return the CRL as a byte array.
-	  * If it comes from a Certif we verify the signature.
-	  * If it's created from the URL only we DON'T verify the signature.
-	  * @param crl will content the crl
-	  * @param bForceDownload : if true the CRL in the cache is not valid anymore and we force a new download
-	  */
-	PTEIDSDK_API PTEID_CrlStatus getData(PTEID_ByteArray &crl,bool bForceDownload=false);
-
-	NOEXPORT_PTEIDSDK PTEID_Crl(const SDK_Context *context,APL_Crl *impl);	/**< For internal use : Constructor */
-
-private:
-	PTEID_Crl(const PTEID_Crl& crl);				/**< Copy not allowed - not implemented */
-	PTEID_Crl &operator= (const PTEID_Crl& crl);	/**< Copy not allowed - not implemented */
-};
-
-class APL_OcspResponse;
-
-/******************************************************************************//**
-  * Class that represents one OCSP Response.
-  *********************************************************************************/
-class PTEID_OcspResponse : public PTEID_Object
-{
-public:
-	/**
-	  * Create an OcspResponse object from the URI only and CertID.
-	  * This OCSP Response is not link to any certificate so some methods could not be used.
-	  * These methods throw PTEID_ExBadUsage exception.
-	  */
-	PTEIDSDK_API PTEID_OcspResponse(const char *uri,PTEID_HashAlgo hashAlgorithm,const PTEID_ByteArray &issuerNameHash,const PTEID_ByteArray &issuerKeyHash,const PTEID_ByteArray &serialNumber);
-
-	PTEIDSDK_API virtual ~PTEID_OcspResponse(void);		/**< Destructor */
-
-	PTEIDSDK_API const char *getUri();					/**< Return the uri of the responder */
-
-	/**
-	  * Return the response.
-	  */
-	PTEIDSDK_API PTEID_CertifStatus getResponse(PTEID_ByteArray &response);
-
-	NOEXPORT_PTEIDSDK PTEID_OcspResponse(const SDK_Context *context,APL_OcspResponse *impl);	/**< For internal use : Constructor */
-
-private:
-	PTEID_OcspResponse(const PTEID_OcspResponse& ocsp);				/**< Copy not allowed - not implemented */
-	PTEID_OcspResponse &operator= (const PTEID_OcspResponse& ocsp);	/**< Copy not allowed - not implemented */
 };
 
 class APL_Certifs;
@@ -1413,16 +1265,6 @@ public:
 	PTEIDSDK_API const char *getLabel();				/**< Return the label of the certificate */
 	PTEIDSDK_API unsigned long getID();				/**< Return the id of the certificate */
 
-	/**
-	  * Return the status of the certificate using default validation level (from config).
-	  */
-	PTEIDSDK_API PTEID_CertifStatus getStatus();
-
-	/**
-	  * Return the status of the certificate.
-	  */
-	PTEIDSDK_API PTEID_CertifStatus getStatus(PTEID_ValidationLevel crl, PTEID_ValidationLevel ocsp);
-
 	PTEIDSDK_API PTEID_CertifType getType();			/**< Return the type of the certificate */
 
 	PTEIDSDK_API const PTEID_ByteArray &getCertData();/**< Return the content of the certificate */
@@ -1477,20 +1319,6 @@ public:
 	  */
 	PTEIDSDK_API PTEID_Certificate &getChildren(unsigned long ulIndex);
 
-	/**
-	  * Return the crl of the certificate.
-	  */
-	PTEIDSDK_API PTEID_Crl &getCRL();
-
-	/**
-	  * Return the ocsp response object of the certificate.
-	  */
-	PTEIDSDK_API PTEID_OcspResponse &getOcspResponse();
-
-
-	PTEIDSDK_API PTEID_CertifStatus verifyCRL(bool forceDownload=false);		/**< Verify the certificate trough CRL validation */
-	PTEIDSDK_API PTEID_CertifStatus verifyOCSP();								/**< Verify the certificate trough OCSP validation */
-
 private:
 	PTEID_Certificate(const PTEID_Certificate& certif);				/**< Copy not allowed - not implemented */
 	PTEID_Certificate& operator= (const PTEID_Certificate& certif);	/**< Copy not allowed - not implemented */
@@ -1500,7 +1328,6 @@ private:
 friend PTEID_Certificate &PTEID_Certificates::getCert(unsigned long ulIndex);	/**< For internal use : This method must access protected constructor */
 friend PTEID_Certificate &PTEID_Certificates::getCertFromCard(unsigned long ulIndex);	/**< For internal use : This method must access protected constructor */
 friend PTEID_Certificate &PTEID_Certificates::getCert(PTEID_CertifType type);			/**< For internal use : This method must access protected constructor */
-friend PTEID_Certificate &PTEID_Crl::getIssuer();										/**< For internal use : This method must access protected constructor */
 friend PTEID_Certificate &PTEID_Certificates::addCertificate(PTEID_ByteArray &cert);	/**< For internal use : This method must access protected constructor */
 };
 
@@ -1546,6 +1373,521 @@ private:
   * Function for Logging.
   *********************************************************************************/
 PTEIDSDK_API void PTEID_LOG(PTEID_LogLevel level, const char *module_name, const char *format, ...);
+
+
+/******************************************************************************//**
+  * Compatibility layer
+  *********************************************************************************/
+#define COMP_LAYER_NATIONAL_ADDRESS "N"
+#define COMP_LAYER_FOREIGN_ADDRESS "I"
+
+#define PTEID_DELIVERY_ENTITY_LEN               40
+#define PTEID_COUNTRY_LEN                       80
+#define PTEID_DOCUMENT_TYPE_LEN                 34
+#define PTEID_CARDNUMBER_LEN                    28
+#define PTEID_CARDNUMBER_PAN_LEN                32
+#define PTEID_CARDVERSION_LEN                   16
+#define PTEID_DATE_LEN                          20
+#define PTEID_LOCALE_LEN                        60
+#define PTEID_NAME_LEN                          120
+#define PTEID_SEX_LEN                           2
+#define PTEID_NATIONALITY_LEN                   6
+#define PTEID_HEIGHT_LEN                        8
+#define PTEID_NUMBI_LEN                         18
+#define PTEID_NUMNIF_LEN                        18
+#define PTEID_NUMSS_LEN                         22
+#define PTEID_NUMSNS_LEN                        18
+#define PTEID_INDICATIONEV_LEN                  120
+#define PTEID_MRZ_LEN							30
+
+#define PTEID_MAX_DELIVERY_ENTITY_LEN               PTEID_DELIVERY_ENTITY_LEN+2
+#define PTEID_MAX_COUNTRY_LEN                       PTEID_COUNTRY_LEN+2
+#define PTEID_MAX_DOCUMENT_TYPE_LEN                 PTEID_DOCUMENT_TYPE_LEN+2
+#define PTEID_MAX_CARDNUMBER_LEN                    PTEID_CARDNUMBER_LEN+2
+#define PTEID_MAX_CARDNUMBER_PAN_LEN                PTEID_CARDNUMBER_PAN_LEN+2
+#define PTEID_MAX_CARDVERSION_LEN                   PTEID_CARDVERSION_LEN+2
+#define PTEID_MAX_DATE_LEN                          PTEID_DATE_LEN+2
+#define PTEID_MAX_LOCALE_LEN                        PTEID_LOCALE_LEN+2
+#define PTEID_MAX_NAME_LEN                          PTEID_NAME_LEN+2
+#define PTEID_MAX_SEX_LEN                           PTEID_SEX_LEN+2
+#define PTEID_MAX_NATIONALITY_LEN                   PTEID_NATIONALITY_LEN+2
+#define PTEID_MAX_HEIGHT_LEN                        PTEID_HEIGHT_LEN+2
+#define PTEID_MAX_NUMBI_LEN                         PTEID_NUMBI_LEN+2
+#define PTEID_MAX_NUMNIF_LEN                        PTEID_NUMNIF_LEN+2
+#define PTEID_MAX_NUMSS_LEN                         PTEID_NUMSS_LEN+2
+#define PTEID_MAX_NUMSNS_LEN                        PTEID_NUMSNS_LEN+2
+#define PTEID_MAX_INDICATIONEV_LEN                  PTEID_INDICATIONEV_LEN+2
+#define PTEID_MAX_MRZ_LEN                           PTEID_MRZ_LEN+2
+
+#define PTEID_ADDR_TYPE_LEN                     2
+#define PTEID_ADDR_COUNTRY_LEN                  4
+#define PTEID_DISTRICT_LEN                      4
+#define PTEID_DISTRICT_DESC_LEN                 100
+#define PTEID_DISTRICT_CON_LEN                  8
+#define PTEID_DISTRICT_CON_DESC_LEN             100
+#define PTEID_DISTRICT_FREG_LEN                 12
+#define PTEID_DISTRICT_FREG_DESC_LEN            100
+#define PTEID_ROAD_ABBR_LEN                     20
+#define PTEID_ROAD_LEN                          100
+#define PTEID_ROAD_DESIG_LEN                    200
+#define PTEID_HOUSE_ABBR_LEN                    20
+#define PTEID_HOUSE_LEN                         100
+#define PTEID_NUMDOOR_LEN                       20
+#define PTEID_FLOOR_LEN                         40
+#define PTEID_SIDE_LEN                          40
+#define PTEID_PLACE_LEN                         100
+#define PTEID_LOCALITY_LEN                      100
+#define PTEID_CP4_LEN                           8
+#define PTEID_CP3_LEN                           6
+#define PTEID_POSTAL_LEN                        50
+#define PTEID_NUMMOR_LEN                        12
+#define PTEID_ADDR_COUNTRYF_DESC_LEN            100
+#define PTEID_ADDRF_LEN                         300
+#define PTEID_CITYF_LEN                         100
+#define PTEID_REGIOF_LEN                        100
+#define PTEID_LOCALITYF_LEN                     100
+#define PTEID_POSTALF_LEN                       100
+#define PTEID_NUMMORF_LEN                       12
+
+#define PTEID_MAX_ADDR_TYPE_LEN                     PTEID_ADDR_TYPE_LEN+2
+#define PTEID_MAX_ADDR_COUNTRY_LEN                  PTEID_ADDR_COUNTRY_LEN+2
+#define PTEID_MAX_DISTRICT_LEN                      PTEID_DISTRICT_LEN+2
+#define PTEID_MAX_DISTRICT_DESC_LEN                 PTEID_DISTRICT_DESC_LEN+2
+#define PTEID_MAX_DISTRICT_CON_LEN                  PTEID_DISTRICT_CON_LEN+2
+#define PTEID_MAX_DISTRICT_CON_DESC_LEN             PTEID_DISTRICT_CON_DESC_LEN+2
+#define PTEID_MAX_DISTRICT_FREG_LEN                 PTEID_DISTRICT_FREG_LEN+2
+#define PTEID_MAX_DISTRICT_FREG_DESC_LEN            PTEID_DISTRICT_FREG_DESC_LEN+2
+#define PTEID_MAX_ROAD_ABBR_LEN                     PTEID_ROAD_ABBR_LEN+2
+#define PTEID_MAX_ROAD_LEN                          PTEID_ROAD_LEN+2
+#define PTEID_MAX_ROAD_DESIG_LEN                    PTEID_ROAD_DESIG_LEN+2
+#define PTEID_MAX_HOUSE_ABBR_LEN                    PTEID_HOUSE_ABBR_LEN+2
+#define PTEID_MAX_HOUSE_LEN                         PTEID_HOUSE_LEN+2
+#define PTEID_MAX_NUMDOOR_LEN                       PTEID_NUMDOOR_LEN+2
+#define PTEID_MAX_FLOOR_LEN                         PTEID_FLOOR_LEN+2
+#define PTEID_MAX_SIDE_LEN                          PTEID_SIDE_LEN+2
+#define PTEID_MAX_PLACE_LEN                         PTEID_PLACE_LEN+2
+#define PTEID_MAX_LOCALITY_LEN                      PTEID_LOCALITY_LEN+2
+#define PTEID_MAX_CP4_LEN                           PTEID_CP4_LEN+2
+#define PTEID_MAX_CP3_LEN                           PTEID_CP3_LEN+2
+#define PTEID_MAX_POSTAL_LEN                        PTEID_POSTAL_LEN+2
+#define PTEID_MAX_NUMMOR_LEN                        PTEID_NUMMOR_LEN+2
+#define PTEID_MAX_ADDR_COUNTRYF_DESC_LEN            PTEID_ADDR_COUNTRYF_DESC_LEN+2
+#define PTEID_MAX_ADDRF_LEN                         PTEID_ADDRF_LEN+2
+#define PTEID_MAX_CITYF_LEN                         PTEID_CITYF_LEN+2
+#define PTEID_MAX_REGIOF_LEN                        PTEID_REGIOF_LEN+2
+#define PTEID_MAX_LOCALITYF_LEN                     PTEID_LOCALITYF_LEN+2
+#define PTEID_MAX_POSTALF_LEN                       PTEID_POSTALF_LEN+2
+#define PTEID_MAX_NUMMORF_LEN                       PTEID_NUMMORF_LEN+2
+
+#define PTEID_MAX_PICTURE_LEN			14128
+#define PTEID_MAX_PICTURE_LEN_HEADER	111
+#define PTEID_MAX_PICTUREH_LEN			(PTEID_MAX_PICTURE_LEN+PTEID_MAX_PICTURE_LEN_HEADER)
+#define PTEID_MAX_CBEFF_LEN				34
+#define PTEID_MAX_FACRECH_LEN			14
+#define PTEID_MAX_FACINFO_LEN			20
+#define PTEID_MAX_IMAGEINFO_LEN			12
+#define PTEID_MAX_IMAGEHEADER_LEN		(PTEID_MAX_CBEFF_LEN+PTEID_MAX_FACRECH_LEN+PTEID_MAX_FACINFO_LEN+PTEID_MAX_IMAGEINFO_LEN)
+
+#define PTEID_MAX_CERT_LEN				2500
+#define PTEID_MAX_CERT_NUMBER			10
+#define PTEID_MAX_CERT_LABEL_LEN		256
+
+#define PTEID_MAX_PINS					8
+#define PTEID_MAX_PIN_LABEL_LEN			256
+
+#define PTEID_MAX_ID_NUMBER_LEN			64
+
+#define PTEID_SOD_FILE					"3F005F00EF06"
+
+#define PTEID_ACTIVE_CARD				1
+#define PTEID_INACTIVE_CARD 			0
+
+#define PTEID_ADDRESS_PIN_ID			131
+#define PTEID_NO_PIN_NEEDED				0
+
+#define MODE_ACTIVATE_BLOCK_PIN   1
+
+typedef enum {
+	COMP_CARD_TYPE_ERR = 0, // Something went wrong, or unknown card type
+	COMP_CARD_TYPE_IAS07,   // IAS 0.7 card
+	COMP_CARD_TYPE_IAS101,  // IAS 1.01 card
+}tCompCardType;
+
+typedef struct
+{
+    short version;
+    char deliveryEntity[PTEID_MAX_DELIVERY_ENTITY_LEN];
+    char country[PTEID_MAX_COUNTRY_LEN];
+    char documentType[PTEID_MAX_DOCUMENT_TYPE_LEN];
+    char cardNumber[PTEID_MAX_CARDNUMBER_LEN];
+    char cardNumberPAN[PTEID_MAX_CARDNUMBER_PAN_LEN];
+    char cardVersion[PTEID_MAX_CARDVERSION_LEN];
+    char deliveryDate[PTEID_MAX_DATE_LEN];
+    char locale[PTEID_MAX_LOCALE_LEN];
+    char validityDate[PTEID_MAX_DATE_LEN];
+    char name[PTEID_MAX_NAME_LEN];
+    char firstname[PTEID_MAX_NAME_LEN];
+    char sex[PTEID_MAX_SEX_LEN];
+    char nationality[PTEID_MAX_NATIONALITY_LEN];
+    char birthDate[PTEID_MAX_DATE_LEN];
+    char height[PTEID_MAX_HEIGHT_LEN];
+    char numBI[PTEID_MAX_NUMBI_LEN];
+    char nameFather[PTEID_MAX_NAME_LEN];
+    char firstnameFather[PTEID_MAX_NAME_LEN];
+    char nameMother[PTEID_MAX_NAME_LEN];
+    char firstnameMother[PTEID_MAX_NAME_LEN];
+    char numNIF[PTEID_MAX_NUMNIF_LEN];
+    char numSS[PTEID_MAX_NUMSS_LEN];
+    char numSNS[PTEID_MAX_NUMSNS_LEN];
+    char notes[PTEID_MAX_INDICATIONEV_LEN];
+    char mrz1[PTEID_MAX_MRZ_LEN];
+    char mrz2[PTEID_MAX_MRZ_LEN];
+    char mrz3[PTEID_MAX_MRZ_LEN];
+} PTEID_ID;
+
+typedef struct
+{
+    short version;
+    char addrType[PTEID_MAX_ADDR_TYPE_LEN];
+    char country[PTEID_MAX_ADDR_COUNTRY_LEN];
+    char district[PTEID_MAX_DISTRICT_LEN];
+    char districtDesc[PTEID_MAX_DISTRICT_DESC_LEN];
+    char municipality[PTEID_MAX_DISTRICT_CON_LEN];
+    char municipalityDesc[PTEID_MAX_DISTRICT_CON_DESC_LEN];
+    char freguesia[PTEID_MAX_DISTRICT_FREG_LEN];
+    char freguesiaDesc[PTEID_MAX_DISTRICT_FREG_DESC_LEN];
+    char streettypeAbbr[PTEID_MAX_ROAD_ABBR_LEN];
+    char streettype[PTEID_MAX_ROAD_LEN];
+    char street[PTEID_MAX_ROAD_DESIG_LEN];
+    char buildingAbbr[PTEID_MAX_HOUSE_ABBR_LEN];
+    char building[PTEID_MAX_HOUSE_LEN];
+    char door[PTEID_MAX_NUMDOOR_LEN];
+    char floor[PTEID_MAX_FLOOR_LEN];
+    char side[PTEID_MAX_SIDE_LEN];
+    char place[PTEID_MAX_PLACE_LEN];
+    char locality[PTEID_MAX_LOCALITY_LEN];
+    char cp4[PTEID_MAX_CP4_LEN];
+    char cp3[PTEID_MAX_CP3_LEN];
+    char postal[PTEID_MAX_POSTAL_LEN];
+    char numMor[PTEID_MAX_NUMMOR_LEN];
+    char countryDescF[PTEID_MAX_ADDR_COUNTRYF_DESC_LEN];
+    char addressF[PTEID_MAX_ADDRF_LEN];
+    char cityF[PTEID_MAX_CITYF_LEN];
+    char regioF[PTEID_MAX_REGIOF_LEN];
+    char localityF[PTEID_MAX_LOCALITYF_LEN];
+    char postalF[PTEID_MAX_POSTALF_LEN];
+    char numMorF[PTEID_MAX_NUMMORF_LEN];
+} PTEID_ADDR;
+
+typedef struct
+{
+    short version;
+    unsigned char cbeff[PTEID_MAX_CBEFF_LEN];
+    unsigned char facialrechdr[PTEID_MAX_FACRECH_LEN];
+    unsigned char facialinfo[PTEID_MAX_FACINFO_LEN];
+    unsigned char imageinfo[PTEID_MAX_IMAGEINFO_LEN];
+    unsigned char picture[PTEID_MAX_PICTUREH_LEN];
+    unsigned long piclength;
+} PTEID_PIC;
+
+typedef struct
+{
+	unsigned char certif[PTEID_MAX_CERT_LEN];	/* Byte stream encoded certificate */
+	long certifLength;					  /* Size in bytes of the encoded certificate */
+	char certifLabel[PTEID_MAX_CERT_LABEL_LEN];     /* Label of the certificate (Authentication, Signature, CA, Root,) */
+} PTEID_Certif;
+
+typedef struct
+{
+	PTEID_Certif certificates[PTEID_MAX_CERT_NUMBER];  /* Array of PTEID_Certif structures */
+	long certificatesLength;			/* Number of elements in Array */
+} PTEID_Certifs;
+
+typedef struct
+{
+  long pinType;             // ILEID_PIN_TYPE_PKCS15 or PTEID_PIN_TYPE_OS
+  unsigned char id;                    // PIN reference or ID
+  long usageCode;       // Usage code (PTEID_USAGE_AUTH, PTEID_USAGE_SIGN, ...)
+  long triesLeft;
+  long flags;
+  char label[PTEID_MAX_PIN_LABEL_LEN];
+  char *shortUsage;     // May be NULL for usage known by the middleware
+  char *longUsage;      // May be NULL for usage known by the middleware
+} PTEIDPin;
+
+typedef struct
+{
+	PTEIDPin pins[PTEID_MAX_PINS];  /* Array of PTEID_Pin structures */
+	long pinsLength;			        /* Number of elements in Array */
+} PTEIDPins;
+
+typedef struct
+{
+	char label[PTEID_MAX_CERT_LABEL_LEN];
+	char serial[PTEID_MAX_ID_NUMBER_LEN];
+} PTEID_TokenInfo;
+
+/* The modulus and exponent are big integers in big endian notiation
+ * (= network byte order). The first byte can be 0x00 allthough this is
+ * not necessary (the value is allways considered to be positive).
+ */
+typedef struct
+{
+    unsigned char *modulus;
+    unsigned long modulusLength;  // number of bytes in modulus/length of the modulus
+    unsigned char *exponent;
+    unsigned char exponentLength; // number of bytes in exponent/length of the exponent
+} PTEID_RSAPublicKey;
+
+
+PTEIDSDK_API long PTEID_Init(
+			char *ReaderName		/**< in: the PCSC reader name (as returned by SCardListReaders()),
+								 specify NULL if you want to select the first reader */
+);
+
+PTEIDSDK_API long PTEID_Exit(
+			unsigned long ulMode	/**< in: exit mode, either PTEID_EXIT_LEAVE_CARD or PTEID_EXIT_UNPOWER */
+);
+
+PTEIDSDK_API tCompCardType PTEID_GetCardType();
+
+/**
+ * Read the ID data.
+ */
+PTEIDSDK_API long PTEID_GetID(
+	PTEID_ID *IDData		/**< out: the address of a PTEID_ID struct */
+);
+
+/**
+ * Read the Address data.
+ */
+PTEIDSDK_API long PTEID_GetAddr(
+	PTEID_ADDR *AddrData	/**< out: the address of an PTEID_ADDR struct */
+);
+
+/**
+ * Read the Picture.
+ */
+PTEIDSDK_API long PTEID_GetPic(
+	PTEID_PIC *PicData		/**< out: the address of a PTEID_PIC struct */
+);
+
+/**
+ * Read all the user and CA certificates.
+ */
+PTEIDSDK_API long PTEID_GetCertificates(
+	PTEID_Certifs *Certifs	/**< out: the address of a PTEID_Certifs struct */
+);
+
+/**
+ * Verify a PIN.
+ */
+PTEIDSDK_API long PTEID_VerifyPIN(
+	unsigned char PinId,	/**< in: the PIN ID, see the PTEID_Pins struct */
+	char *Pin,				/**< in: the PIN value, if NULL then the user will be prompted for the PIN */
+	long *triesLeft			/**< out: the remaining PIN tries */
+);
+
+/**
+ * Verify a PIN. If this is the signature PIN, do not display an alert message.
+ */
+PTEIDSDK_API long PTEID_VerifyPIN_No_Alert(
+	unsigned char PinId,	/**< in: the PIN ID, see the PTEID_Pins struct */
+	char *Pin,				/**< in: the PIN value, if NULL then the user will be prompted for the PIN */
+	long *triesLeft			/**< out: the remaining PIN tries */
+);
+
+/**
+ * Change a PIN.
+ */
+PTEIDSDK_API long PTEID_ChangePIN(
+	unsigned char PinId,	/**< in: the PIN ID, see the PTEID_Pins struct */
+	char *pszOldPin,		/**< in: the current PIN value, if NULL then the user will be prompted for the PIN */
+	char *pszNewPin,		/**< in: the new PIN value, if NULL then the user will be prompted for the PIN */
+	long *triesLeft			/**< out: the remaining PIN tries */
+);
+
+/**
+ * Return the PINs (that are listed in the PKCS15 files).
+ */
+PTEIDSDK_API long PTEID_GetPINs(
+	PTEIDPins *Pins		/**< out: the address of a PTEID_Pins struct */
+);
+
+/**
+ * Return the PKCS15 TokenInfo contents.
+ */
+PTEIDSDK_API long PTEID_GetTokenInfo(
+	PTEID_TokenInfo *tokenData	/**< out: the address of a PTEID_TokenInfo struct */
+);
+
+/**
+ * Read the contents of the SOD file from the card.
+ * This function calls PTEID_ReadFile() with the SOD file as path.
+ * If *outlen is less then the file's contents, only *outlen
+ * bytes will be read. If *outlen is bigger then the file's
+ * contents then the file's contents are returned without error. */
+PTEIDSDK_API long PTEID_ReadSOD(
+	unsigned char *out,         /**< out: the buffer to hold the file contents */
+	unsigned long *outlen		/**< in/out: number of bytes allocated/number of bytes read */
+);
+
+/**
+ * Unblock PIN with PIN change.
+ * If pszPuk == NULL or pszNewPin == NULL, a GUI is shown asking for the PUK and the new PIN
+ */
+PTEIDSDK_API long PTEID_UnblockPIN(
+	unsigned char PinId,	/**< in: the PIN ID, see the PTEID_Pins struct */
+	char *pszPuk,			/**< in: the PUK value, if NULL then the user will be prompted for the PUK */
+	char *pszNewPin,		/**< in: the new PIN value, if NULL then the user will be prompted for the PIN */
+	long *triesLeft			/**< out: the remaining PUK tries */
+);
+
+/**
+ * Extended Unblock PIN functionality.
+ * E.g. calling PTEID_UnblockPIN_Ext() with ulFlags = UNBLOCK_FLAG_NEW_PIN
+ *   is the same as calling PTEID_UnblockPIN(...)
+ */
+PTEIDSDK_API long PTEID_UnblockPIN_Ext(
+	unsigned char PinId,	/**< in: the PIN ID, see the PTEID_Pins struct */
+	char *pszPuk,			/**< in: the PUK value, if NULL then the user will be prompted for the PUK */
+	char *pszNewPin,		/**< in: the new PIN value, if NULL then the user will be prompted for the PIN */
+	long *triesLeft,		/**< out: the remaining PUK tries */
+	unsigned long ulFlags	/**< in: flags: 0, UNBLOCK_FLAG_NEW_PIN, UNBLOCK_FLAG_PUK_MERGE or
+									UNBLOCK_FLAG_NEW_PIN | UNBLOCK_FLAG_PUK_MERGE */
+);
+
+/**
+ * Select an Application Directory File (ADF) by means of the AID (Application ID).
+ */
+PTEIDSDK_API long PTEID_SelectADF(
+	unsigned char *adf,		/**< in: the AID of the ADF */
+	long adflen				/**< in: the length */
+);
+
+/**
+ * Read a file on the card.
+ * If a PIN reference is provided and needed to read the file,
+ * the PIN will be asked and checked if needed.
+ * If *outlen is less then the file's contents, only *outlen
+ * bytes will be read. If *outlen is bigger then the file's
+ * contents then the file's contents are returned without error.
+ */
+PTEIDSDK_API long PTEID_ReadFile(
+	unsigned char *file,	/**< in: a byte array containing the file path,
+								e.g. {0x3F, 0x00, 0x5F, 0x00, 0xEF, 0x02} for the ID file */
+	int filelen,			/**< in: file length */
+	unsigned char *out,		/**< out: the buffer to hold the file contents */
+	unsigned long *outlen,	/**< in/out: number of bytes allocated/number of bytes read */
+	unsigned char PinId		/**< in: the ID of the Address PIN (only needed when reading the Address File) */
+);
+
+/**
+ * Write data to a file on the card.
+ * If a PIN reference is provided, the PIN will be asked and checked
+ * if needed (just-in-time checking).
+ * This function is only applicable for writing to the Personal Data file.
+ */
+PTEIDSDK_API long PTEID_WriteFile(
+	unsigned char *file,	/**< in: a byte array containing the file path,
+								e.g. {0x3F, 0x00, 0x5F, 0x00, 0xEF, 0x02} for the ID file */
+	int filelen,			/**< in: file length */
+	unsigned char *in,		/**< in: the data to be written to the file */
+	unsigned long inlen,	/**< in: length of the data to be written */
+	unsigned char PinId		/**< in: the ID of the Authentication PIN, see the PTEID_Pins struct */
+);
+
+/**
+ * Get the activation status of the card.
+ */
+PTEIDSDK_API long PTEID_IsActivated(
+	unsigned long *pulStatus	/**< out the activation status: 0 if not activate, 1 if activated */
+);
+
+/**
+ * Activate the card (= update a specific file on the card).
+ * If the card has been activated allready, SC_ERROR_NOT_ALLOWED is returned.
+ */
+PTEIDSDK_API long PTEID_Activate(
+	char *pszPin,			/**< in: the value of the Activation PIN */
+	unsigned char *pucDate,	/**< in: the current date in DD MM YY YY format in BCD format (4 bytes),
+									e.g. {0x17 0x11 0x20 0x06} for the 17th of Nov. 2006) */
+	unsigned long ulMode	/**<in: mode: MODE_ACTIVATE_BLOCK_PIN to block the Activation PIN,
+									or to 0 otherwise (this should only to be used for testing). */
+);
+
+/**
+* Turn on/off SOD checking.
+* 'SOD' checking means that the validity of the ID data,
+* address data, the photo and the card authentication public
+* key is checked to ensure it is not forged.
+* This is done by reading the SOD file which contains hashes
+* over the above data and is signed by a DocumentSigner
+* certificate.
+*/
+PTEIDSDK_API long PTEID_SetSODChecking(
+	int bDoCheck	/**< in: true to turn on SOD checking, false to turn it off */
+);
+
+/**
+ * Specify the (root) certificates that are used to sign
+ * the DocumentSigner certificates in the SOD file.
+ * (The SOD file in the card is signed by a Document
+ *  Signer cert, and this cert is inside the SOD as well).
+ *
+ * By default, this library reads the certificates that are
+ * present in the %appdir%/eidstore/certs dir (in which %appdir%
+ * is the directory in which the application resides.
+ * So if this directory doesn't exist (or doesn't contain the
+ * correct cert for the card), you should call this function
+ * to specify them; or turn off SOD checkking with the
+ * PTEID_SetSODChecking() function.
+ * If you call this function
+ * If you call this function again with NULL as parameter,
+ * then the default CA certs will be used again.
+ */
+PTEIDSDK_API long PTEID_SetSODCAs(
+	PTEID_Certifs *Certifs	/**< in: the address of a PTEID_Certifs, or NULL */
+);
+
+/**
+ * Get the public key 'card authentication' key which can
+ * be used to verify the authenticity of the eID card.
+ * This public key is encoded in the ID file, and should
+ * not be confused with the 'Citizen Authentication key'.
+ *
+ * No memory allocation will be done for the PTEID_RSAPublicKey struct,
+ * so the 'modulus' and 'exponent' fields should have sufficiently memory
+ * allocated to hold the respective values; and the amount of memory
+ * should be given in the 'Length' fields. For example:
+ *   unsigned char modulus[128];
+ *   unsigned char exponent[3];
+ *   PTEID_RSAPublicKey cardPubKey = {modulus, sizeof(modulus), exponent, sizeof(exponent)};
+ */
+PTEIDSDK_API long PTEID_GetCardAuthenticationKey(
+	PTEID_RSAPublicKey *pCardAuthPubKey	/**< in: the address of a PTEID_RSAPublicKey struct */
+);
+
+/**
+* Get the CVC CA public key that this card uses to verify the CVC key;
+* allowing the application to select the correct CVC certificate for
+* this card.
+*
+* No memory allocation will be done for the PTEID_RSAPublicKey struct,
+* so the 'modulus' and 'exponent' fields should have sufficiently memory
+* allocated to hold the respective values; and the amount of memory
+* should be given in the 'Length' fields. For example:
+*   unsigned char modulus[128];
+*   unsigned char exponent[3];
+*   PTEID_RSAPublicKey CVCRootKey = {modulus, sizeof(modulus), exponent, sizeof(exponent)};
+*
+* Upon successfull return, the modulusLength and exponentLength fields
+* will contain the effective modulus length resp. exponent length.
+*/
+PTEIDSDK_API long PTEID_GetCVCRoot(
+	PTEID_RSAPublicKey *pCVCRootKey	/**< in: the address of a PTEID_RSAPublicKey struct */
+);
+
 
 }
 

@@ -570,26 +570,6 @@ PTEID_ReaderContext::PTEID_ReaderContext(const PTEID_RawData_Eid &data):PTEID_Ob
 	END_TRY_CATCH
 }
 
-PTEID_ReaderContext::PTEID_ReaderContext(const PTEID_RawData_Sis &data):PTEID_Object(NULL,NULL)
-{
-	m_cardid=0;
-	m_delimpl=true;
-
-	m_context->mutex=new CMutex;
-
-	BEGIN_TRY_CATCH
-
-	APL_RawData_Sis *pData=new APL_RawData_Sis;
-	pData->version=1;
-	pData->idData.Append(data.idData.GetBytes(),data.idData.Size());
-
-	m_impl=new APL_ReaderContext(*pData);
-	
-	delete pData;
-
-	END_TRY_CATCH
-}
-
 PTEID_ReaderContext::~PTEID_ReaderContext()
 {
 	//BEGIN_TRY_CATCH
@@ -711,21 +691,10 @@ PTEID_Card &PTEID_ReaderContext::getCard()
 
 		switch(pimpl->getCardType())
 		{
-		case APL_CARDTYPE_PTEID_EID:
+		case APL_CARDTYPE_PTEID_IAS07:
+		case APL_CARDTYPE_PTEID_IAS101:
 			out = new PTEID_EIDCard(&context,pAplCard);
 			//out = new PTEID_EIDCard(&context,pimpl->getEIDCard());
-			break;
-		case APL_CARDTYPE_PTEID_KIDS:
-			out = new PTEID_KidsCard(&context,pAplCard);
-			//out = new PTEID_KidsCard(&context,pimpl->getKidsCard());
-			break;
-		case APL_CARDTYPE_PTEID_FOREIGNER:
-			out = new PTEID_ForeignerCard(&context,pAplCard);
-			//out = new PTEID_ForeignerCard(&context,pimpl->getForeignerCard());
-			break;
-		case APL_CARDTYPE_PTEID_SIS:
-			out = new PTEID_SISCard(&context,pAplCard);
-			//out = new PTEID_SISCard(&context,pimpl->getSISCard());
 			break;
 		default:
 			throw PTEID_ExCardTypeUnknown();
@@ -749,57 +718,14 @@ PTEID_EIDCard &PTEID_ReaderContext::getEIDCard()
 
 	APL_ReaderContext *pimpl=static_cast<APL_ReaderContext *>(m_impl);
 	PTEID_CardType type=ConvertCardType(pimpl->getCardType());
-	if(type!=PTEID_CARDTYPE_EID 
-		&& type!=PTEID_CARDTYPE_KIDS
-		&& type!=PTEID_CARDTYPE_FOREIGNER)
+	if(type!=PTEID_CARDTYPE_IAS07 && type!=PTEID_CARDTYPE_IAS101){
 		throw PTEID_ExCardBadType();
+	}
 
 	END_TRY_CATCH
 
 	PTEID_Card &card = getCard();
 	return *dynamic_cast<PTEID_EIDCard *>(&card);
-}
-
-PTEID_KidsCard &PTEID_ReaderContext::getKidsCard()
-{
-	BEGIN_TRY_CATCH
-
-	APL_ReaderContext *pimpl=static_cast<APL_ReaderContext *>(m_impl);
-	if(pimpl->getCardType()!=APL_CARDTYPE_PTEID_KIDS)
-		throw PTEID_ExCardBadType();
-
-	END_TRY_CATCH
-
-	PTEID_Card &card = getCard();
-	return *dynamic_cast<PTEID_KidsCard *>(&card);
-}
-
-PTEID_ForeignerCard &PTEID_ReaderContext::getForeignerCard()
-{
-	BEGIN_TRY_CATCH
-
-	APL_ReaderContext *pimpl=static_cast<APL_ReaderContext *>(m_impl);
-	if(pimpl->getCardType()!=APL_CARDTYPE_PTEID_FOREIGNER)
-		throw PTEID_ExCardBadType();
-
-	END_TRY_CATCH
-
-	PTEID_Card &card = getCard();
-	return *dynamic_cast<PTEID_ForeignerCard *>(&card);
-}
-
-PTEID_SISCard &PTEID_ReaderContext::getSISCard()
-{
-	BEGIN_TRY_CATCH
-
-	APL_ReaderContext *pimpl=static_cast<APL_ReaderContext *>(m_impl);
-	if(pimpl->getCardType()!=APL_CARDTYPE_PTEID_SIS)
-		throw PTEID_ExCardBadType();
-
-	END_TRY_CATCH
-
-	PTEID_Card &card = getCard();
-	return *dynamic_cast<PTEID_SISCard *>(&card);
 }
 
 unsigned long PTEID_ReaderContext::SetEventCallback(void (* callback)(long lRet, unsigned long ulState, void *pvRef), void *pvRef)
@@ -898,26 +824,6 @@ PTEID_Config::PTEID_Config(PTEID_Param Param):PTEID_Object(NULL,NULL)
 		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_LOGGING_LEVEL);		break;
 	case PTEID_PARAM_LOGGING_GROUP:
 		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_LOGGING_GROUP);		break;
-
-	//CRL
-	case PTEID_PARAM_CRL_SERVDOWNLOADNR:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CRL_SERVDOWNLOADNR);	break;
-	case PTEID_PARAM_CRL_TIMEOUT:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CRL_TIMEOUT);			break;
-	case PTEID_PARAM_CRL_CACHEDIR:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CRL_CACHEDIR);			break;
-	case PTEID_PARAM_CRL_CACHEFILE:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CRL_CACHEFILE);		break;
-	case PTEID_PARAM_CRL_LOCKFILE:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CRL_LOCKFILE);		break;
-
-	//CERTIFIACTE VALIDATION
-	case PTEID_PARAM_CERTVALID_ALLOWTESTC:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CERTVALID_ALLOWTESTC);	break;
-	case PTEID_PARAM_CERTVALID_CRL:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CERTVALID_CRL);		break;
-	case PTEID_PARAM_CERTVALID_OCSP:
-		m_impl=new APL_Config(CConfig::EIDMW_CONFIG_PARAM_CERTVALID_OCSP);		break;
 
 	//CERTIFICATE CACHE
 	case PTEID_PARAM_CERTCACHE_CACHEFILE:

@@ -11,6 +11,9 @@
 		<Platform
 			Name="Win32"
 		/>
+		<Platform
+			Name="x64"
+		/>
 	</Platforms>
 	<ToolFiles>
 	</ToolFiles>
@@ -124,7 +127,177 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="../common;../dialogs;../cardlayer;../FreeImagePTEiD/Source;&quot;$(PTEID_DIR_OPENSSL_098G)\include&quot;;&quot;$(PTEID_DIR_XERCES_310)\include&quot;;&quot;..\xml-security-c-1.6.1&quot;;&quot;$(PTEID_DIR_PLATFORMSDK_2003)\include&quot;;&quot;..\..\ThirdParty\libcurl-7.24\include&quot;"
+				PreprocessorDefinitions="PTEID_35;WIN32;NDEBUG;_WINDOWS;_USRDLL;EIDMW_APPLAYER_EXPORTS"
+				RuntimeLibrary="2"
+				TreatWChar_tAsBuiltInType="true"
+				UsePrecompiledHeader="0"
+				WarningLevel="3"
+				Detect64BitPortabilityProblems="false"
+				DebugInformationFormat="3"
+				ShowIncludes="false"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="PTEID_35;_UNICODE;UNICODE"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				LinkLibraryDependencies="false"
+				AdditionalDependencies="wsock32.lib Shlwapi.lib pteid35DlgsWin32.lib pteid35cardlayer.lib pteid35common.lib libeay32.lib ssleay32.lib xerces-c_3.lib freeimage.lib xsec_1.lib libcurl.lib"
+				OutputFile="..\_Binaries35\$(ConfigurationName)\pteid35$(ProjectName).dll"
+				LinkIncremental="1"
+				SuppressStartupBanner="false"
+				AdditionalLibraryDirectories="&quot;..\_Binaries35\$(ConfigurationName)&quot;;&quot;..\_Binaries35\x64\$(ConfigurationName)&quot;;&quot;$(PTEID_DIR_OPENSSL_098G)\lib&quot;;&quot;$(PTEID_DIR_XERCES_310)\lib&quot;;&quot;..\..\ThirdParty\libcurl-7.24\lib&quot;"
+				GenerateDebugInformation="true"
+				SubSystem="2"
+				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
+				TargetMachine="0"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Debug|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			ConfigurationType="2"
+			CharacterSet="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="0"
 				AdditionalIncludeDirectories="../common;../dialogs;../cardlayer;&quot;$(PTEID_DIR_OPENSSL_098G)\include&quot;;..\..\ThirdParty\openssl.0.9.8g\include;&quot;$(PTEID_DIR_XERCES_310)\include&quot;;&quot;..\..\ThirdParty\xerces\Xerces-3.1.0\include&quot;;&quot;$(PTEID_DIR_PLATFORMSDK_2003)\include&quot;;..\..\ThirdParty\MSPlatformSDK_2003\Include;..\..\ThirdParty\MSPlatformSDK\Include"
+				PreprocessorDefinitions="PTEID_35;WIN32;_DEBUG;_WINDOWS;_USRDLL;EIDMW_APPLAYER_EXPORTS"
+				MinimalRebuild="true"
+				BasicRuntimeChecks="3"
+				RuntimeLibrary="3"
+				StructMemberAlignment="0"
+				TreatWChar_tAsBuiltInType="true"
+				UsePrecompiledHeader="0"
+				BrowseInformation="0"
+				WarningLevel="3"
+				Detect64BitPortabilityProblems="true"
+				DebugInformationFormat="3"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="PTEID_35;_UNICODE;UNICODE"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				LinkLibraryDependencies="false"
+				AdditionalDependencies="wsock32.lib pteid35DlgsWin32D.lib pteid35cardlayerD.lib pteid35commonD.lib libeay32_0_9_8g.lib ssleay32_0_9_8g.lib xerces-c_3D.lib"
+				OutputFile="..\_Binaries35\$(ConfigurationName)\pteid35$(ProjectName)D.dll"
+				LinkIncremental="2"
+				AdditionalLibraryDirectories="&quot;..\_Binaries35/$(ConfigurationName)&quot;;&quot;$(PTEID_DIR_OPENSSL_098G)\lib&quot;;&quot;$(PTEID_DIR_XERCES_310)\lib&quot;;..\..\ThirdParty\openssl.0.9.8g\lib;&quot;..\..\ThirdParty\Xerces\Xerces-3.1.0\lib&quot;"
+				GenerateDebugInformation="true"
+				SubSystem="2"
+				TargetMachine="17"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|x64"
+			OutputDirectory="$(SolutionDir)$(PlatformName)\$(ConfigurationName)"
+			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
+			ConfigurationType="2"
+			CharacterSet="1"
+			WholeProgramOptimization="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+				TargetEnvironment="3"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="../common;../dialogs;..\FreeImagePTEiD\Source;../cardlayer;&quot;$(PTEID_DIR_OPENSSL_098G)\include&quot;;&quot;$(PTEID_DIR_XERCES_310)\include&quot;;&quot;..\..\ThirdParty\xerces\Xerces-3.1.0\include&quot;;&quot;$(PTEID_DIR_PLATFORMSDK_2003)\include&quot;;..\..\ThirdParty\MSPlatformSDK_2003\Include;..\..\ThirdParty\MSPlatformSDK\Include"
 				PreprocessorDefinitions="PTEID_35;WIN32;NDEBUG;_WINDOWS;_USRDLL;EIDMW_APPLAYER_EXPORTS"
 				RuntimeLibrary="2"
 				TreatWChar_tAsBuiltInType="true"
@@ -146,15 +319,15 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkLibraryDependencies="false"
-				AdditionalDependencies="wsock32.lib pteid35DlgsWin32.lib pteid35cardlayer.lib pteid35common.lib libeay32.lib ssleay32.lib xerces-c_3.lib"
-				OutputFile="..\_Binaries35\$(ConfigurationName)\pteid35$(ProjectName).dll"
+				AdditionalDependencies="wsock32.lib pteid35DlgsWin32.lib pteid35cardlayer.lib pteid35common.lib libeay32.lib ssleay32.lib xerces-c_3.lib freeimage.lib"
+				OutputFile="..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteid35$(ProjectName).dll"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="&quot;..\_Binaries35/$(ConfigurationName)&quot;;&quot;$(PTEID_DIR_OPENSSL_098G)\bin&quot;;..\..\ThirdParty\openssl.0.9.8g\bin;&quot;$(PTEID_DIR_XERCES_310)\lib&quot;;&quot;..\..\ThirdParty\xerces\Xerces-3.1.0\lib&quot;"
+				AdditionalLibraryDirectories="&quot;..\_Binaries35\x64\$(ConfigurationName)&quot;;&quot;$(PTEID_DIR_OPENSSL_098G)\lib&quot;;..\..\ThirdParty\openssl.0.9.8g\bin;&quot;$(PTEID_DIR_XERCES_310)\lib&quot;;&quot;..\..\ThirdParty\xerces\Xerces-3.1.0\lib&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				TargetMachine="1"
+				TargetMachine="17"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -199,10 +372,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\APLCardSIS.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\APLCertif.cpp"
 				>
 			</File>
@@ -219,6 +388,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\APLPublicKey.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\APLReader.cpp"
 				>
 			</File>
@@ -228,10 +401,6 @@
 			</File>
 			<File
 				RelativePath=".\CardPteid.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\CardSIS.cpp"
 				>
 			</File>
 			<File
@@ -252,6 +421,14 @@
 			</File>
 			<File
 				RelativePath=".\MiscUtil.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\PhotoPteid.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\XadesSignature.cpp"
 				>
 			</File>
 			<File
@@ -277,10 +454,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\APLCardSIS.h"
-				>
-			</File>
-			<File
 				RelativePath=".\APLCertif.h"
 				>
 			</File>
@@ -297,6 +470,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\APLPublicKey.h"
+				>
+			</File>
+			<File
 				RelativePath=".\APLReader.h"
 				>
 			</File>
@@ -310,14 +487,6 @@
 			</File>
 			<File
 				RelativePath=".\CardPteidDef.h"
-				>
-			</File>
-			<File
-				RelativePath=".\CardSIS.h"
-				>
-			</File>
-			<File
-				RelativePath=".\CardSISDef.h"
 				>
 			</File>
 			<File
@@ -366,6 +535,14 @@
 			</File>
 			<File
 				RelativePath=".\MiscUtil.h"
+				>
+			</File>
+			<File
+				RelativePath=".\PhotoPteid.h"
+				>
+			</File>
+			<File
+				RelativePath=".\XadesSignature.h"
 				>
 			</File>
 		</Filter>

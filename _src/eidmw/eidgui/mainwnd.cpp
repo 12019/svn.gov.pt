@@ -35,12 +35,14 @@
 #include "mainwnd.h"
 #include "dlgAbout.h"
 #include "dlgprint.h"
+#include "dlgsignature.h"
 #include "dlgOptions.h"
 #include "Settings.h"
 #include "CardInformation.h"
 #include "eidlib.h"
 #include "eidlibException.h"
 #include "picturepopup.h"
+#include "AutoUpdates.h"
 #ifdef WIN32
 #include <windows.h>
 #include <stdio.h>
@@ -51,441 +53,10 @@
 
 static bool	g_cleaningCallback=false;
 static int	g_runningCallback=0;
-static unsigned int pinactivate = 1;
-static unsigned int persodatastatus = 1;
-
-//*****************************************************
-// helper class to determine the GUI size multiplication factor
-//*****************************************************
-class multiplyerFactor
-{
-public:
-	//------------------------------------
-	// ctor
-	//------------------------------------
-	multiplyerFactor( void )
-	: XMultiplyer(1.0)
-	, YMultiplyer(1.0)
-	, WMultiplyer(1.0)
-	, HMultiplyer(1.0)
-	{
-	}
-	multiplyerFactor( eZOOMSTATUS zoom )
-	: XMultiplyer(1.0)
-	, YMultiplyer(1.0)
-	, WMultiplyer(1.0)
-	, HMultiplyer(1.0)
-	{
-		getMultiplyerFactor(zoom);
-	}
-	//------------------------------------
-	// calculate the multiplication factor from the zoom factor
-	//------------------------------------
-	void getMultiplyerFactor( eZOOMSTATUS zoom )
-	{
-		double X_INCREMENT[]={1.0,WINDOW_WIDTH_MEDIUM/WINDOW_WIDTH_SMALL,   WINDOW_WIDTH_LARGE/WINDOW_WIDTH_SMALL,   WINDOW_WIDTH_HUGE/WINDOW_WIDTH_SMALL}; 
-		double Y_INCREMENT[]={1.0,WINDOW_HEIGHT_MEDIUM/WINDOW_HEIGHT_SMALL, WINDOW_HEIGHT_LARGE/WINDOW_HEIGHT_SMALL, WINDOW_HEIGHT_HUGE/WINDOW_HEIGHT_SMALL};
-		double W_INCREMENT[]={1.0,WINDOW_WIDTH_MEDIUM/WINDOW_WIDTH_SMALL,   WINDOW_WIDTH_LARGE/WINDOW_WIDTH_SMALL,   WINDOW_WIDTH_HUGE/WINDOW_WIDTH_SMALL};
-		double H_INCREMENT[]={1.0,WINDOW_HEIGHT_MEDIUM/WINDOW_HEIGHT_SMALL, WINDOW_HEIGHT_LARGE/WINDOW_HEIGHT_SMALL, WINDOW_HEIGHT_HUGE/WINDOW_HEIGHT_SMALL};
-
-		XMultiplyer = 1.0;
-		YMultiplyer = 1.0;
-		WMultiplyer = 1.0;
-		HMultiplyer = 1.0;
-
-		switch(zoom)
-		{
-		case ZOOM_HUGE:
-			XMultiplyer *= X_INCREMENT[ZOOM_HUGE];
-			YMultiplyer *= Y_INCREMENT[ZOOM_HUGE];
-			WMultiplyer *= W_INCREMENT[ZOOM_HUGE];
-			HMultiplyer *= H_INCREMENT[ZOOM_HUGE];
-			break;
-		case ZOOM_LARGE:
-			XMultiplyer *= X_INCREMENT[ZOOM_LARGE];
-			YMultiplyer *= Y_INCREMENT[ZOOM_LARGE];
-			WMultiplyer *= W_INCREMENT[ZOOM_LARGE];
-			HMultiplyer *= H_INCREMENT[ZOOM_LARGE];
-			break;
-		case ZOOM_MEDIUM:
-			XMultiplyer *= X_INCREMENT[ZOOM_MEDIUM];
-			YMultiplyer *= Y_INCREMENT[ZOOM_MEDIUM];
-			WMultiplyer *= W_INCREMENT[ZOOM_MEDIUM];
-			HMultiplyer *= H_INCREMENT[ZOOM_MEDIUM];
-			break;
-		case ZOOM_SMALL:
-			XMultiplyer *= X_INCREMENT[ZOOM_SMALL];
-			YMultiplyer *= Y_INCREMENT[ZOOM_SMALL];
-			WMultiplyer *= W_INCREMENT[ZOOM_SMALL];
-			HMultiplyer *= H_INCREMENT[ZOOM_SMALL];
-			break;
-		}
-	};
-	double XMultiplyer;
-	double YMultiplyer;
-	double WMultiplyer;
-	double HMultiplyer;
-};
-
-//*****************************************************
-// size of the main window in the different zoom states
-//*****************************************************
-static int    windowSizes[4][2]= 
-{
-		{(int) WINDOW_WIDTH_SMALL  , (int) WINDOW_HEIGHT_SMALL}
-		,{(int) WINDOW_WIDTH_MEDIUM , (int) WINDOW_HEIGHT_MEDIUM}
-		,{(int) WINDOW_WIDTH_LARGE  , (int) WINDOW_HEIGHT_LARGE}
-		,{(int) WINDOW_WIDTH_HUGE   , (int) WINDOW_HEIGHT_HUGE}
-};
-
-//*****************************************************
-// style sheets used in the GUI
-//*****************************************************
-enum eStyleSheet
-{
-	STYLESHEET_NONE = -1
-	,STYLESHEET_BUTTON
-	,STYLESHEET_TITLE_1
-	,STYLESHEET_TITLE_2
-	,STYLESHEET_FOOTER_1
-	,STYLESHEET_NORMAL_LABEL
-	,STYLESHEET_NORMAL_VALUE
-	,STYLESHEET_BIG_VALUE
-	,STYLESHEET_SIS_VALUE
-	,STYLESHEET_SMALL_RED
-	,STYLESHEET_SMALL_BLUE
-	,STYLESHEET_SMALL_REDRIGHT
-};
-
-//*****************************************************
-// structure definition for point sizes in relation to the style sheet
-// used
-//*****************************************************
-struct zoomInfoStyleSheets
-{
-	int		stylesheet_id;			// style sheet ID
-	int		pointSizes[4];			// point size to be used
-};
-//*****************************************************
-// Array containing the font point sizes to be used for the
-// different style sheets for each zoom status
-//*****************************************************
-static zoomInfoStyleSheets stylesheetsInfo[]=
-{
-		{STYLESHEET_BUTTON,		{BUTTON_POINTSIZE_SMALL,     BUTTON_POINTSIZE_MEDIUM,	  BUTTON_POINTSIZE_LARGE,	  BUTTON_POINTSIZE_HUGE}}
-		,{STYLESHEET_TITLE_1,		{TITLE1_POINTSIZE_SMALL,     TITLE1_POINTSIZE_MEDIUM,	  TITLE1_POINTSIZE_LARGE,	  TITLE1_POINTSIZE_HUGE}}
-		,{STYLESHEET_TITLE_2,		{TITLE2_POINTSIZE_SMALL,     TITLE2_POINTSIZE_MEDIUM,	  TITLE2_POINTSIZE_LARGE,	  TITLE2_POINTSIZE_HUGE}}
-		,{STYLESHEET_FOOTER_1,		{FOOTER1_POINTSIZE_SMALL,    FOOTER1_POINTSIZE_MEDIUM,	  FOOTER1_POINTSIZE_LARGE,	  FOOTER1_POINTSIZE_HUGE}}
-		,{STYLESHEET_NORMAL_LABEL,	{LABEL_POINTSIZE_SMALL,      LABEL_POINTSIZE_MEDIUM,	  LABEL_POINTSIZE_LARGE,	  LABEL_POINTSIZE_HUGE}}
-		,{STYLESHEET_NORMAL_VALUE,	{NORMALVALUE_POINTSIZE_SMALL,NORMALVALUE_POINTSIZE_MEDIUM,NORMALVALUE_POINTSIZE_LARGE,NORMALVALUE_POINTSIZE_HUGE}}
-		,{STYLESHEET_BIG_VALUE,		{BIGVALUE_POINTSIZE_SMALL,   BIGVALUE_POINTSIZE_MEDIUM,   BIGVALUE_POINTSIZE_LARGE,	  BIGVALUE_POINTSIZE_HUGE}}
-		,{STYLESHEET_SIS_VALUE,		{SISVALUE_POINTSIZE_SMALL,   SISVALUE_POINTSIZE_MEDIUM,   SISVALUE_POINTSIZE_LARGE,	  SISVALUE_POINTSIZE_HUGE}}
-		,{STYLESHEET_SMALL_RED,		{SMALL_POINTSIZE_SMALL,      SMALL_POINTSIZE_MEDIUM,      SMALL_POINTSIZE_LARGE,	  SMALL_POINTSIZE_HUGE}}
-		,{STYLESHEET_SMALL_BLUE,	{SMALL_POINTSIZE_SMALL,      SMALL_POINTSIZE_MEDIUM,      SMALL_POINTSIZE_LARGE,	  SMALL_POINTSIZE_HUGE}}
-		,{STYLESHEET_SMALL_REDRIGHT,{SMALL_POINTSIZE_SMALL,      SMALL_POINTSIZE_MEDIUM,      SMALL_POINTSIZE_LARGE,	  SMALL_POINTSIZE_HUGE}}
-};
-//*****************************************************
-// structure definition for the position of a widget
-// defined as X,Y,width,height
-//*****************************************************
-struct widgetPos
-{
-	int pos[4];
-};
-
-//*****************************************************
-// structure definition for widget base position on the window
-//*****************************************************
-struct widgetInfo
-{
-	const char*  widgetName;		//!< name of the widget
-	widgetPos    position;			//!< position on the window (x,y,width,height)
-	eStyleSheet  style;				//!< style of the widget
-};
-
-//*****************************************************
-// Array containing widget position on the window
-// The position is defined as the position in the smallest zoom factor
-// The position is multiplied by a 'zoom factor'.
-// When zooming, the window is in fact enlarged, so we can multiply
-// the x,y,w,h with the same factor as the window is enlarged.
-//*****************************************************
-static widgetInfo widgetTabInfo[]=
-{
-		//-------------------------------------------------------------------------------
-		//								SMALL
-		// {objectName					{  x, y,  w, h},                style used}
-		//-------------------------------------------------------------------------------
-
-		//------- tab Identity --------
-		{"lblIdentity_Head1_1",		{{ 10,  1,181, 30}},			STYLESHEET_TITLE_1}
-		,{"lblIdentity_Head1_2",		{{200,  1,181, 30}},			STYLESHEET_TITLE_1}
-		,{"lblIdentity_Head1_3",		{{380,  1,181, 30}},			STYLESHEET_TITLE_1}
-		,{"lblIdentity_Head1_4",		{{570,  1,181, 30}},			STYLESHEET_TITLE_1}
-		,{"lblIdentity_Head2_1",		{{ 10, 35,181, 18}},			STYLESHEET_TITLE_2}
-		,{"lblIdentity_Head2_2",		{{200, 35,181, 18}},			STYLESHEET_TITLE_2}
-		,{"lblIdentity_Head2_3",		{{380, 35,181, 18}},			STYLESHEET_TITLE_2}
-		,{"lblIdentity_Head2_4",		{{570, 35,181, 18}},			STYLESHEET_TITLE_2}
-		,{"lblIdentity_Name",			{{ 10, 80,207, 18}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_Name",			{{222, 80,529, 20}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_GivenNames",		{{ 10,105,207, 18}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_GivenNames",		{{222,105,529, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_BirthDate",		{{222,127,417, 20}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_BirthDate",		{{222,151,417, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_Sex",			{{630,123,106, 20}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_Sex",			{{630,151,106, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_Nationality",	{{222,175,253, 36}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_Nationality",	{{330,175,270, 36}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_Country",		{{570,170,176, 28}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_Country",		{{570,204,176, 16}},			STYLESHEET_NORMAL_VALUE}
-		//,{"lblIdentity_Card_Number",	{{222,220,341, 20}},			STYLESHEET_NORMAL_LABEL}
-		//,{"txtIdentity_Card_Number",	{{222,240,341, 20}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_Height",			{{222,220,341, 20}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_Height",			{{222,240,341, 20}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_DocumentNumber",	{{222,260,341, 20}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_DocumentNumber",	{{222,290,341, 20}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_ValidFrom_Until",{{ 10,347,240, 18}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentity_ValidFrom_Until",{{ 10,367,240, 18}},			STYLESHEET_NORMAL_VALUE}
-		//,{"lblIdentity_Parents",		{{ 350,347,240, 18}},			STYLESHEET_NORMAL_LABEL}
-		//,{"txtIdentity_Parents",		{{ 350,367,240, 18}},			STYLESHEET_NORMAL_VALUE}
-		//,{"lblIdentity_ImgPerson",		{{30,130,50,50}},				STYLESHEET_NORMAL_LABEL}
-		//------- tab foreigners --------
-		,{"txtForeigners_Card_Number",	{{463, 11,288, 24}},			STYLESHEET_BIG_VALUE}
-		,{"label",						{{ 37, 63,230, 20}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtForeigners_Name",			{{280, 63,532, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"txtForeigners_GivenNames",	{{280, 89,532, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"label_2",					{{ 37,115,230, 18}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtForeigners_ValidTot",		{{280,115,532, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"label_3",					{{ 37,141,230, 18}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtForeigners_PlaceOfIssue",	{{280,141,532, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"label_4",					{{280,165,532, 18}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtForeigners_CardType",		{{280,193,532, 18}},			STYLESHEET_NORMAL_VALUE}
-		//	,{"label_5",					{{280,217,532, 18}},			STYLESHEET_NORMAL_LABEL}
-		//	,{"txtForeigners_Remarks",		{{280,245,532, 18}},			STYLESHEET_NORMAL_VALUE}
-		,{"lblForeigners_Footer_1",		{{280,410,532, 18}},			STYLESHEET_FOOTER_1}
-		,{"lblForeigners_Footer_2",		{{280,425,532, 18}},			STYLESHEET_FOOTER_1}
-		,{"lblForeigners_ImgPerson",	{{ 63,230,150,270}},			STYLESHEET_NONE}
-		//------- tab SIS --------
-		,{"txtSis_SocialSecurityNumber",{{520, 63,231, 28}},			STYLESHEET_SIS_VALUE}
-		,{"txtSis_Name",				{{286,160,465, 28}},			STYLESHEET_SIS_VALUE}
-		,{"txtSis_GivenNames",			{{286,192,465, 28}},			STYLESHEET_SIS_VALUE}
-		,{"txtSis_BirthDate",			{{286,226,152, 28}},			STYLESHEET_SIS_VALUE}
-		,{"txtSis_LogicalNumber",		{{  9,390,245, 28}},			STYLESHEET_SIS_VALUE}
-		,{"txtSis_ValidFrom",			{{566,390,185, 28}},			STYLESHEET_SIS_VALUE}
-		,{"lblSis_Sex",					{{444,220, 20, 28}},			STYLESHEET_NONE}
-		//------- tab identity extra --------
-		,{"lblIdentity_TaxNo",					{{  9, 50,201, 28}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_TaxNo",				{{  9, 84,201, 16}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_SocialSecurityNo",		{{  230, 50,201, 34}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_SocialSecurityNo",	{{  230, 84,201, 16}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_HealthNo",				{{  470, 50,201, 28}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_HealthNo",			{{  470, 84,201, 16}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_CardVersion",			{{  9, 130,201, 28}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_CardVersion",		{{  9, 164,201, 16}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_DocumentType",			{{  240, 130,201, 28}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_DocumentType",		{{  240, 164,201, 16}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_IssuingEntity",			{{  470, 130,201, 28}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_IssuingEntity",		{{  470, 164,201, 16}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_PlaceOfIssue",			{{9, 206,176, 28}},		STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_PlaceOfIssue",		{{15, 240,260, 28}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblChip_Number",						{{410,300,353, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_ChipNumber",		{{410,320,353, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		/*,{"lblAdress_Street",					{{  9,102,211, 34}},	STYLESHEET_NORMAL_LABEL}
-	,{"txtIdentityExtra_Adress_Street",		{{  9,136,350, 18}},	STYLESHEET_NORMAL_VALUE}
-	,{"lblAdress_PostalCode",				{{  9,158,201, 34}},	STYLESHEET_NORMAL_LABEL}
-	,{"txtIdentityExtra_Adress_PostalCode",	{{  9,192,201, 18}},	STYLESHEET_NORMAL_VALUE}*/
-		,{"lblCard_Number",						{{  9,300,353, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_Card_Number",		{{  9,320,353, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		,{"lblAdress_Muncipality",				{{230,158,176, 34}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_Adress_Muncipality",{{230,192,201, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblAdress_Country",					{{  9,214,201, 34}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_Adress_Country",	{{  9,246,176, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblCard_ValidFrom_Until",			{{  9,340,353, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_ValidFrom",	{{  9,360,353, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		//,{"lblSpecialStatus",					{{230,214,176, 34}},	STYLESHEET_NORMAL_LABEL}
-		//,{"txtSpecialStatus",					{{230,246,201, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblIdentity_Title",					{{410, 46,353, 34}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_Title",				{{410, 80,353, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		,{"lblIdentity_Remarks",				{{410,158,201, 34}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtIdentityExtra_Remarks1",			{{410,200,201, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"txtIdentityExtra_Remarks2",			{{410,220,201, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"txtIdentityExtra_Remarks3",			{{410,240,201, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		//------- tab SIS extra --------
-		,{"lblSisExtra_Card_ValidFrom_Until",	{{  9, 63,243, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtSisExtra_ValidFrom_Until",		{{258, 63,493, 18}},	STYLESHEET_SIS_VALUE}
-
-		//------- tab Foreigner extra
-		,{"lblForeignersExtra_BirthDate",		{{ 90, 52,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_BirthDate",		{{280, 52,576, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblForeignersExtra_Nationality",		{{ 90, 74,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_Nationality",		{{280, 74,576, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblForeignersExtra_Sex",				{{ 90, 96,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_Sex",				{{280, 96,576, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		,{"lblForeignersExtra_street",			{{ 90,118,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_Adress_Street",	{{280,118,180, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblForeignersExtra_PostalCode",		{{ 90,142,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_Adress_PostalCode",{{280,142,100, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblForeignersExtra_municipality",	{{350,142,100, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_Adress_Muncipality",{{455,142,250, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblForeignersExtra_country",			{{ 90,165,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_Adress_Country",	{{280,165,100, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		,{"lblForeignersExtra_Remarks1",		{{ 90,188,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_Remarks1",		{{280,211,400, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"txtForeignersExtra_Remarks2",		{{280,234,400, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"txtForeignersExtra_Remarks3",		{{280,257,400, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"txtForeignerSpecialStatus",			{{280,185,576, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		,{"lblForeignersExtra_NationalNumber",	{{ 40,296,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_NationalNumber",	{{230,296,609, 18}},	STYLESHEET_NORMAL_VALUE}
-		,{"lblForeignersExtra_ChipNumber",		{{ 40,318,180, 18}},	STYLESHEET_NORMAL_LABEL}
-		,{"txtForeignersExtra_ChipNumber",		{{230,318,609, 18}},	STYLESHEET_NORMAL_VALUE}
-
-		//------- tab Certificate
-		,{"lblCert_Owner",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtCert_Owner",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblCert_Issuer",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtCert_Issuer",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblCert_KeyLenght",					{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtCert_KeyLenght",					{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblCert_ValidFrom",					{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtCert_ValidFrom",					{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblCert_ValidUntil",					{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtCert_ValidUntil",					{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblCert_Status",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtCert_Status",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblCert_InfoAdd",					{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"btnCert_Register",					{{0,0,0,0}},			STYLESHEET_BUTTON}
-		,{"btnCert_Details",					{{0,0,0,0}},			STYLESHEET_BUTTON}
-		,{"btnOCSPCheck",						{{0,0,0,0}},			STYLESHEET_BUTTON}
-
-		//------- tab PIN
-		,{"lblPIN_Name",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtPIN_Name",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblPIN_ID",							{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtPIN_ID",							{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblPIN_Status",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"txtPIN_Status",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"lblPIN_InfoAdd",						{{0,0,0,0}},			STYLESHEET_NORMAL_LABEL}
-		,{"btnPIN_Test",						{{0,0,0,0}},			STYLESHEET_BUTTON}
-		,{"btnPIN_Change",						{{0,0,0,0}},			STYLESHEET_BUTTON}
-
-		//------- tab Info
-		,{"lblInfo_Top",		/*{ 160, 40,587, 16}*/{{0,0,0,0}},	STYLESHEET_NORMAL_LABEL}
-		,{"lblInfo_bottom",		{{   1,345,740, 14}},					STYLESHEET_NORMAL_LABEL}
-		,{"lblInfo_Img1",		/*{  10, 10,147, 79}*/{{0,0,0,0}},	STYLESHEET_NONE}
-
-};
-
-//*****************************************************
-// Map with all the widget information needed
-//*****************************************************
-typedef QMap<QString,eStyleSheet>	tWidgetMapStyle;
-
-static tWidgetMapStyle widgetMapStyle;
-
-//*****************************************************
-// Initialize the map with all widget information
-//*****************************************************
-void InitWidgetMapStyle()
-{
-	for (size_t widget=0;widget<sizeof(widgetTabInfo)/sizeof(struct widgetInfo);widget++)
-	{
-		widgetMapStyle[widgetTabInfo[widget].widgetName]=widgetTabInfo[widget].style;
-	}
-}
-
-//*****************************************************
-// file list of DLL's to be displayed in the info tab
-//*****************************************************
-static const char* fileList[]=
-{
-#ifdef PTEID_35
-#ifdef WIN32
-#ifdef _DEBUG
-		"pteid35guiD.exe"
-		, "pteid35libCppD.dll"
-		, "pteid35commonD.dll"
-		, "pteid35applayerD.dll"
-		, "pteid35DlgsWin32D.dll"
-		, "pteid35cardlayerD.dll"
-		, "pteidpkcs11D.dll"
-#else
-		"pteid35gui.exe"
-		, "pteid35libCpp.dll"
-		, "pteid35common.dll"
-		, "pteid35applayer.dll"
-		, "pteid35DlgsWin32.dll"
-		, "pteid35cardlayer.dll"
-		, "pteidpkcs11.dll"
-#endif
-#elif __APPLE__
-		"pteidgui"
-		, "libpteidlib"
-		, "libpteidapplayer"
-		, "libpteidcommon"
-		, "libpteidcardlayer"
-		, "libdialogsQT"
-		, "libpteidpkcs11"
-#else
-		"pteidgui"
-		, "libpteidlib.so"
-		, "libpteidapplayer.so"
-		, "libpteidcommon.so"
-		, "libpteidcardlayer.so"
-		, "libdialogsQT.so"
-		, "libpteidpkcs11.so"
-#endif
-
-#else
-
-#ifdef WIN32
-#ifdef _DEBUG
-		"pteidguiD.exe"
-		, "pteidlibCppD.dll"
-		, "pteidcommonD.dll"
-		, "pteidapplayerD.dll"
-		, "pteidDlgsWin32D.dll"
-		, "pteidcardlayerD.dll"
-		, "pteidpkcs11D.dll"
-#else
-		"pteidgui.exe"
-		, "pteidlibCpp.dll"
-		, "pteidcommon.dll"
-		, "pteidapplayer.dll"
-		, "pteidDlgsWin32.dll"
-		, "pteidcardlayer.dll"
-		, "pteidpkcs11.dll"
-#endif
-#elif __APPLE__
-		"pteidgui"
-		, "libpteidlib"
-		, "libpteidapplayer"
-		, "libpteidcommon"
-		, "libpteidcardlayer"
-		, "libdialogsQT"
-		, "libpteidpkcs11"
-#else
-		"pteidgui"
-		, "libpteidlib.so"
-		, "libpteidapplayer.so"
-		, "libpteidcommon.so"
-		, "libpteidcardlayer.so"
-		, "libdialogsQT.so"
-		, "libpteidpkcs11.so"
-#endif
-#endif
-};
-
-
-
-
+//State variables for tab data
+static unsigned int pinactivate = 1, certdatastatus = 1, addressdatastatus = 1, persodatastatus = 1 ;
+//State of Pin Notes 0->Right PIN 1->Not yet inserted or wrong PIN
+static unsigned int pinNotes = 1 ;
 
 void MainWnd::createTrayMenu()
 {
@@ -525,7 +96,7 @@ void MainWnd::createTrayMenu()
 tCertPerReader	MainWnd::m_certContexts;		//!< certificate contexts per reader
 
 //*****************************************************
-// ctor
+// Constructor
 //*****************************************************
 MainWnd::MainWnd( GUISettings& settings, QWidget *parent ) 
 : QMainWindow(parent)
@@ -544,8 +115,6 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 , m_msgBox(NULL)
 , m_connectionStatus((PTEID_CertifStatus)-1)
 {
-	///InitWidgetMapStyle();
-
 	//------------------------------------
 	// install the translator object and load the .qm file for
 	// the given language.
@@ -561,15 +130,8 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 
 	setFixedSize(830, 630);
 	m_ui.menubar->setVisible(false);
-
 	m_ui.wdg_submenu_card->setVisible(false);
 
-	//------------------------------------
-	// disable the reload button until the first time a card is plugged in. 
-	// In case of autoread of the inserted card, there is no interference possible 
-	// between the button and the autoread.
-	//------------------------------------
-	setEnableReload(false);
 	InitLanguageMenu();
 
 	Qt::WindowFlags flags = windowFlags();
@@ -579,8 +141,25 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	list_of_pins[0] = PinInfo(1, "PIN da Autentica\xc3\xa7\xc3\xa3o");
 	list_of_pins[1] = PinInfo(2, "PIN da Assinatura");
 	list_of_pins[2] = PinInfo(3, "PIN da Morada");
+	
 
+
+	/*** Setup progress Bar ***/
+	m_progress = new QProgressDialog();
+	m_progress->setWindowTitle(QString::fromUtf8("Cart\xc3\xa3o de Cidad\xc3\xa3o"));
+	m_progress->setLabelText("Reading card data...");
+
+	//Disable cancel button
+	m_progress->setCancelButton(NULL);
+	//Configuring dialog as a "doing-stuff-type" progressBar
+	m_progress->setMinimum(0);
+	m_progress->setMaximum(0);
+
+	m_progress->setWindowModality(Qt::WindowModal);
+
+	connect(&this->FutureWatcher, SIGNAL(finished()), m_progress, SLOT(cancel()));
 	//------------------------------------
+	//
 	// set the window Icon (as it appears in the left corner of the window)
 	//------------------------------------
 	const QIcon Ico = QIcon( ":/images/Images/Icons/ICO_CARD_EID_PLAIN_16x16.png" );
@@ -591,9 +170,6 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	setLanguageMenu(m_Language);		// check the language in the language menu
 
 	Show_Splash();
-
-	//	connect( m_ui.actionShow_Toolbar, SIGNAL(toggled(bool)), m_ui.toolBar, SLOT(setVisible(bool)) );
-
 	//------------------------------------
 	//SysTray
 	//------------------------------------
@@ -618,20 +194,7 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 
 	m_ui.actionShow_Toolbar->setChecked( m_Settings.getShowToolbar() );
 
-	//----------------------------------
-	// button register/details the certificates is by default
-	// disabled
-	//----------------------------------
 	setEnabledCertifButtons( false );
-
-	//----------------------------------
-	// OCSP check button disabled by default
-	//----------------------------------
-	m_ui.btnCert_Register->setEnabled(false);
-
-	//----------------------------------
-	// button for Pins by default disabled
-	//----------------------------------
 	setEnabledPinButtons( false );
 
 	//----------------------------------
@@ -654,8 +217,6 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 		m_timerReaderList->start(TIMERREADERLIST); 
 	}
 
-
-
 	//------------------------------------
 	// set the tray Icon (as it appears in the traybar)
 	//------------------------------------
@@ -673,12 +234,14 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	}
 
 	m_ui.lbl_menuCard_Read->installEventFilter(this);
+	m_ui.lbl_menuCard_Pdf->installEventFilter(this);
 	m_ui.lbl_menuCard_Quit->installEventFilter(this);
 	m_ui.lbl_menuTools_Parameters->installEventFilter(this);
+	m_ui.lbl_menuTools_Signature->installEventFilter(this);
 	m_ui.lbl_menuLanguage_Portuguese->installEventFilter(this);
 	m_ui.lbl_menuLanguage_English->installEventFilter(this);
 	m_ui.lbl_menuHelp_about->installEventFilter(this);
-
+	m_ui.lbl_menuHelp_updates->installEventFilter(this);
 	m_ui.wdg_submenu_card->installEventFilter(this);
 	m_ui.wdg_submenu_tools->installEventFilter(this);
 	m_ui.wdg_submenu_help->installEventFilter(this);
@@ -687,23 +250,26 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 }
 
 
-
-
-
-
 bool MainWnd::eventFilter(QObject *object, QEvent *event)
 {
-	if (event->type() == QEvent::MouseButtonPress)
+	if (event->type() == QEvent::MouseButtonRelease)
 	{
 
 		if (object == m_ui.lbl_menuCard_Read )
 		{
 			hide_submenus();
 			pinactivate = 1;
+			pinNotes = 1;
 			m_connectionStatus = (PTEID_CertifStatus)-1;
 			m_CI_Data.Reset();
 			loadCardData();
 		}
+
+		if (object == m_ui.lbl_menuCard_Pdf )
+		{
+			on_actionPrint_eID_triggered();
+		}
+
 		if (object == m_ui.lbl_menuCard_Quit )
 		{
 			quit_application();
@@ -714,6 +280,13 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 			hide_submenus();
 			show_window_parameters();
 		}
+
+		if (object == m_ui.lbl_menuTools_Signature )
+		{
+			hide_submenus();
+			actionSignature_eID_triggered();
+		}
+
 		if (object == m_ui.lbl_menuLanguage_Portuguese )
 		{
 			hide_submenus();
@@ -724,32 +297,27 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 			hide_submenus();
 			setLanguageEn();
 		}
+		if (object == m_ui.lbl_menuHelp_updates )
+		{
+			hide_submenus();
+			on_actionUpdates_triggered();
+		}
 		if (object == m_ui.lbl_menuHelp_about )
 		{
 			hide_submenus();
 			show_window_about();
 		}
-
-
-		//lbl_menuLanguage_Portuguese
-
-
 	}
-
 
 	if (event->type() == QEvent::Leave)
 	{
-
 		if (object == m_ui.wdg_submenu_card || object == m_ui.wdg_submenu_tools || object == m_ui.wdg_submenu_language || object == m_ui.wdg_submenu_help )
 		{
 			hide_submenus();
 		}
 	}
 	return false;
-
 }
-
-
 
 void MainWnd::hide_submenus()
 {
@@ -757,17 +325,11 @@ void MainWnd::hide_submenus()
 	m_ui.wdg_submenu_tools->setVisible(false);
 	m_ui.wdg_submenu_language->setVisible(false);
 	m_ui.wdg_submenu_help->setVisible(false);
-
-
 }
-
-
-
 
 //******************************************************
 // Buttons to control tabs
 //******************************************************
-
 void MainWnd::on_btnSelectTab_Identity_clicked()
 {
 	m_ui.stackedWidget->setCurrentIndex(1);
@@ -781,13 +343,15 @@ void MainWnd::on_btnSelectTab_Identity_Extra_clicked()
 void MainWnd::on_btnSelectTab_Address_clicked()
 {
 	m_ui.stackedWidget->setCurrentIndex(3);
-	refreshTabAddress();
+	if (addressdatastatus == 1)
+		refreshTabAddress();
 }
 
 void MainWnd::on_btnSelectTab_Certificates_clicked()
 {
 	m_ui.stackedWidget->setCurrentIndex(4);
-	refreshTabCertificates();
+	if (certdatastatus == 1)
+		refreshTabCertificates();
 }
 
 void MainWnd::on_btnSelectTab_PinCodes_clicked()
@@ -802,17 +366,16 @@ void MainWnd::on_btnSelectTab_Notes_clicked()
 		refreshTabPersoData();
 }
 
-
 void MainWnd::on_btn_menu_card_clicked()
 {
 	m_ui.wdg_submenu_card->setVisible(true);
-	m_ui.wdg_submenu_card->setGeometry(0,4,126,90);
+	m_ui.wdg_submenu_card->setGeometry(0,4,126,110);
 }
 
 void MainWnd::on_btn_menu_tools_clicked()
 {
 	m_ui.wdg_submenu_tools->setVisible(true);
-	m_ui.wdg_submenu_tools->setGeometry(128,4,126,80);
+	m_ui.wdg_submenu_tools->setGeometry(128,4,126,100);
 }
 
 void MainWnd::on_btn_menu_language_clicked()
@@ -824,15 +387,8 @@ void MainWnd::on_btn_menu_language_clicked()
 void MainWnd::on_btn_menu_help_clicked()
 {
 	m_ui.wdg_submenu_help->setVisible(true);
-	m_ui.wdg_submenu_help->setGeometry(380,4,126,70);
+	m_ui.wdg_submenu_help->setGeometry(380,4,126,90);
 }
-
-
-
-
-
-
-
 
 
 //*****************************************************
@@ -879,13 +435,6 @@ void MainWnd::messageRespond( const QString& message)
 	if(message.compare("Restore Windows")==0)
 	{
 		restoreWindow();
-	}
-	else if (message.startsWith("Open File"))
-	{
-		QString filePath = (QString) message;
-		filePath.remove(0,9);
-
-		OpenSelectedEid((const QString)filePath);
 	}
 }
 
@@ -936,13 +485,6 @@ void MainWnd::updateReaderList( void )
 		m_CI_Data.Reset();
 		setCorrespondingTrayIcon(NULL);		
 	}
-}
-//*****************************************************
-// Enable/disable the reload button/menu item
-//*****************************************************
-void MainWnd::setEnableReload( bool bEnabled )
-{
-	m_ui.actionReload_eID->setEnabled(bEnabled);
 }
 
 //*****************************************************
@@ -1018,7 +560,6 @@ void MainWnd::cleanupCallbackData()
 		delete pCallbackData;
 	}
 	m_callBackData.clear();
-
 	g_cleaningCallback = false;
 }
 
@@ -1039,7 +580,6 @@ void MainWnd::stopAllEventCallbacks( void )
 		readerContext.StopEventCallback(handle);
 	}
 	m_callBackHandles.clear();
-
 	cleanupCallbackData();
 }
 
@@ -1075,19 +615,15 @@ void MainWnd::enablePrintMenu( void )
 	bool bEnable = false;
 	if (m_CI_Data.isDataLoaded())
 	{
+		/*
 		switch(m_CI_Data.m_CardInfo.getType())
 		{
-		case PTEID_CARDTYPE_EID:
-		case PTEID_CARDTYPE_KIDS:
-		case PTEID_CARDTYPE_FOREIGNER:
-			bEnable = true;
-			break;
-		case PTEID_CARDTYPE_SIS:
-			bEnable = true;
-			break;
+		case PTEID_CARDTYPE_IAS07:
+		case PTEID_CARDTYPE_IAS101:
 		default:
 			break;
 		}
+		*/
 	}
 	m_ui.actionPrint_eID->setEnabled(bEnable);
 	m_ui.actionPrinter_Settings->setEnabled(bEnable);;
@@ -1695,67 +1231,6 @@ bool MainWnd::StoreUserCerts (PTEID_EIDCard& Card, PCCERT_CONTEXT pCertContext, 
 }
 
 //*****************************************************
-// button to check certificates clicked
-//*****************************************************
-/*
-void MainWnd::on_btnOCSPCheck_clicked( void )
-{
-		//----------------------------------------------------
-	// get the selected certificate and get the OCSP response
-	//----------------------------------------------------
-	try
-	{
-//		m_ui.btnOCSPCheck->setEnabled(false);
-//		m_ui.btnOCSPCheck->repaint();		//Need to be call explicitly else the repaint comes too late
-		QTreeWidgetItemIterator it(m_ui.treeCert);
-		while (*it) 
-		{
-			if ( (*it)->isSelected() )
-			{
-				QString CertLabel = (*it)->text(0);
-				PTEID_Certificates* pCerts = m_CI_Data.m_CertifInfo.getCertificates();
-
-				for (unsigned long idx=0; idx<pCerts->countFromCard();idx++)
-				{
-					PTEID_Certificate& cert = pCerts->getCertFromCard(idx);
-					QString lbl = cert.getLabel();
-					if (lbl == CertLabel)
-					{
-						QString strMessage(tr("Checking certificate OCSP status"));
-						m_ui.statusBar->showMessage(strMessage,m_STATUS_MSG_TIME);
-
-						PTEID_CertifStatus status = cert.getStatus(PTEID_VALIDATION_LEVEL_NONE, PTEID_VALIDATION_LEVEL_MANDATORY);
-						((QTreeCertItem*)(*it))->setOcspStatus(status);
-
-						strMessage = tr("Done");
-						m_ui.statusBar->showMessage(strMessage,m_STATUS_MSG_TIME);
-
-						QString strCertStatus = "";
-						getCertStatusText(status, strCertStatus);
-						m_ui.txtCert_Status->setText(strCertStatus);
-						m_ui.txtCert_Status->setAccessibleName(strCertStatus);
-					}
-				}
-			}
-			it++;
-		}
-		m_ui.btnOCSPCheck->setEnabled(true);
-	}
-	catch (PTEID_ExNoCardPresent& e)
-	{
-		e = e;
-		QString strMessage(tr("No card found"));
-		m_ui.statusBar->showMessage(strMessage,m_STATUS_MSG_TIME);
-	}
-	catch (PTEID_Exception& e)
-	{
-		e = e;
-	}
-
-}
-*/
-
-//*****************************************************
 // button to register certificate clicked
 //*****************************************************
 void MainWnd::on_btnCert_Register_clicked( void )
@@ -1909,22 +1384,6 @@ void MainWnd::on_btnCert_Details_clicked( void )
 }
 
 //*****************************************************
-// PIN item selection changed
-//*****************************************************
-void MainWnd::on_treePIN_itemSelectionChanged ( void )
-{
-	QList<QTreeWidgetItem *> selectedItems = m_ui.treePIN->selectedItems();
-	if (selectedItems.size()==1)
-	{
-		setEnabledPinButtons(true);
-	}
-	else
-	{
-		setEnabledPinButtons(false);
-	}
-}
-
-//*****************************************************
 // a certificate has been selected
 //*****************************************************
 void MainWnd::on_treeCert_itemSelectionChanged ( void )
@@ -1941,6 +1400,7 @@ void MainWnd::on_treeCert_itemSelectionChanged ( void )
 //*****************************************************
 void MainWnd::on_treeCert_itemClicked(QTreeWidgetItem* baseItem, int column)
 {
+
 	QTreeCertItem* item=(QTreeCertItem*)baseItem;
 	if (!m_CI_Data.isDataLoaded())
 	{
@@ -1964,9 +1424,6 @@ void MainWnd::on_treeCert_itemClicked(QTreeWidgetItem* baseItem, int column)
 	m_ui.txtCert_KeyLenght->setText(item->getKeyLen());
 	m_ui.txtCert_KeyLenght->setAccessibleName(item->getKeyLen());
 
-	//	QString strCertStatus;
-	//	getCertStatusText(item->getOcspStatus(), strCertStatus);
-
 	if(!ReaderContext.isCardPresent())
 	{
 		m_ui.btnCert_Register->setEnabled(false);
@@ -1987,11 +1444,30 @@ void MainWnd::on_treeCert_itemClicked(QTreeWidgetItem* baseItem, int column)
 
 
 //*****************************************************
+// PIN item selection changed
+//*****************************************************
+void MainWnd::on_treePIN_itemSelectionChanged ( void )
+{
+	QList<QTreeWidgetItem *> selectedItems = m_ui.treePIN->selectedItems();
+	if (selectedItems.size()==1)
+		setEnabledPinButtons(true);
+	else
+		setEnabledPinButtons(false);
+
+
+	if (selectedItems.size()==1)
+	{
+		on_treePIN_itemClicked((QTreeWidgetItem*)selectedItems[0], 0);
+	}
+
+}
+
+//*****************************************************
 // A Pin is clicked
 //*****************************************************
 void MainWnd::on_treePIN_itemClicked(QTreeWidgetItem* item, int column)
 {
- 	if (!m_CI_Data.isDataLoaded())
+	if (!m_CI_Data.isDataLoaded())
 	{
 		return;
 	}
@@ -2038,19 +1514,6 @@ void MainWnd::on_treePIN_itemClicked(QTreeWidgetItem* item, int column)
 			break;
 		}
 	}
-}
-
-//*****************************************************
-// Reload EID is clicked
-//*****************************************************
-void MainWnd::on_actionReload_eID_triggered( void )
-{
-	/*
-    pinactivate = 1;
-	m_connectionStatus = (PTEID_CertifStatus)-1;
-	m_CI_Data.Reset(); 
-	loadCardData();
-	 */
 }
 
 //****************************************************
@@ -2212,6 +1675,7 @@ void MainWnd::loadCardData( void )
 	//----------------------------------------------------------------
 	// if we load a new card, clear the certificate contexts we kept
 	//----------------------------------------------------------------
+	std::cout << " loadCardData( void )" << std::endl;
 	try
 	{
 		unsigned long	ReaderStartIdx = m_Settings.getSelectedReader();
@@ -2240,9 +1704,8 @@ void MainWnd::loadCardData( void )
 				lastFoundCardType = CardType;
 				switch (CardType)
 				{
-				case PTEID_CARDTYPE_FOREIGNER:
-				case PTEID_CARDTYPE_KIDS:
-				case PTEID_CARDTYPE_EID:
+				case PTEID_CARDTYPE_IAS07:
+				case PTEID_CARDTYPE_IAS101:
 				{
 					try
 					{
@@ -2268,22 +1731,7 @@ void MainWnd::loadCardData( void )
 					}
 					catch (PTEID_ExCardBadType const& e)
 					{
-						QString errcode;
-						errcode = errcode.setNum(e.GetError());
-					}
-				}
-				break;
-				case PTEID_CARDTYPE_SIS:
-				{
-					try
-					{
-						PTEID_MemoryCard& Card = ReaderContext.getSISCard();
-						m_CurrReaderName = ReaderSet.getReaderName(ReaderIdx);
-						Show_Memory_Card(Card);
-						ReaderIdx=ReaderEndIdx;		// stop looping as soon as we found a card
-					}
-					catch (PTEID_ExCardBadType const& e)
-					{
+						std::cout << "ERROR" << e.GetError()<< std::endl;
 						QString errcode;
 						errcode = errcode.setNum(e.GetError());
 					}
@@ -2410,9 +1858,8 @@ void MainWnd::loadCardDataAddress( void )
 				lastFoundCardType = CardType;
 				switch (CardType)
 				{
-				case PTEID_CARDTYPE_FOREIGNER:
-				case PTEID_CARDTYPE_KIDS:
-				case PTEID_CARDTYPE_EID:
+				case PTEID_CARDTYPE_IAS07:
+				case PTEID_CARDTYPE_IAS101:
 				{
 					try
 					{
@@ -2433,22 +1880,6 @@ void MainWnd::loadCardDataAddress( void )
 						m_CurrReaderName = readerName;
 						Show_Address_Card(Card);
 
-						ReaderIdx=ReaderEndIdx;		// stop looping as soon as we found a card
-					}
-					catch (PTEID_ExCardBadType const& e)
-					{
-						QString errcode;
-						errcode = errcode.setNum(e.GetError());
-					}
-				}
-				break;
-				case PTEID_CARDTYPE_SIS:
-				{
-					try
-					{
-						PTEID_MemoryCard& Card = ReaderContext.getSISCard();
-						m_CurrReaderName = ReaderSet.getReaderName(ReaderIdx);
-						Show_Memory_Card(Card);
 						ReaderIdx=ReaderEndIdx;		// stop looping as soon as we found a card
 					}
 					catch (PTEID_ExCardBadType const& e)
@@ -2578,9 +2009,8 @@ bool MainWnd::loadCardDataPersoData( void )
 				lastFoundCardType = CardType;
 				switch (CardType)
 				{
-				case PTEID_CARDTYPE_FOREIGNER:
-				case PTEID_CARDTYPE_KIDS:
-				case PTEID_CARDTYPE_EID:
+				case PTEID_CARDTYPE_IAS07:
+				case PTEID_CARDTYPE_IAS101:
 				{
 					try
 					{
@@ -2610,22 +2040,6 @@ bool MainWnd::loadCardDataPersoData( void )
 					}
 				}
 				break;
-				case PTEID_CARDTYPE_SIS:
-				{
-					try
-					{
-						PTEID_MemoryCard& Card = ReaderContext.getSISCard();
-						m_CurrReaderName = ReaderSet.getReaderName(ReaderIdx);
-						Show_Memory_Card(Card);
-						ReaderIdx=ReaderEndIdx;		// stop looping as soon as we found a card
-					}
-					catch (PTEID_ExCardBadType const& e)
-					{
-						QString errcode;
-						errcode = errcode.setNum(e.GetError());
-					}
-				}
-				break;
 				case PTEID_CARDTYPE_UNKNOWN:
 				default:
 					break;
@@ -2634,10 +2048,7 @@ bool MainWnd::loadCardDataPersoData( void )
 			else
 			{
 				clearGuiContent();
-				if (lastFoundCardType != PTEID_CARDTYPE_UNKNOWN)
-				{
-					clearGuiContent();
-				}
+				
 			}
 			enablePrintMenu();
 		}
@@ -2747,9 +2158,8 @@ void MainWnd::loadCardDataCertificates( void )
 				lastFoundCardType = CardType;
 				switch (CardType)
 				{
-				case PTEID_CARDTYPE_FOREIGNER:
-				case PTEID_CARDTYPE_KIDS:
-				case PTEID_CARDTYPE_EID:
+				case PTEID_CARDTYPE_IAS07:
+				case PTEID_CARDTYPE_IAS101:
 				{
 					try
 					{
@@ -2770,22 +2180,6 @@ void MainWnd::loadCardDataCertificates( void )
 						m_CurrReaderName = readerName;
 						Show_Certificates_Card(Card);
 
-						ReaderIdx=ReaderEndIdx;		// stop looping as soon as we found a card
-					}
-					catch (PTEID_ExCardBadType const& e)
-					{
-						QString errcode;
-						errcode = errcode.setNum(e.GetError());
-					}
-				}
-				break;
-				case PTEID_CARDTYPE_SIS:
-				{
-					try
-					{
-						PTEID_MemoryCard& Card = ReaderContext.getSISCard();
-						m_CurrReaderName = ReaderSet.getReaderName(ReaderIdx);
-						Show_Memory_Card(Card);
 						ReaderIdx=ReaderEndIdx;		// stop looping as soon as we found a card
 					}
 					catch (PTEID_ExCardBadType const& e)
@@ -2895,446 +2289,15 @@ void MainWnd::on_btnPIN_Change_clicked()
 }
 
 //*****************************************************
-// Open a EID file clicked
+// Updates clicked
 //*****************************************************
-void MainWnd::on_actionOpen_eID_triggered( void )
+void MainWnd::on_actionUpdates_triggered( void )
 {
-	QString caption(tr("Open eID"));
-	caption = caption.remove(QChar('&'));
-	m_ui.statusBar->showMessage(caption);
-
-	QString			baseDir=m_Settings.getDefSavePath();
-#ifdef WIN32
-	if (0==baseDir.length())
-	{
-		TCHAR strPath[ MAX_PATH ];
-		SHGetSpecialFolderPath( 0				// Hwnd
-				,strPath			// String buffer.
-				,CSIDL_PERSONAL  // CSLID of folder (CSIDL_PERSONAL)
-				,FALSE			// Create if doesn't exists?
-		);
-		baseDir = strPath;
-	}
-#else
-	if (0==baseDir.length())
-	{
-		baseDir		 = QDir::homePath();
-	}
-#endif
-
-	QString		fileName = QFileDialog::getOpenFileName( this, caption, baseDir, tr("eID bin Files (*.eid);;eID XML files (*.xml);;eID CSV files (*.csv);;all files (*.*)") );
-
-	if ( 0 == fileName.length())
-	{
-		return;
-	}
-	OpenSelectedEid( fileName );
+	//Verify OS
+	AutoUpdates r;
+	r.show();
+	r.exec();
 }
-//*****************************************************
-// Open the selected EID file
-//*****************************************************
-void MainWnd::OpenSelectedEid( const QString& fileName )
-{
-	QString caption(tr("Open eID"));
-	caption = caption.remove(QChar('&'));
-
-	QFile		eidFile(fileName);
-	QFileInfo	fileInfo(eidFile);
-
-	if (fileInfo.isReadable())
-	{
-		QString		  fileSuffix    = fileInfo.completeSuffix();
-		PTEID_FileType fileType		= PTEID_FILETYPE_UNKNOWN;
-
-		if ( "xml" == fileSuffix.toLower() )
-		{
-			fileType = PTEID_FILETYPE_XML;
-		}
-		else if ( "csv" == fileSuffix.toLower() )
-		{
-			fileType = PTEID_FILETYPE_CSV;
-		}
-		else if ( "eid" == fileSuffix.toLower() )
-		{
-			fileType = PTEID_FILETYPE_TLV;
-		}
-		else
-		{
-			QString strCaption(caption);
-			QString strMessage(tr("Incorrect file extension.\nPlease specify .xml, .csv or .eid"));
-			QMessageBox::information(this,strCaption,strMessage);
-			return;
-		}
-
-		m_ui.statusBar->showMessage(caption+": "+fileName);
-		try
-		{
-			releaseVirtualReader();
-			m_virtReaderContext = new PTEID_ReaderContext(fileType,fileName.toLatin1());
-			if(m_virtReaderContext->isCardPresent())
-			{
-				PTEID_CardType cardType = m_virtReaderContext->getCardType();
-
-				switch(cardType)
-				{
-				case PTEID_CARDTYPE_EID:
-				case PTEID_CARDTYPE_KIDS:
-				case PTEID_CARDTYPE_FOREIGNER:
-				{
-					PTEID_EIDCard& card = m_virtReaderContext->getEIDCard();
-					if (card.isTestCard())
-					{
-						if (!askAllowTestCard())
-						{
-							break;
-						}
-						card.setAllowTestCard(true);
-					}
-					m_CI_Data.Reset();
-					Show_Identity_Card(card);
-				}
-				break;
-				case PTEID_CARDTYPE_SIS:
-				{
-					PTEID_SISCard& card = m_virtReaderContext->getSISCard();
-					m_CI_Data.Reset();
-					Show_Memory_Card(card);
-				}
-				break;
-				case PTEID_CARDTYPE_UNKNOWN:
-				default:
-					break;
-				}
-				enablePrintMenu();
-				enableFileSave(false);
-				//				enableFileMenu();
-			}
-			else
-			{
-				QString caption(tr("Warning"));
-				QString msg(tr("Failed to read eID file"));
-				QMessageBox::warning( this, caption,  msg, QMessageBox::Ok );
-			}
-		}
-		catch (PTEID_Exception& e)
-		{
-			long err = e.GetError();
-			err = err;
-		}
-	}
-	else
-	{
-		QString caption(tr("Warning"));
-		QString msg(tr("Failed to open eID file"));
-		QMessageBox::warning( this, caption,  msg, QMessageBox::Ok );
-	}
-	m_ui.statusBar->showMessage(tr("Done"));
-}
-
-//*****************************************************
-// Save EID file clicked
-// We must check if we have been working with a file or a real
-// card.
-//*****************************************************
-void MainWnd::on_actionSave_eID_triggered( void )
-{
-	QString caption(tr("Save eID"));
-	caption = caption.remove(QChar('&'));
-	//------------------------------------
-	// default filename is national number (both SIS and EID contain this number)
-	//------------------------------------
-
-	PTEID_ReaderContext* pReaderContext = NULL;
-
-	if ( 0 < m_CurrReaderName.length() )
-	{
-		PTEID_ReaderContext &readerContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
-
-		pReaderContext = &readerContext;
-	}
-	else if ( NULL != m_virtReaderContext )
-	{
-		pReaderContext = m_virtReaderContext;
-	}
-	else
-	{
-		return;
-	}
-	//------------------------------------
-	// make always sure a card is present
-	//------------------------------------
-	if (pReaderContext->isCardPresent())
-	{
-		m_ui.statusBar->showMessage(caption,m_STATUS_MSG_TIME);
-		PTEID_Card&		card		 = pReaderContext->getCard();
-		PTEID_CardType	cardType	 = pReaderContext->getCardType();
-		QString			baseFilename = QDir::toNativeSeparators( createBaseFilename( cardType ));;
-		QString			baseDir		 = m_Settings.getDefSavePath();
-#ifdef WIN32
-		if (0==baseDir.length())
-		{
-			TCHAR strPath[ MAX_PATH ];
-			SHGetSpecialFolderPath( 0				// Hwnd
-					,strPath			// String buffer.
-					,CSIDL_PERSONAL  // CSLID of folder (CSIDL_PERSONAL)
-					,FALSE			// Create if doesn't exists?
-			);
-			baseDir = strPath;
-		}
-#else
-		if (0==baseDir.length())
-		{
-			baseDir		 = QDir::homePath();
-		}
-#endif
-
-		if ( baseFilename.size()>0 )
-		{
-			QString saveStatus = tr("Failed");
-			baseFilename.append(".eid");
-			QString	targetFile	 = baseDir+"/"+baseFilename;
-			if (saveCardDataToFile( targetFile , card ))
-			{
-				saveStatus = tr("Done");
-				QMessageBox::information(NULL,caption, caption + ": " + targetFile + " " + saveStatus);
-			}
-			m_ui.statusBar->showMessage(caption + ": " + targetFile + " " + saveStatus,m_STATUS_MSG_TIME);
-		}
-	}
-	else
-	{
-		QString msg(tr("No card present"));
-		QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
-	}
-}
-
-//*****************************************************
-// Save EID as... clicked
-// We must check if we have been working with a file or a real
-// card.
-//*****************************************************
-void MainWnd::on_actionSave_eID_as_triggered()
-{
-	QString caption(tr("Save eID as"));
-	PTEID_ReaderContext* pReaderContext = NULL;
-
-	if ( 0 < m_CurrReaderName.length() )
-	{
-		PTEID_ReaderContext &readerContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
-
-		pReaderContext = &readerContext;
-	}
-	else if ( NULL != m_virtReaderContext )
-	{
-		pReaderContext = m_virtReaderContext;
-	}
-	else
-	{
-		return;
-	}
-
-	//------------------------------------
-	// make always sure a card is present
-	//------------------------------------
-	if (pReaderContext->isCardPresent())
-	{
-		m_ui.statusBar->showMessage(caption,m_STATUS_MSG_TIME);
-		PTEID_CardType	cardType	 = pReaderContext->getCardType();
-		PTEID_Card&		card		 = pReaderContext->getCard();
-		QString			baseFilename = createBaseFilename(cardType);
-		QString			baseDir		 = m_Settings.getDefSavePath();
-#ifdef WIN32
-		if(0==baseDir.length())
-		{
-			TCHAR strPath[ MAX_PATH ];
-			SHGetSpecialFolderPath( 0				// Hwnd
-					,strPath			// String buffer.
-					,CSIDL_PERSONAL  // CSLID of folder (CSIDL_PERSONAL)
-					,FALSE			// Create if doesn't exists?
-			);
-			baseDir = strPath;
-		}
-#else
-		if(0==baseDir.length())
-		{
-			baseDir		 = QDir::homePath();
-		}
-#endif
-		if ( baseFilename.size()>0 )
-		{
-			//------------------------------------
-			// filename must contain an extension or the file-exist detection of the dialog will not work properly
-			//------------------------------------
-			QString		targetFile   = QDir::toNativeSeparators(baseDir+"/"+baseFilename+".eid");
-			QString		selectedFilter;
-			QStringList	fileNames;
-			QFileDialog dialog(this, caption, targetFile, tr("eID bin Files (*.eid);;eID XML files (*.xml);;eID CSV files (*.csv)"));
-			dialog.setAcceptMode(QFileDialog::AcceptSave);
-			dialog.setDefaultSuffix("eid");
-			dialog.setOption(QFileDialog::DontUseNativeDialog);
-			dialog.setDirectory(baseDir);
-			QList<QUrl> urls;
-			urls << QUrl::fromLocalFile(baseDir);
-			dialog.setSidebarUrls(urls);
-
-			if (!dialog.exec())
-			{
-				return;
-			}
-
-			QDir dir = dialog.directory();
-			fileNames = dialog.selectedFiles();
-			QString fileName = fileNames.at(0);
-
-			if (fileName.length()>0)
-			{
-				QFileInfo fileInfo(dir.absolutePath(),fileName);
-				fileName = fileInfo.baseName();
-				selectedFilter = dialog.selectedNameFilter();
-				if (selectedFilter.contains("*.eid"))
-				{
-					fileName += ".eid";
-				}
-				else if (selectedFilter.contains("*.xml"))
-				{
-					fileName += ".xml";
-				}
-				else if (selectedFilter.contains("*.csv"))
-				{
-					fileName += ".csv";
-				}
-				else
-				{
-					// this should never happen
-				}
-				fileInfo.setFile(dir.absolutePath(),fileName);
-				QString saveStatus = tr("Failed");
-				if (saveCardDataToFile( fileInfo.filePath(), card ))
-				{
-					QString savePath = fileInfo.absolutePath();
-					m_Settings.setDefSavePath(savePath);
-					saveStatus = tr("Done");
-				}
-				m_ui.statusBar->showMessage(caption + ": " + fileName + " " + saveStatus,m_STATUS_MSG_TIME);
-				QMessageBox::information(NULL,caption, caption + ": " + fileInfo.filePath() + " " + saveStatus);
-			}
-		}
-	}
-	else
-	{
-		QString msg(tr("No card present"));
-		QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
-	}
-}
-
-//*****************************************************
-// create a file name for the EID card data to store.
-// The filename is basically the national number with an extension.
-// For the SIS card, '_sis' is added to make the difference with
-// the EID card data.
-//*****************************************************
-QString MainWnd::createBaseFilename( PTEID_CardType const& cardType )
-{
-	QString baseFilename;
-
-	switch(cardType)
-	{
-	case PTEID_CARDTYPE_SIS:
-	{
-		tFieldMap& PersonFields = m_CI_Data.m_PersonInfo.m_PersonExtraInfo.getFields();
-		baseFilename = PersonFields[SOCIALSECURITYNUMBER];
-		baseFilename.append("_sis");
-	}
-	break;
-	case PTEID_CARDTYPE_EID:
-	case PTEID_CARDTYPE_KIDS:
-	case PTEID_CARDTYPE_FOREIGNER:
-	{
-		tFieldMap& PersonFields = m_CI_Data.m_PersonInfo.getFields();
-		baseFilename = PersonFields[NATIONALNUMBER];
-	}
-	default:
-		break;
-	}
-	return baseFilename;
-}
-
-//*****************************************************
-// Save the card data to the file
-//*****************************************************
-bool MainWnd::saveCardDataToFile(QString const& fileName, PTEID_Card& card )
-{
-	QString strCaption(tr("Save eID"));
-	bool			bRet	 = false;
-	QFileInfo		fileInfo(fileName);
-	QString			fileSuffix = fileInfo.completeSuffix();
-
-	PTEID_ByteArray* fileData	= NULL;
-
-	try
-	{
-		PTEID_XMLDoc&	doc		 = card.getDocument(PTEID_DOCTYPE_FULL);
-
-		if ("xml" == fileSuffix.toLower())
-		{
-			fileData = new PTEID_ByteArray(doc.getXML());
-		}
-		else if ("csv" == fileSuffix.toLower())
-		{
-			fileData = new PTEID_ByteArray(doc.getCSV());
-		}
-		else if ("eid" == fileSuffix.toLower())
-		{
-			fileData = new PTEID_ByteArray(doc.getTLV());
-		}
-		else
-		{
-			QString strMessage(tr("Incorrect file extension.\nPlease specify .xml, .csv or .eid"));
-			QMessageBox::information(this,strCaption,strMessage);
-			bRet = false;
-			return bRet;
-		}
-	}
-	catch(PTEID_Exception &e)
-	{
-		e=e;
-		if (fileData)
-		{
-			delete fileData;
-			fileData = NULL;
-		}
-		QString strMessage(tr("Error writing file"));
-		QMessageBox::information(this,strCaption,strMessage);
-		bRet = false;
-		return bRet;
-	}
-
-	if (fileData)
-	{
-		QFile file(fileName);
-		if (!file.open(QIODevice::WriteOnly|QIODevice::Truncate))
-		{
-			QString msg(tr("Error opening file"));
-			QMessageBox::information(this,strCaption,msg+": "+fileName);
-			bRet = false;
-		}
-		else if ( -1 == file.write((const char*)fileData->GetBytes(),fileData->Size()))
-		{
-			QString msg(tr("Error writing file"));
-			QMessageBox::information(this,strCaption,msg+": "+fileName);
-			bRet = false;
-		}
-		else
-		{
-			bRet = true;
-		}
-		file.close();
-		delete fileData;
-		fileData = NULL;
-	}
-	return bRet;
-}
-
 
 //*****************************************************
 // About clicked
@@ -3377,8 +2340,6 @@ void MainWnd::show_window_parameters(){
 	}
 
 	dlgOptions* dlg = new dlgOptions( m_Settings, this );
-
-//	dlg->setUseKeyPad( m_Settings.getUseVirtualKeyPad() );
 	dlg->setShowToolbar( m_Settings.getShowToolbar() );
 	dlg->setShowPicture( m_Settings.getShowPicture() );
 	dlg->setShowNotification( m_Settings.getShowNotification() );
@@ -3387,21 +2348,14 @@ void MainWnd::show_window_parameters(){
 
 	if( dlg->exec() )
 	{
-//		m_UseKeyPad = dlg->getUseKeyPad();
 		m_ui.actionShow_Toolbar->setChecked( m_Settings.getShowToolbar() );
 
 		if( !m_ui.txtIdentity_Name->text().isEmpty() )
 			m_ui.lblIdentity_ImgPerson->setPixmap( m_imgPicture );
-		//			m_ui.lblForeigners_ImgPerson->setPixmap( m_imgPicture );
-
 	}
 	delete dlg;
-
 	m_ui.actionOptions->setEnabled(true);
-
 }
-
-
 
 void MainWnd::on_actionOptions_triggered(void)
 {
@@ -3409,20 +2363,39 @@ void MainWnd::on_actionOptions_triggered(void)
 }
 
 //*****************************************************
+// Signature clicked
+//*****************************************************
+void MainWnd::actionSignature_eID_triggered()
+{
+	tFieldMap& CardFields = m_CI_Data.m_CardInfo.getFields();
+	QString cardTypeText = GetCardTypeText(CardFields[CARD_TYPE]);
+	if(m_CI_Data.isDataLoaded())
+	{
+		dlgSignature* dlgsig = new dlgSignature( this, m_CI_Data);
+		dlgsig->exec();
+		delete dlgsig;
+	}
+}
+
+//*****************************************************
 // Print clicked
 //*****************************************************
 void MainWnd::on_actionPrint_eID_triggered()
 {
-	if (!m_CI_Data.isDataLoaded())
-	{
-		return;
-	}
 	tFieldMap& CardFields = m_CI_Data.m_CardInfo.getFields();
 	QString cardTypeText = GetCardTypeText(CardFields[CARD_TYPE]);
+	if(m_CI_Data.isDataLoaded())
+	{
+	  	dlgPrint* dlg = new dlgPrint( this, m_CI_Data, m_Language, cardTypeText);
+		dlg->exec();
+		delete dlg;
+	} else {
+	  	std::string Pmsgcaption = "Aviso";
+	  	std::string Pmsgbody = "Ocorreu um problema a ler os dados do seu cartão tente novamente";
+	  	QMessageBox msgBoxp(QMessageBox::Warning, QString::fromUtf8(Pmsgcaption.c_str()), QString::fromUtf8(Pmsgbody.c_str()), 0, this);
+	  	msgBoxp.exec();
 
-	dlgPrint* dlg = new dlgPrint( this, m_CI_Data, m_Language, cardTypeText);
-	dlg->exec();
-	delete dlg;
+	}
 }
 
 void MainWnd::on_actionPrinter_Settings_triggered()
@@ -3490,22 +2463,13 @@ void MainWnd::authPINRequest_triggered()
 							msg += "\n";
 							msg += "( ";
 							msg += tr("Number of tries left: ") + nrTriesLeft + " )";
-							//This wrongly assumes that the PIN selected in the PIN tab is the one we failed
-							// m_ui.txtPIN_Status->setText(msg);
-							// m_ui.txtPIN_Status->setAccessibleName(msg);
 						}
 						else
 						{
 							break;
 						}
-					}
-					else
-					{
-						//QString nrTriesLeft;
-						//nrTriesLeft.setNum(triesLeft);
-						//If PIN verification succeeded the try counter is set to the maximum i.e. 3
-						//m_ui.txtPIN_Status->setText(tr(""));
-						//m_ui.txtPIN_Status->setAccessibleName(tr("Not available"));
+					}else{
+						pinNotes=0;
 					}
 					QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
 					break;
@@ -3536,29 +2500,17 @@ void MainWnd::authPINRequest_triggered()
 //*****************************************************
 bool MainWnd::addressPINRequest_triggered()
 {
-	//Workaround: Make PIN window called only one time
-
-	/*if (!m_CI_Data.isDataLoaded())
-	{
-		return true;
-	}*/
 	try
 	{
 		PTEID_ReaderContext &ReaderContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
-
 		
 		QString caption(tr("Identity Card: PIN verification"));
 		
-		//------------------------------------
-		// make always sure a card is present
-		//------------------------------------
 		if (ReaderContext.isCardPresent())
 		{
 			QString PinName = "PIN da Morada";
-
 			PTEID_EIDCard&	Card	= ReaderContext.getEIDCard();
 			PTEID_Pins&		Pins	= Card.getPins();
-
 			for (unsigned long PinIdx=0; PinIdx<Pins.count(); PinIdx++)
 			{
 				PTEID_Pin&	Pin			= Pins.getPinByNumber(PinIdx);
@@ -3573,24 +2525,13 @@ bool MainWnd::addressPINRequest_triggered()
 					QString msg = bResult ? tr("PIN verification passed"):tr("PIN verification failed");
 					if (!bResult)
 					{
-							/*
-							QString nrTriesLeft;
-							nrTriesLeft.setNum(triesLeft);
-							msg += "\n";
-							msg += "( ";
-							msg += tr("Number of tries left: ") + nrTriesLeft + " )";
-							m_ui.txtPIN_Status->setText(msg);
-							m_ui.txtPIN_Status->setAccessibleName(msg);
-							*/
-
 							pinactivate = 1;
+							QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
 							return false;
 					}
 					else
 					{
 						pinactivate = 0;
-						//m_ui.txtPIN_Status->setText("Restam 3 tentativas");
-						//m_ui.txtPIN_Status->setAccessibleName("Restam 3 tentativas");
 					}
 					QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
 					break;
@@ -3631,10 +2572,6 @@ void MainWnd::on_actionPINRequest_triggered()
 	try
 	{
 		PTEID_ReaderContext &ReaderContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
-
-		//------------------------------------
-		// make always sure a card is present
-		//------------------------------------
 		QString		 caption(tr("Identity Card: PIN verification"));
 
 		if (ReaderContext.isCardPresent())
@@ -3677,7 +2614,7 @@ void MainWnd::on_actionPINRequest_triggered()
 							nrTriesLeft.setNum(triesLeft);
 							msg += "\n";
 							msg += "( ";
-							msg += tr("Number of tries left: ") + nrTriesLeft + " )";
+							msg += tr("Resta(m) ") + nrTriesLeft + " tentativas)";
 							m_ui.txtPIN_Status->setText(msg);
 							m_ui.txtPIN_Status->setAccessibleName(msg);
 						}
@@ -3690,8 +2627,8 @@ void MainWnd::on_actionPINRequest_triggered()
 					{
 						QString nrTriesLeft;
 						nrTriesLeft.setNum(triesLeft);
-						m_ui.txtPIN_Status->setText("Restam 3 tentativas");
-						m_ui.txtPIN_Status->setAccessibleName("Restam 3 tentativas");
+						m_ui.txtPIN_Status->setText("Resta(m) 3 tentativas");
+						m_ui.txtPIN_Status->setAccessibleName("Resta(m) 3 tentativas");
 					}
 					QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
 					break;
@@ -3731,9 +2668,6 @@ void MainWnd::on_actionPINChange_triggered()
 		PTEID_ReaderContext &ReaderContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
 		QString			caption(tr("Identity Card: PIN change"));
 
-		//------------------------------------
-		// make always sure a card is present
-		//------------------------------------
 		if (ReaderContext.isCardPresent())
 		{
 			QString PinNameRaw = m_ui.txtPIN_Name->text();
@@ -3803,51 +2737,12 @@ void MainWnd::on_actionPINChange_triggered()
 	}
 }
 
-//
-
-
-
-
-
-//******************************************************
-// hide all the tabs
-//******************************************************
-void MainWnd::hideTabs()
-{
-	/*	QList<QWidget *> allTabs = m_ui.tabWidget_Identity->findChildren<QWidget *>();
-	for (int i = allTabs.size()-1; i >=0; --i) 
-	{	
-		m_ui.tabWidget_Identity->removeTab(i);		// hide the tab (this is not a delete!!)
-	}
-	 */
-}
-
-void MainWnd::tabaddress_select(int index)
-{
-	if(index == 2)
-		refreshTabAddress();
-
-}
-
-void MainWnd::tabpersodata_select(int index)
-{
-
-}
-
-void MainWnd::tabcertificates_select(int index)
-{
-	if(index == 4)
-		refreshTabCertificates();
-}
-
 //******************************************************
 // Show the tabs 
 //******************************************************
 void MainWnd::showTabs()
 {
 	m_ui.stackedWidget->setCurrentIndex(0);
-
-	hideTabs();
 
 	if ( !m_CI_Data.isDataLoaded() )
 	{
@@ -3856,7 +2751,8 @@ void MainWnd::showTabs()
 
 	switch (m_TypeCard) 
 	{
-	case PTEID_CARDTYPE_EID:
+	case PTEID_CARDTYPE_IAS07:
+	case PTEID_CARDTYPE_IAS101:
 
 		if(PTEID_EIDCard::isApplicationAllowed())
 		{
@@ -3866,53 +2762,6 @@ void MainWnd::showTabs()
 
 		refreshTabCardPin();
 		refreshTabInfo();
-
-		break;
-
-	case PTEID_CARDTYPE_KIDS:
-		if(PTEID_EIDCard::isApplicationAllowed())
-		{
-
-			refreshTabIdentity();
-			refreshTabIdentityExtra();
-
-			m_imgBackground_Front = QPixmap( ":/images/Images/Background_KidsFront.jpg" ); // background
-			m_imgBackground_Back = QPixmap( ":/images/Images/Background_KidsBack.jpg" ); // background
-		}
-
-		refreshTabCertificates();
-		refreshTabCardPin();
-		refreshTabInfo();
-
-		break;
-
-	case PTEID_CARDTYPE_FOREIGNER:
-	{
-		if(PTEID_EIDCard::isApplicationAllowed())
-		{
-			int cardSubtype = m_CI_Data.m_CardInfo.getSubType();
-			if ( cardSubtype >= CardInfo::EUROPEAN_E && cardSubtype <= CardInfo::EUROPEAN_F_PLUS )
-			{
-				refreshTabIdentity();
-				refreshTabIdentityExtra();
-				m_imgBackground_Front = QPixmap( ":/images/Images/Background_IDFront.jpg" ); // background
-				m_imgBackground_Back = QPixmap( ":/images/Images/Background_IDBack.jpg" ); // background
-			}
-			else
-			{
-			}
-		}
-		refreshTabCertificates();
-		refreshTabCardPin();
-		refreshTabInfo();
-	}
-	break;
-
-	case PTEID_CARDTYPE_SIS:
-		refreshTabInfo();
-
-		m_imgBackground_Front = QPixmap( ":/images/Images/Background_SisFront.jpg" ); // background
-		m_imgBackground_Back = QPixmap( ":/images/Images/Background_SisBack.jpg" ); // background
 
 		break;
 
@@ -3921,23 +2770,18 @@ void MainWnd::showTabs()
 	}
 
 	setLanguage();
-
-	//------------------------------------------------------
-	// set the tabs to the first visible tab
-	// set the widget stack to the tabs (not to the splash screen)
-	//------------------------------------------------------
-	//	m_ui.tabWidget_Identity->setCurrentIndex(0);
 	m_ui.stackedWidget->setCurrentIndex(1);
 }
 
 //*****************************************************
-// show the logo
+// Set the First tab as Visible
 //*****************************************************
 void MainWnd::Show_Splash()
 {
 	m_TypeCard = PTEID_CARDTYPE_UNKNOWN;
 	m_ui.stackedWidget->setCurrentIndex(0);
 }
+
 
 //*****************************************************
 // show the tabs for an ID card
@@ -3947,80 +2791,21 @@ void MainWnd::Show_Identity_Card(PTEID_EIDCard& Card)
 	LoadDataID(Card);
 	showTabs();
 	enableFileMenu();
-	/*	bool bOCSPCheckEnabled = false;
-	if (!m_virtReaderContext)
-	{
-		bOCSPCheckEnabled = true;
-	}
-	 */
 }
 
 void MainWnd::Show_Address_Card(PTEID_EIDCard& Card)
 {
 	LoadDataAddress(Card);
-	/*showTabs();
-	enableFileMenu();
-	bool bOCSPCheckEnabled = false;
-	if (!m_virtReaderContext)
-	{
-		bOCSPCheckEnabled = true;
-	}
-	m_ui.btnOCSPCheck->setEnabled(bOCSPCheckEnabled);
-	m_ui.txtCert_Status->setEnabled(bOCSPCheckEnabled);*/
 }
 
 void MainWnd::Show_PersoData_Card(PTEID_EIDCard& Card)
 {
 	LoadDataPersoData(Card);
-	/*showTabs();
-	enableFileMenu();
-	bool bOCSPCheckEnabled = false;
-	if (!m_virtReaderContext)
-	{
-		bOCSPCheckEnabled = true;
-	}
-	m_ui.btnOCSPCheck->setEnabled(bOCSPCheckEnabled);
-	m_ui.txtCert_Status->setEnabled(bOCSPCheckEnabled);*/
 }
 
 void MainWnd::Show_Certificates_Card(PTEID_EIDCard& Card)
 {
 	LoadDataCertificates(Card);
-	/*showTabs();
-	enableFileMenu();
-	bool bOCSPCheckEnabled = false;
-	if (!m_virtReaderContext)
-	{
-		bOCSPCheckEnabled = true;
-	}
-	m_ui.btnOCSPCheck->setEnabled(bOCSPCheckEnabled);
-	m_ui.txtCert_Status->setEnabled(bOCSPCheckEnabled);*/
-}
-//*****************************************************
-// show the tabs for a memory card (SIS)
-//*****************************************************
-void MainWnd::Show_Memory_Card( PTEID_MemoryCard& Card )
-{
-	LoadDataMC(Card);
-	showTabs();
-}
-
-//*****************************************************
-// load the data of a memory card (SIS card)
-//*****************************************************
-void MainWnd::LoadDataMC(PTEID_MemoryCard& Card)
-{
-	m_TypeCard=Card.getType();
-	if(!m_CI_Data.isDataLoaded())
-	{
-		m_CI_Data.LoadData(Card,m_CurrReaderName);
-
-		//------------------------------------------------------
-		// fill in the table with the software info
-		//------------------------------------------------------
-
-		fillSoftwareInfo();
-	}
 }
 
 //*****************************************************
@@ -4059,7 +2844,6 @@ void MainWnd::fillCertTree(PTEID_Certificate *cert, short level, QTreeCertItem* 
 		QString	strKeyLen;
 		strKeyLen=strKeyLen.setNum(cert->getKeyLength());
 		item->setKeyLen(strKeyLen);
-		item->setOcspStatus(PTEID_CERTIF_STATUS_OCSP_NOT_CHECKED);
 	}
 
 	PTEID_Certificate*	child	= NULL;
@@ -4076,11 +2860,6 @@ void MainWnd::fillCertTree(PTEID_Certificate *cert, short level, QTreeCertItem* 
 
 void MainWnd::fillCertificateList( void )
 {
-	if ( PTEID_CARDTYPE_SIS == m_CI_Data.m_CardInfo.getType())
-	{
-		clearTabCertificates();
-		return;
-	}
 	PTEID_Certificates* certificates = m_CI_Data.m_CertifInfo.getCertificates();
 
 	if (!certificates)
@@ -4188,66 +2967,32 @@ void MainWnd::fillCertificateList( void )
 //**************************************************
 void MainWnd::LoadDataID(PTEID_EIDCard& Card)
 {
+
+
+	//Progress bar was already hidden so proceed updating the GUI
 	setEnabledPinButtons(false);
 	setEnabledCertifButtons(false);
 	m_TypeCard = Card.getType();
 
 	if(!m_CI_Data.isDataLoaded())
 	{
-		m_CI_Data.LoadData(Card,m_CurrReaderName);
+		
+		//Load data from card in a new thread
+		CardDataLoader loader(m_CI_Data, Card, m_CurrReaderName);
+		QFuture<void> future = QtConcurrent::run(&loader, &CardDataLoader::Load);
+		this->FutureWatcher.setFuture(future);
+		m_progress->exec();
+
+		//Load the picture in PNG format
 		imgPicture = QImage();
-
-		// Debug Qt imageformats plugins
-		/*QString fileFormats = "(";
-		// Get all inputformats
-		for (int i = 0; i < QImageReader::supportedImageFormats().count(); i++) {
-			fileFormats += "*."; // Insert wildcard
-		    fileFormats += QString(QImageReader::supportedImageFormats().at(i)).toLower(); // Insert the format
-		    fileFormats += " "; // Insert a space
-		}
-			fileFormats += ")\n";
-
-		std::string utf8_text = fileFormats.toUtf8().constData();
-
-		std::cout << " " << utf8_text << endl;*/
 
 		imgPicture.loadFromData(m_CI_Data.m_PersonInfo.m_BiometricInfo.m_pPictureData);
 		imgPicturescaled = imgPicture.scaled(150, 190);
 		m_imgPicture = QPixmap::fromImage(imgPicturescaled);
-
-		//------------------------------------------------------
-		// Certificates Tab
-		//------------------------------------------------------
 		clearTabCertificates();
-
-		//------------------------------------------------------
-		// Address Tab
-		//------------------------------------------------------
 		clearTabAddress();
-
-		//------------------------------------------------------
-		// fill in the tree of Certificates
-		//------------------------------------------------------
-		//fillCertificateList();
-
-		//------------------------------------------------------
-		// PIN's Tab
-		//------------------------------------------------------
-#define TYPE_PINTREE_ITEM 0
-#define COLUMN_PIN_NAME   0
-
 		clearTabPins();
-
-		//------------------------------------------------------
-		// fill in the tree of Pins
-		//------------------------------------------------------
 		fillPinList( Card );
-
-		//------------------------------------------------------
-		// fill in the table with the software info
-		//------------------------------------------------------
-
-		fillSoftwareInfo();
 	}
 }
 
@@ -4260,59 +3005,11 @@ void MainWnd::LoadDataAddress(PTEID_EIDCard& Card)
 	m_CI_Data.LoadDataAddress(Card,m_CurrReaderName);
 	if(!m_CI_Data.isDataLoaded())
 	{
-		//m_CI_Data.LoadDataAddress(Card,m_CurrReaderName);
-
-		// Debug Qt imageformats plugins
-		/*QString fileFormats = "(";
-		// Get all inputformats
-		for (int i = 0; i < QImageReader::supportedImageFormats().count(); i++) {
-			fileFormats += "*."; // Insert wildcard
-		    fileFormats += QString(QImageReader::supportedImageFormats().at(i)).toLower(); // Insert the format
-		    fileFormats += " "; // Insert a space
-		}
-			fileFormats += ")\n";
-
-		std::string utf8_text = fileFormats.toUtf8().constData();
-
-		std::cout << " " << utf8_text << endl;*/
-
-		//m_imgPicture.loadFromData(m_CI_Data.m_PersonInfo.m_BiometricInfo.m_pPictureData);
-		//m_imgPicture.scaled(0.2, 0.2, Qt::KeepAspectRatio, Qt::FastTransformation );
-		//m_imgPicture.scaled(50,50,Qt::IgnoreAspectRatio,Qt::FastTransformation);
-
-		//------------------------------------------------------
-		// Certificates Tab
-		//------------------------------------------------------
 		clearTabCertificates();
-
-		//------------------------------------------------------
-		// Address Tab
-		//------------------------------------------------------
 		clearTabAddress();
 
-		//------------------------------------------------------
-		// fill in the tree of Certificates
-		//------------------------------------------------------
-		//fillCertificateList();
-
-		//------------------------------------------------------
-		// PIN's Tab
-		//------------------------------------------------------
-#define TYPE_PINTREE_ITEM 0
-#define COLUMN_PIN_NAME   0
-
 		clearTabPins();
-
-		//------------------------------------------------------
-		// fill in the tree of Pins
-		//------------------------------------------------------
 		fillPinList( Card );
-
-		//------------------------------------------------------
-		// fill in the table with the software info
-		//------------------------------------------------------
-
-		fillSoftwareInfo();
 	}
 }
 
@@ -4321,7 +3018,10 @@ void MainWnd::LoadDataPersoData(PTEID_EIDCard& Card)
 	setEnabledPinButtons(false);
 	setEnabledCertifButtons(false);
 	m_TypeCard = Card.getType();
-	m_CI_Data.LoadDataPersoData(Card,m_CurrReaderName);
+	CardDataLoader loader(m_CI_Data, Card, m_CurrReaderName);
+	QFuture<void> future = QtConcurrent::run(loader, &CardDataLoader::LoadPersoData);
+	this->FutureWatcher.setFuture(future);
+	m_progress->exec();
 	
 }
 
@@ -4330,12 +3030,19 @@ void MainWnd::LoadDataCertificates(PTEID_EIDCard& Card)
 	setEnabledPinButtons(false);
 	setEnabledCertifButtons(false);
 	m_TypeCard = Card.getType();
-	m_CI_Data.LoadDataCertificates(Card,m_CurrReaderName);
+
+	CardDataLoader loader(m_CI_Data, Card, m_CurrReaderName);
+	QFuture<void> future = QtConcurrent::run(loader, &CardDataLoader::LoadCertificateData);
+	this->FutureWatcher.setFuture(future);
+	m_progress->exec();
 
 	clearTabCertificates();
 	fillCertificateList();
 	
 }
+
+#define TYPE_PINTREE_ITEM 0
+#define COLUMN_PIN_NAME   0
 
 //*****************************************************
 // fill the PIN list on the window
@@ -4381,7 +3088,6 @@ QString MainWnd::getFinalLinkTarget(QString baseName)
 	{
 		baseName = info.symLinkTarget();
 		baseName = getFinalLinkTarget(baseName);
-		//QMessageBox::information(this,"debug_getFinalLinkTarget",baseName);
 	}
 
 	return baseName;
@@ -4702,122 +3408,9 @@ void MainWnd::setStatus( unsigned int Status )
 
 void MainWnd::setWidgetsPointSize(QList<QWidget *> &allWidgets)
 {
-	zoomAllWidgets(allWidgets);
+	//zoomAllWidgets(allWidgets);
 }
 
-//*****************************************************
-// change the position and size of a widget
-//*****************************************************
-void MainWnd::setWidgetPosition(QList<QWidget *>& allWidgets)
-{
-	for (int x=0; x<allWidgets.size(); x++)
-	{
-		QRect point;
-		for (size_t widget=0;widget<sizeof(widgetTabInfo)/sizeof(struct widgetInfo);widget++)
-		{
-			if (allWidgets.at(x)->objectName()==widgetTabInfo[widget].widgetName)
-			{
-				int newXPos   = widgetTabInfo[widget].position.pos[0];
-				int newYPos   = widgetTabInfo[widget].position.pos[1];
-				int newWidth  = widgetTabInfo[widget].position.pos[2];
-				int newHeight = widgetTabInfo[widget].position.pos[3];
-
-				if(newXPos==0 && newYPos==0 && newWidth==0 && newHeight==0)
-					break;
-
-				multiplyerFactor mfactor(m_Zoom);
-
-				point.setX((int) (newXPos*mfactor.XMultiplyer));
-				point.setY((int) (newYPos*mfactor.YMultiplyer));
-				point.setWidth((int) (newWidth*mfactor.WMultiplyer));
-				point.setHeight((int) (newHeight*mfactor.HMultiplyer));
-
-				allWidgets.at(x)->setGeometry(point);
-				break;
-			}
-		}
-	}
-}
-
-//*****************************************************
-// zoom all the widgets
-//*****************************************************
-void MainWnd::zoomAllWidgets(QList<QWidget *> &allWidgets)
-{
-}
-
-
-//*****************************************************
-// initialize all the given widgets
-//*****************************************************
-void MainWnd::initAllWidgets(QList<QWidget *> &allWidgets)
-{
-	for (int i = 0; i < allWidgets.size(); ++i) 
-	{		
-		QFont tmpFont = allWidgets.at(i)->font();
-		QPalette p = allWidgets.at(i)->palette();
-		if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_BUTTON )
-		{
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_TITLE_1 )
-		{
-			tmpFont.setFamily( "Helvetica" );
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_TITLE_2 )
-		{
-			tmpFont.setFamily( "Helvetica" );
-			tmpFont.setBold( true );
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_FOOTER_1 )
-		{
-			tmpFont.setBold( true );
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_NORMAL_LABEL )
-		{
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_NORMAL_VALUE )
-		{
-			tmpFont.setBold( true );
-			tmpFont.setFamily( "Arial" );
-
-			p.setBrush(QPalette::Base, Qt::transparent);
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_BIG_VALUE )
-		{
-			tmpFont.setFamily( "Courrier New" );
-
-			p.setBrush(QPalette::Base, Qt::transparent);
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_SIS_VALUE )
-		{
-			tmpFont.setFamily( "Courrier New" );
-
-			p.setBrush(QPalette::Base, Qt::transparent);
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_SMALL_RED )
-		{
-			tmpFont.setBold( true );
-			((QLabel *)allWidgets.at(i))->setText(((QLabel *)allWidgets.at(i))->text().toUpper());
-			p.setBrush(QPalette::WindowText, QColor::fromRgb( 183,  48, 88) );
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_SMALL_BLUE )
-		{
-			tmpFont.setBold( true );
-			((QLabel *)allWidgets.at(i))->setText(((QLabel *)allWidgets.at(i))->text().toUpper());
-			p.setBrush(QPalette::WindowText, QColor::fromRgb( 92,  105, 150) );
-		}
-		else if( widgetMapStyle[allWidgets.at(i)->objectName()]==STYLESHEET_SMALL_REDRIGHT )
-		{
-			((QLabel *)allWidgets.at(i))->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-
-			tmpFont.setBold( true );
-			((QLabel *)allWidgets.at(i))->setText(((QLabel *)allWidgets.at(i))->text().toUpper());
-			p.setBrush(QPalette::WindowText, QColor::fromRgb( 183,  48, 88) );
-		}
-		allWidgets.at(i)->setFont( tmpFont );
-		allWidgets.at(i)->setPalette(p);
-	}
-}
 
 //*****************************************************
 // refresh the tab with the ID data (front of card)
@@ -4826,36 +3419,39 @@ void MainWnd::refreshTabIdentity( void )
 {
 
 	m_ui.lblIdentity_ImgPerson->setPixmap(m_imgPicture);
+
 	m_ui.lblIdentity_ImgPerson->show();
 
 	tFieldMap& PersonFields = m_CI_Data.m_PersonInfo.getFields();
 
-	m_ui.txtIdentity_Name->setText		 ( PersonFields[NAME] );
-	m_ui.txtIdentity_Name->setAccessibleName ( PersonFields[NAME] );
-	m_ui.txtIdentity_GivenNames->setText ( PersonFields[FIRSTNAME] );
-	m_ui.txtIdentity_GivenNames->setAccessibleName ( PersonFields[FIRSTNAME] );
-	m_ui.txtIdentity_Nationality->setText( PersonFields[NATIONALITY] );
-	m_ui.txtIdentity_Nationality->setAccessibleName( PersonFields[NATIONALITY] );
-	m_ui.txtIdentity_BirthDate->setText ( PersonFields[BIRTHDATE] );
-	m_ui.txtIdentity_BirthDate->setAccessibleName ( PersonFields[BIRTHDATE] );
-	m_ui.txtIdentity_Sex->setText        ( PersonFields[SEX] );
-	m_ui.txtIdentity_Sex->setAccessibleName ( PersonFields[SEX] );
+	m_ui.txtIdentity_Name->setText		 ( QString::fromUtf8(PersonFields[NAME].toStdString().c_str()) );
+	m_ui.txtIdentity_Name->setAccessibleName ( QString::fromUtf8(PersonFields[NAME].toStdString().c_str()) );
+	m_ui.txtIdentity_GivenNames->setText ( QString::fromUtf8(PersonFields[GIVENNAME].toStdString().c_str()) );
+	m_ui.txtIdentity_GivenNames->setAccessibleName ( QString::fromUtf8(PersonFields[GIVENNAME].toStdString().c_str()) );
+	m_ui.txtIdentity_Nationality->setText( QString::fromUtf8(PersonFields[NATIONALITY].toStdString().c_str()) );
+	m_ui.txtIdentity_Nationality->setAccessibleName( QString::fromUtf8(PersonFields[NATIONALITY].toStdString().c_str()) );
+	m_ui.txtIdentity_BirthDate->setText ( QString::fromUtf8(PersonFields[BIRTHDATE].toStdString().c_str()) );
+	m_ui.txtIdentity_BirthDate->setAccessibleName ( QString::fromUtf8(PersonFields[BIRTHDATE].toStdString().c_str()) );
+	m_ui.txtIdentity_Sex->setText        ( QString::fromUtf8(PersonFields[SEX].toStdString().c_str()) );
+	m_ui.txtIdentity_Sex->setAccessibleName ( QString::fromUtf8(PersonFields[SEX].toStdString().c_str()) );
 
 	tFieldMap& CardFields = m_CI_Data.m_CardInfo.getFields();
 
-	QString cardNumber = m_CI_Data.m_CardInfo.formatCardNumber(CardFields[CARD_NUMBER],m_CI_Data.m_pCard->getType());
-	m_ui.txtIdentity_Height->setText	 ( PersonFields[HEIGHT] );
-	m_ui.txtIdentity_Height->setAccessibleName	 ( PersonFields[HEIGHT] );
-	m_ui.txtIdentity_Country->setText	 ( PersonFields[COUNTRY] );
-	m_ui.txtIdentity_Country->setAccessibleName	 ( PersonFields[COUNTRY] );
-	m_ui.txtIdentity_DocumentNumber->setText	 ( PersonFields[DOCUMENTNUMBER] );
-	m_ui.txtIdentity_DocumentNumber->setAccessibleName	 ( PersonFields[DOCUMENTNUMBER] );
-	m_ui.txtIdentity_ValidUntil->setText( CardFields[CARD_VALIDUNTIL] );
-	m_ui.txtIdentity_ValidUntil->setAccessibleName( CardFields[CARD_VALIDUNTIL] );
-	m_ui.txtIdentity_Parents_Father->setText( PersonFields[FATHER] );
-	m_ui.txtIdentity_Parents_Father->setAccessibleName(PersonFields[FATHER]);
-	m_ui.txtIdentity_Parents_Mother->setText( PersonFields[MOTHER] );
-	m_ui.txtIdentity_Parents_Mother->setAccessibleName( PersonFields[MOTHER] );
+	QString cardNumber = m_CI_Data.m_CardInfo.formatCardNumber(CardFields[CARD_NUMBER]);
+	m_ui.txtIdentity_Height->setText	 ( QString::fromUtf8(PersonFields[HEIGHT].toStdString().c_str()) );
+	m_ui.txtIdentity_Height->setAccessibleName	 ( QString::fromUtf8(PersonFields[HEIGHT].toStdString().c_str()) );
+	m_ui.txtIdentity_Country->setText	 ( QString::fromUtf8(PersonFields[COUNTRY].toStdString().c_str()) );
+	m_ui.txtIdentity_Country->setAccessibleName	 ( QString::fromUtf8(PersonFields[COUNTRY].toStdString().c_str()) );
+	m_ui.txtIdentity_DocumentNumber->setText	 ( QString::fromUtf8(PersonFields[DOCUMENTNUMBER].toStdString().c_str()) );
+	m_ui.txtIdentity_DocumentNumber->setAccessibleName	 ( QString::fromUtf8(PersonFields[DOCUMENTNUMBER].toStdString().c_str()) );
+	m_ui.txtIdentity_ValidUntil->setText( QString::fromUtf8(CardFields[CARD_VALIDUNTIL].toStdString().c_str()) );
+	m_ui.txtIdentity_ValidUntil->setAccessibleName( QString::fromUtf8(CardFields[CARD_VALIDUNTIL].toStdString().c_str()) );
+	m_ui.txtIdentity_Parents_Father->setText(  QString::fromUtf8(PersonFields[FATHER].toStdString().c_str()) );
+	m_ui.txtIdentity_Parents_Father->setAccessibleName(QString::fromUtf8(PersonFields[FATHER].toStdString().c_str()));
+	m_ui.txtIdentity_Parents_Mother->setText( QString::fromUtf8(PersonFields[MOTHER].toStdString().c_str()) );
+	m_ui.txtIdentity_Parents_Mother->setAccessibleName( QString::fromUtf8(PersonFields[MOTHER].toStdString().c_str()) );
+	m_ui.txtIdentity_AccidentalIndications->setText( QString::fromUtf8(PersonFields[ACCIDENTALINDICATIONS].toStdString().c_str()) );
+	m_ui.txtIdentity_AccidentalIndications->setAccessibleName( QString::fromUtf8(PersonFields[ACCIDENTALINDICATIONS].toStdString().c_str()) );
 }
 
 //*****************************************************
@@ -4867,31 +3463,31 @@ void MainWnd::refreshTabIdentityExtra()
 
 	tFieldMap& PersonFields = m_CI_Data.m_PersonInfo.getFields();
 
-	m_ui.txtIdentityExtra_TaxNo->setText	( PersonFields[TAXNO] );
-	m_ui.txtIdentityExtra_TaxNo->setAccessibleName	( PersonFields[TAXNO] );
-	m_ui.txtIdentityExtra_SocialSecurityNo->setText	( PersonFields[SOCIALSECURITYNO] );
-	m_ui.txtIdentityExtra_SocialSecurityNo->setAccessibleName	( PersonFields[SOCIALSECURITYNO] );
-	m_ui.txtIdentityExtra_HealthNo->setText	( PersonFields[HEALTHNO] );
-	m_ui.txtIdentityExtra_HealthNo->setAccessibleName	( PersonFields[HEALTHNO] );
-	m_ui.txtIdentityExtra_CardVersion->setText	( PersonFields[CARDVERSION] );
-	m_ui.txtIdentityExtra_CardVersion->setAccessibleName	( PersonFields[CARDVERSION] );
-	m_ui.txtIdentityExtra_DocumentType->setText	( PersonFields[DOCUMENTTYPE] );
-	m_ui.txtIdentityExtra_DocumentType->setAccessibleName	( PersonFields[DOCUMENTTYPE] );
-	m_ui.txtIdentityExtra_IssuingEntity->setText	( PersonFields[ISSUINGENTITY] );
-	m_ui.txtIdentityExtra_IssuingEntity->setAccessibleName	( PersonFields[ISSUINGENTITY] );
+	m_ui.txtIdentityExtra_TaxNo->setText	( QString::fromUtf8(PersonFields[TAXNO].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_TaxNo->setAccessibleName	( QString::fromUtf8(PersonFields[TAXNO].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_SocialSecurityNo->setText	( QString::fromUtf8(PersonFields[SOCIALSECURITYNO].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_SocialSecurityNo->setAccessibleName	( QString::fromUtf8(PersonFields[SOCIALSECURITYNO].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_HealthNo->setText	( QString::fromUtf8(PersonFields[HEALTHNO].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_HealthNo->setAccessibleName	( QString::fromUtf8(PersonFields[HEALTHNO].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_CardVersion->setText	( QString::fromUtf8(PersonFields[CARDVERSION].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_CardVersion->setAccessibleName	( QString::fromUtf8(PersonFields[CARDVERSION].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_DocumentType->setText	( QString::fromUtf8(PersonFields[DOCUMENTTYPE].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_DocumentType->setAccessibleName	( QString::fromUtf8(PersonFields[DOCUMENTTYPE].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_IssuingEntity->setText	( QString::fromUtf8(PersonFields[ISSUINGENTITY].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_IssuingEntity->setAccessibleName	( QString::fromUtf8(PersonFields[ISSUINGENTITY].toStdString().c_str()) );
 
-	m_ui.txtIdentityExtra_LocalofRequest->setText	( PersonFields[LOCALOFREQUEST] );
-	m_ui.txtIdentityExtra_LocalofRequest->setAccessibleName	( PersonFields[LOCALOFREQUEST] );
+	m_ui.txtIdentityExtra_LocalofRequest->setText	( QString::fromUtf8(PersonFields[LOCALOFREQUEST].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_LocalofRequest->setAccessibleName	( QString::fromUtf8(PersonFields[LOCALOFREQUEST].toStdString().c_str()) );
 
-	m_ui.txtIdentityExtra_Validate->setText ( PersonFields[VALIDATION] );
-	m_ui.txtIdentityExtra_Validate->setAccessibleName ( PersonFields[VALIDATION] );
+	m_ui.txtIdentityExtra_Validate->setText ( QString::fromUtf8(PersonFields[VALIDATION].toStdString().c_str()) );
+	m_ui.txtIdentityExtra_Validate->setAccessibleName ( QString::fromUtf8(PersonFields[VALIDATION].toStdString().c_str()) );
 
-	QString cardNumber = m_CI_Data.m_CardInfo.formatCardNumber(CardFields[CARD_NUMBER],m_CI_Data.m_CardInfo.getType());
+	QString cardNumber = m_CI_Data.m_CardInfo.formatCardNumber(CardFields[CARD_NUMBER]);
 
-	QString nationalNumber = m_CI_Data.m_PersonInfo.formatNationalNumber( PersonFields[NATIONALNUMBER],m_CI_Data.m_CardInfo.getType() );
+	QString nationalNumber = m_CI_Data.m_PersonInfo.formatNationalNumber( PersonFields[NATIONALNUMBER]);
 
-	m_ui.txtIdentityExtra_ValidFrom->setText( CardFields[CARD_VALIDFROM]);
-	m_ui.txtIdentityExtra_ValidFrom->setAccessibleName( CardFields[CARD_VALIDFROM]);
+	m_ui.txtIdentityExtra_ValidFrom->setText( QString::fromUtf8(CardFields[CARD_VALIDFROM].toStdString().c_str()));
+	m_ui.txtIdentityExtra_ValidFrom->setAccessibleName( QString::fromUtf8(CardFields[CARD_VALIDFROM].toStdString().c_str()));
 
 	tFieldMap& PersonExtraFields = m_CI_Data.m_PersonInfo.m_PersonExtraInfo.getFields();
 
@@ -4904,25 +3500,6 @@ void MainWnd::refreshTabIdentityExtra()
 	SpecialStatus["5"] = tr("yellow cane/extended minority");
 
 	tFieldMap& MiscFields = m_CI_Data.m_MiscInfo.getFields();
-
-	QStringList Remarks = fillRemarksField(MiscFields);
-
-	int idx=0;
-	int FieldCnt = Remarks.size();
-	if (FieldCnt>0)
-	{
-		FieldCnt--;
-	}
-	if (FieldCnt>0)
-	{
-		FieldCnt--;
-	}
-	if (FieldCnt>0)
-	{
-		//		m_ui.txtIdentityExtra_Remarks3->setText(Remarks[idx++]);
-		//		m_ui.txtIdentityExtra_Remarks3->setAccessibleName(Remarks[idx++]);
-		FieldCnt--;
-	}
 
 }
 
@@ -4941,38 +3518,62 @@ void MainWnd::refreshTabAddress( void )
 
 	tFieldMap& AddressFields = m_CI_Data.m_AddressInfo.getFields();
 
-	m_ui.txtAddress_Municipality->setText		 ( AddressFields[ADDRESS_MUNICIPALITY] );
-	m_ui.txtAddress_Municipality->setAccessibleName ( AddressFields[ADDRESS_MUNICIPALITY] );
-	m_ui.txtAddress_District->setText			( AddressFields[ADDRESS_DISTRICT] );
-	m_ui.txtAddress_District->setAccessibleName ( AddressFields[ADDRESS_DISTRICT] );
-	m_ui.txtAddress_CivilParish->setText			( AddressFields[ADDRESS_CIVILPARISH] );
-	m_ui.txtAddress_CivilParish->setAccessibleName ( AddressFields[ADDRESS_CIVILPARISH] );
-	m_ui.txtAddress_StreetType1->setText			( AddressFields[ADDRESS_STREETTYPE1] );
-	m_ui.txtAddress_StreetType1->setAccessibleName ( AddressFields[ADDRESS_STREETTYPE1] );
-	m_ui.txtAddress_StreetType2->setText			( AddressFields[ADDRESS_STREETTYPE2] );
-	m_ui.txtAddress_StreetType2->setAccessibleName ( AddressFields[ADDRESS_STREETTYPE2] );
-	m_ui.txtAddress_StreetName->setText			( AddressFields[ADDRESS_STREETNAME] );
-	m_ui.txtAddress_StreetName->setAccessibleName ( AddressFields[ADDRESS_STREETNAME] );
-	m_ui.txtAddress_BuildingType1->setText			( AddressFields[ADDRESS_BUILDINGTYPE1] );
-	m_ui.txtAddress_BuildingType1->setAccessibleName ( AddressFields[ADDRESS_BUILDINGTYPE1] );
-	m_ui.txtAddress_BuildingType2->setText			( AddressFields[ADDRESS_BUILDINGTYPE2] );
-	m_ui.txtAddress_BuildingType2->setAccessibleName ( AddressFields[ADDRESS_BUILDINGTYPE2] );
-	m_ui.txtAddress_DoorNo->setText			( AddressFields[ADDRESS_DOORNO] );
-	m_ui.txtAddress_DoorNo->setAccessibleName ( AddressFields[ADDRESS_DOORNO] );
-	m_ui.txtAddress_Floor->setText			( AddressFields[ADDRESS_FLOOR] );
-	m_ui.txtAddress_Floor->setAccessibleName ( AddressFields[ADDRESS_FLOOR] );
-	m_ui.txtAddress_Side->setText			( AddressFields[ADDRESS_SIDE] );
-	m_ui.txtAddress_Side->setAccessibleName ( AddressFields[ADDRESS_SIDE] );
-	m_ui.txtAddress_Locality->setText			( AddressFields[ADDRESS_LOCALITY] );
-	m_ui.txtAddress_Locality->setAccessibleName ( AddressFields[ADDRESS_LOCALITY] );
-	m_ui.txtAddress_Zip4->setText			( AddressFields[ADDRESS_ZIP4] );
-	m_ui.txtAddress_Zip4->setAccessibleName ( AddressFields[ADDRESS_ZIP4] );
-	m_ui.txtAddress_Zip3->setText			( AddressFields[ADDRESS_ZIP3] );
-	m_ui.txtAddress_Zip3->setAccessibleName ( AddressFields[ADDRESS_ZIP3] );
-	m_ui.txtAddress_Place->setText			( AddressFields[ADDRESS_PLACE] );
-	m_ui.txtAddress_Place->setAccessibleName ( AddressFields[ADDRESS_PLACE] );
-	m_ui.txtAddress_PostalLocality->setText			( AddressFields[ADDRESS_POSTALLOCALITY] );
-	m_ui.txtAddress_PostalLocality->setAccessibleName ( AddressFields[ADDRESS_POSTALLOCALITY] );
+	m_ui.txtAddress_Municipality->setText		 ( QString::fromUtf8(AddressFields[ADDRESS_MUNICIPALITY].toStdString().c_str()) );
+	m_ui.txtAddress_Municipality->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_MUNICIPALITY].toStdString().c_str()) );
+	m_ui.txtAddress_District->setText			( QString::fromUtf8(AddressFields[ADDRESS_DISTRICT].toStdString().c_str()) );
+	m_ui.txtAddress_District->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_DISTRICT].toStdString().c_str()) );
+	m_ui.txtAddress_CivilParish->setText			( QString::fromUtf8(AddressFields[ADDRESS_CIVILPARISH].toStdString().c_str()) );
+	m_ui.txtAddress_CivilParish->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_CIVILPARISH].toStdString().c_str()) );
+	m_ui.txtAddress_StreetType1->setText			( QString::fromUtf8(AddressFields[ADDRESS_ABBRSTREETTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_StreetType1->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_ABBRSTREETTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_StreetType2->setText			( QString::fromUtf8(AddressFields[ADDRESS_STREETTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_StreetType2->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_STREETTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_StreetName->setText			( QString::fromUtf8(AddressFields[ADDRESS_STREETNAME].toStdString().c_str()) );
+	m_ui.txtAddress_StreetName->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_STREETNAME].toStdString().c_str()) );
+	m_ui.txtAddress_BuildingType1->setText			( QString::fromUtf8(AddressFields[ADDRESS_ABBRBUILDINGTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_BuildingType1->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_ABBRBUILDINGTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_BuildingType2->setText			( QString::fromUtf8(AddressFields[ADDRESS_BUILDINGTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_BuildingType2->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_BUILDINGTYPE].toStdString().c_str()) );
+	m_ui.txtAddress_DoorNo->setText			( QString::fromUtf8(AddressFields[ADDRESS_DOORNO].toStdString().c_str()) );
+	m_ui.txtAddress_DoorNo->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_DOORNO].toStdString().c_str()) );
+	m_ui.txtAddress_Floor->setText			( QString::fromUtf8(AddressFields[ADDRESS_FLOOR].toStdString().c_str()) );
+	m_ui.txtAddress_Floor->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_FLOOR].toStdString().c_str()) );
+	m_ui.txtAddress_Side->setText			( QString::fromUtf8(AddressFields[ADDRESS_SIDE].toStdString().c_str()) );
+	m_ui.txtAddress_Side->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_SIDE].toStdString().c_str()) );
+	m_ui.txtAddress_Locality->setText			( QString::fromUtf8(AddressFields[ADDRESS_LOCALITY].toStdString().c_str()) );
+	m_ui.txtAddress_Locality->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_LOCALITY].toStdString().c_str()) );
+	m_ui.txtAddress_Zip4->setText			( QString::fromUtf8(AddressFields[ADDRESS_ZIP4].toStdString().c_str()) );
+	m_ui.txtAddress_Zip4->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_ZIP4].toStdString().c_str()) );
+	m_ui.txtAddress_Zip3->setText			( QString::fromUtf8(AddressFields[ADDRESS_ZIP3].toStdString().c_str()) );
+	m_ui.txtAddress_Zip3->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_ZIP3].toStdString().c_str()) );
+	m_ui.txtAddress_Place->setText			( QString::fromUtf8(AddressFields[ADDRESS_PLACE].toStdString().c_str()) );
+	m_ui.txtAddress_Place->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_PLACE].toStdString().c_str()) );
+	m_ui.txtAddress_PostalLocality->setText			( QString::fromUtf8(AddressFields[ADDRESS_POSTALLOCALITY].toStdString().c_str()) );
+	m_ui.txtAddress_PostalLocality->setAccessibleName ( QString::fromUtf8(AddressFields[ADDRESS_POSTALLOCALITY].toStdString().c_str()) );
+
+	addressdatastatus = 0;
+}
+
+// Set Max of 1000Bytes for personalNotes Field
+void MainWnd::updatetext()
+{
+	int strnr;
+	int totalct;
+
+	QString TxtPersoDataString = m_ui.txtPersoData->toPlainText().toUtf8();
+	strnr = TxtPersoDataString.count();
+
+	totalct = 1000-strnr;
+
+	QString TotalBytes = QString::number(totalct);
+	TotalBytes.append(" / 1000");
+	m_ui.txtPersoDataCount->setText(TotalBytes);
+
+	if (TxtPersoDataString.count()>1000){
+		TxtPersoDataString = m_ui.txtPersoData->toPlainText();
+		TxtPersoDataString.truncate(TxtPersoDataString.size()-1);
+		m_ui.txtPersoData->setPlainText(TxtPersoDataString);
+	}
 }
 
 void MainWnd::PersoDataSaveButtonClicked( void )
@@ -4980,17 +3581,23 @@ void MainWnd::PersoDataSaveButtonClicked( void )
 	std::string PersoDataFile = "3f005f00ef07";
 	std::string Misc = "misc";
 	QString TxtPersoDataString = m_ui.txtPersoData->toPlainText().toUtf8();
+	m_ui.txtPersoData->setMaximumBlockCount(1000);
 
 	PTEID_ReaderContext &ReaderContext  = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
 	PTEID_SmartCard	 &Card	= ReaderContext.getEIDCard();
 	PTEID_Pins &Pins	= Card.getPins();
 	PTEID_Pin &Pin	= Pins.getPinByNumber(1);
 
-	authPINRequest_triggered();
+	if (pinNotes == 1)
+		authPINRequest_triggered();
 
-	const PTEID_ByteArray oData(reinterpret_cast<const unsigned char*> (TxtPersoDataString.toStdString().c_str()), TxtPersoDataString.toStdString().size());
+	if (pinNotes == 0)
+	{
+		const PTEID_ByteArray oData(reinterpret_cast<const unsigned char*> (TxtPersoDataString.toStdString().c_str()), TxtPersoDataString.toStdString().size());
+		Card.writeFile(PersoDataFile.c_str(), oData, &Pin, Misc.c_str());
+		QMessageBox::information( this, "Notas Pessais",  "Notas pessoais escritas com sucesso!", QMessageBox::Ok );
+	}
 
-	Card.writeFile(PersoDataFile.c_str(), oData, &Pin, Misc.c_str());
 }
 //*****************************************************
 // refresh the tab with the PTeid Personal Data
@@ -5003,8 +3610,11 @@ void MainWnd::refreshTabPersoData( void )
 
 	tFieldMap& PersoDataFields = m_CI_Data.m_PersoDataInfo.getFields();
 
+	connect(m_ui.txtPersoData, SIGNAL(textChanged()), this, SLOT(updatetext()));
+
 	m_ui.txtPersoData->clear();
-	m_ui.txtPersoData->insertPlainText	 ( PersoDataFields[PERSODATA_INFO] );
+	m_ui.txtPersoData->insertPlainText (QString::fromUtf8(PersoDataFields[PERSODATA_INFO].toStdString().c_str()));
+
 
 	connect(m_ui.btnPersoDataSave, SIGNAL(clicked()), this, SLOT( PersoDataSaveButtonClicked()));
 }
@@ -5067,30 +3677,6 @@ QString MainWnd::getDuplicataText( void )
 QString MainWnd::getFamilyMemberText( void )
 {
 	return tr("Family member");
-}
-//*****************************************************
-// Create the string to put in the 'remarks' field
-//*****************************************************
-QStringList MainWnd::fillRemarksField( tFieldMap& MiscFields )
-{
-	QStringList Remarks;
-	//QString MemberOfFamily		= MiscFields[MEMBEROFFAMILY];
-	QString Duplicata			= MiscFields[DUPLICATA];
-	QString SpecialOrganization = MiscFields[SPECIALORGANIZATION];
-
-	/*if (MemberOfFamily.size()>0)
-	{
-		Remarks.append(getFamilyMemberText());
-	}*/
-	if (Duplicata.size()>0 && "00"!=Duplicata)
-	{
-		Remarks.append( getDuplicataText() + Duplicata );
-	}
-	if (SpecialOrganization.size()>0)
-	{
-		Remarks.append( getSpecialOrganizationText(SpecialOrganization) );
-	}
-	return Remarks;
 }
 
 
@@ -5174,7 +3760,9 @@ void MainWnd::clearTabPins( void )
 //*****************************************************
 void MainWnd::refreshTabCertificates( void )
 {
+	certdatastatus = 0;
 	loadCardDataCertificates();
+
 	QList<QTreeWidgetItem *> selectedItems = m_ui.treeCert->selectedItems();
 	if(selectedItems.size()==0)
 	{
@@ -5190,6 +3778,7 @@ void MainWnd::refreshTabCertificates( void )
 	{
 		on_treeCert_itemClicked((QTreeCertItem *)selectedItems[0], 0);
 	}
+
 }
 
 //*****************************************************
@@ -5204,14 +3793,11 @@ void MainWnd::refreshTabCardPin( void )
 		{
 			switch(ReaderContext.getCardType())
 			{
-			case PTEID_CARDTYPE_EID:
-			case PTEID_CARDTYPE_KIDS:
-			case PTEID_CARDTYPE_FOREIGNER:
+			case PTEID_CARDTYPE_IAS07:
+			case PTEID_CARDTYPE_IAS101:
                 {
                     PTEID_EIDCard&	Card	= ReaderContext.getEIDCard();
                     PTEID_Pins&		Pins	= Card.getPins();
-
-
                     PTEID_Pin&	Auth_Pin = Pins.getPinByNumber(0);
                     QString	CurrPinName	= Auth_Pin.getLabel();
 
@@ -5227,8 +3813,6 @@ void MainWnd::refreshTabCardPin( void )
                     m_ui.txtPIN_Name->setAccessibleName(QString::fromUtf8("PIN da Autentica\xc3\xa7\xc3\xa3o"));
                     m_ui.txtPIN_ID->setText(QString::number(1));
                     m_ui.txtPIN_ID->setAccessibleName(QString::number(1));
-                        /*	Fill the default value for the PIN status which is the 
-                    status of the Auth PIN (first one of the list)    */
                     m_ui.txtPIN_Status->setText(PINStatus);
                     m_ui.txtPIN_Status->setAccessibleName(PINStatus);
 
@@ -5565,6 +4149,10 @@ void MainWnd::customEvent( QEvent* pEvent )
 
 					//Toggle the Address PIN flag to "false"
 					pinactivate = 1;
+					//Force refresh of Certificates, Address and PersonalNotes tabs
+					persodatastatus = 1;
+					addressdatastatus = 1;
+					certdatastatus = 1;
 
 					//----------------------------------------------------------
 					// show a message in the status bar that a card has been inserted
@@ -5587,7 +4175,6 @@ void MainWnd::customEvent( QEvent* pEvent )
 					//----------------------------------------------------------
 					if (!readerContext.isCardPresent())
 					{
-						setEnableReload(true);
 						pEvent->accept();
 						return;
 					}
@@ -5604,9 +4191,8 @@ void MainWnd::customEvent( QEvent* pEvent )
 
 					switch( cardType )
 					{
-					case PTEID_CARDTYPE_EID:
-					case PTEID_CARDTYPE_KIDS:
-					case PTEID_CARDTYPE_FOREIGNER:
+					case PTEID_CARDTYPE_IAS07:
+					case PTEID_CARDTYPE_IAS101:
 					{
 						try
 						{
@@ -5645,17 +4231,6 @@ void MainWnd::customEvent( QEvent* pEvent )
 						}
 					}
 					break;
-					case PTEID_CARDTYPE_SIS:
-						//------------------------------------------------
-						// first load the data if necessary, because this will check the test cards as well
-						// and will ask if test cards are allowed
-						//------------------------------------------------
-						if ( m_Settings.getAutoCardReading() )
-						{
-							m_CI_Data.Reset();
-							loadCardData();
-						}
-						break;
 					case PTEID_CARDTYPE_UNKNOWN:
 					{
 						clearGuiContent();
@@ -5674,7 +4249,6 @@ void MainWnd::customEvent( QEvent* pEvent )
 				err = err;
 			}
 		}
-	setEnableReload(true);
 }
 //**************************************************
 // show the picture on the Card
@@ -5690,32 +4264,33 @@ void MainWnd::doPicturePopup( PTEID_Card& card )
 	{
 		return;
 	}
-	if (card.getType() != PTEID_CARDTYPE_SIS)
+
+	//------------------------------------------------
+	// To show the picture we must:
+	// - keep the status if test cards were allowed or not
+	// - allways allow a testcard
+	// - load the picture for the popup
+	// - reset the allowTestCard like the user has set it
+	//------------------------------------------------
+	PTEID_EIDCard& eidCard		 = static_cast<PTEID_EIDCard&>(card);
+	bool		  bAllowTestCard = eidCard.getAllowTestCard();
+	
+	if (!bAllowTestCard)
 	{
-		//------------------------------------------------
-		// To show the picture we must:
-		// - keep the status if test cards were allowed or not
-		// - allways allow a testcard
-		// - load the picture for the popup
-		// - reset the allowTestCard like the user has set it
-		//------------------------------------------------
-		PTEID_EIDCard& eidCard		 = static_cast<PTEID_EIDCard&>(card);
-		bool		  bAllowTestCard = eidCard.getAllowTestCard();
-
-		if (!bAllowTestCard)
-		{
-			eidCard.setAllowTestCard(true);
-		}
-		/*const PTEID_ByteArray& picture = eidCard.getPicture().getData();
-		QPixmap				  pixMap;
-
-		if (pixMap.loadFromData(picture.GetBytes(), picture.Size()))
-		{
-			m_Pop->setPixmap(pixMap);
-			m_Pop->popUp();
-		}*/
-		eidCard.setAllowTestCard(bAllowTestCard);
+	    eidCard.setAllowTestCard(true);
 	}
+
+	QImage myImage, myImagescaled;
+	QPixmap				  pixMap;
+
+	if (pixMap.loadFromData(m_CI_Data.m_PersonInfo.m_BiometricInfo.m_pPictureData, "PNG"))
+	{
+		pixMap = pixMap.scaledToWidth(50);
+		m_Pop->setPixmap(pixMap);
+		m_Pop->popUp();
+	}
+	eidCard.setAllowTestCard(bAllowTestCard);
+
 }
 
 //**************************************************
@@ -5823,7 +4398,7 @@ void MainWnd::on_actionE_xit_triggered(void)
 void MainWnd::setEventCallbacks( void )
 {
 	//----------------------------------------
-	// for all the reader, create a callback such we can know
+	// for all the readers, create a callback such we can know
 	// afterwards, which reader called us
 	//----------------------------------------
 	try
