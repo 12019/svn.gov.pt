@@ -174,6 +174,7 @@ public:
  	EIDMW_APL_API const CByteArray& getRawData_Challenge();		/**< Get the challenge RawData */
  	EIDMW_APL_API const CByteArray& getRawData_Response();		/**< Get the response RawData */
  	EIDMW_APL_API const CByteArray& getRawData_PersoData();		/**< Get the response RawData */
+ 	EIDMW_APL_API void doSODCheck(bool check);
 
  	APL_EidFile_Trace *getFileTrace();					/**< Return a pointer to the file Trace (NOT EXPORTED) */
 	APL_EidFile_ID *getFileID();					/**< Return a pointer to the file ID (NOT EXPORTED) */
@@ -183,9 +184,11 @@ public:
 	APL_EidFile_Sod *getFileSod();				/**< Return a pointer to the file Photo (NOT EXPORTED) */
 	APL_EidFile_PersoData *getFilePersoData();				/**< Return a pointer to the file PersoData (NOT EXPORTED) */
 	APL_EidFile_TokenInfo *getFileTokenInfo();		/**< Return a pointer to the file Token Info (NOT EXPORTED) */
+	const char *getTokenSerialNumber();				/**< Return the token serial number (pkcs15 parse) (NOT EXPORTED) */
+	const char *getTokenLabel();					/**< Return the token label (pkcs15 parse) (NOT EXPORTED) */
 	APLPublicKey *getRootCAPubKey();						/**< Get the CVC CA public key that this card uses to verify the CVC key (NOT EXPORTED)*/
-	bool isActive();
-	bool Activate(const char *pinCode, CByteArray &BCDDate);						/**< Activate the pteid card (NOT EXPORTED)*/
+	EIDMW_APL_API bool isActive();
+	EIDMW_APL_API bool Activate(const char *pinCode, CByteArray &BCDDate);						/**< Activate the pteid card (NOT EXPORTED)*/
 
 
 	static void askWarningLevel();
@@ -243,6 +246,8 @@ private:
 	APL_CardFile_Certificate *m_fileCertRoot;
 	APL_CardFile_Certificate *m_fileCertRootAuth;
 	APL_CardFile_Certificate *m_fileCertRootSign;
+
+	bool m_sodCheck;
 
 	static APL_AccessWarningLevel m_lWarningLevel;
 

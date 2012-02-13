@@ -32,9 +32,9 @@ class dlgSignature : public QDialog
     Q_OBJECT
 
 private slots:
-	void on_pbCancel_clicked ( void );
-	void on_pbAddFiles_clicked ( void );
-	void on_pbSign_clicked ( void );
+    void on_pbCancel_clicked ( void );
+    void on_pbAddFiles_clicked ( void );
+    void on_pbSign_clicked ( void );
     void RemoveFromView();
     void ShowContextMenu(const QPoint& pos);
 
@@ -47,8 +47,12 @@ private:
     CardInformation const& m_CI_Data;
     QString m_CurrReaderName;//!< the current reader we're using
     QStringList alist;
+    QListView *view;
+    QProgressDialog *pdialog;
+    QFutureWatcher<void> FutureWatcher;
 
     void SignListView (QStringList list);
+    void runsign(const char ** paths, unsigned int n_paths, const char *output_path);
 
 };
 

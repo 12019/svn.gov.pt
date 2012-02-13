@@ -35,6 +35,7 @@
 #include "mainwnd.h"
 #include "dlgAbout.h"
 #include "dlgprint.h"
+#include "dlgverifysignature.h"
 #include "dlgsignature.h"
 #include "dlgOptions.h"
 #include "Settings.h"
@@ -238,6 +239,7 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	m_ui.lbl_menuCard_Quit->installEventFilter(this);
 	m_ui.lbl_menuTools_Parameters->installEventFilter(this);
 	m_ui.lbl_menuTools_Signature->installEventFilter(this);
+	m_ui.lbl_menuTools_VerifySignature->installEventFilter(this);
 	m_ui.lbl_menuLanguage_Portuguese->installEventFilter(this);
 	m_ui.lbl_menuLanguage_English->installEventFilter(this);
 	m_ui.lbl_menuHelp_about->installEventFilter(this);
@@ -285,6 +287,12 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 		{
 			hide_submenus();
 			actionSignature_eID_triggered();
+		}
+
+		if (object == m_ui.lbl_menuTools_VerifySignature )
+		{
+			hide_submenus();
+			actionVerifySignature_eID_triggered();
 		}
 
 		if (object == m_ui.lbl_menuLanguage_Portuguese )
@@ -375,7 +383,7 @@ void MainWnd::on_btn_menu_card_clicked()
 void MainWnd::on_btn_menu_tools_clicked()
 {
 	m_ui.wdg_submenu_tools->setVisible(true);
-	m_ui.wdg_submenu_tools->setGeometry(128,4,126,100);
+	m_ui.wdg_submenu_tools->setGeometry(128,4,126,110);
 }
 
 void MainWnd::on_btn_menu_language_clicked()
@@ -2374,7 +2382,22 @@ void MainWnd::actionSignature_eID_triggered()
 		dlgSignature* dlgsig = new dlgSignature( this, m_CI_Data);
 		dlgsig->exec();
 		delete dlgsig;
+	} else {
+	  	std::string Pmsgcaption = "Aviso";
+	  	std::string Pmsgbody = "Ocorreu um problema a ler os dados do seu cartão tente novamente";
+	  	QMessageBox msgBoxp(QMessageBox::Warning, QString::fromUtf8(Pmsgcaption.c_str()), QString::fromUtf8(Pmsgbody.c_str()), 0, this);
+	  	msgBoxp.exec();
 	}
+}
+
+//*****************************************************
+// VerifySignature clicked
+//*****************************************************
+void MainWnd::actionVerifySignature_eID_triggered()
+{
+    dlgVerifySignature* dlgversig = new dlgVerifySignature( this);
+    dlgversig->exec();
+    delete dlgversig;
 }
 
 //*****************************************************
@@ -3591,11 +3614,16 @@ void MainWnd::PersoDataSaveButtonClicked( void )
 	if (pinNotes == 1)
 		authPINRequest_triggered();
 
-	if (pinNotes == 0)
-	{
-		const PTEID_ByteArray oData(reinterpret_cast<const unsigned char*> (TxtPersoDataString.toStdString().c_str()), TxtPersoDataString.toStdString().size());
-		Card.writeFile(PersoDataFile.c_str(), oData, &Pin, Misc.c_str());
-		QMessageBox::information( this, "Notas Pessais",  "Notas pessoais escritas com sucesso!", QMessageBox::Ok );
+    if (pinNotes == 0)
+    {
+        try {
+
+            const PTEID_ByteArray oData(reinterpret_cast<const unsigned char*> (TxtPersoDataString.toStdString().c_str()), TxtPersoDataString.toStdString().size());
+            Card.writeFile(PersoDataFile.c_str(), oData, &Pin, Misc.c_str());
+            QMessageBox::information( this, tr("Notas Pessais"),  tr("Notas pessoais escritas com sucesso!"), QMessageBox::Ok );
+        } catch (PTEID_Exception& e) {
+            QMessageBox::critical(this, tr("Notas Pessais"), tr("Erro ao escrever notas pessoais!"), QMessageBox::Ok );
+        }
 	}
 
 }
@@ -4120,6 +4148,7 @@ void MainWnd::customEvent( QEvent* pEvent )
 		{
 			try
 			{
+
 				if (!m_Pop)
 				{
 					pEvent->accept();

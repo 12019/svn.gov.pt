@@ -77,15 +77,20 @@ extern "C" {
 
 #include <winscard.h>
 
-#ifndef WIN32
+#ifndef _WIN32
 #include "wintypes.h"
 #endif
 
 #ifndef CM_IOCTL_GET_FEATURE_REQUEST
 #define CM_IOCTL_GET_FEATURE_REQUEST SCARD_CTL_CODE(3400) //Definition from reader.h in pcsclite
 #endif
+#ifdef _WIN32
+#define CM_IOCTL_VERIFY_PIN 0x00312110
+#define CM_IOCTL_MODIFY_PIN 0x00312114
+#else
 #define CM_IOCTL_VERIFY_PIN 0x42330006
 #define CM_IOCTL_MODIFY_PIN 0x42330007
+#endif
 
 
 #define PTEID_MINOR_VERSION       0
@@ -248,7 +253,7 @@ typedef struct
 	unsigned char wLangId[2]; // LANG_ID code
 	unsigned char bMsgIndex; // Message index (should be 00)
 	unsigned char bTeoPrologue[3]; // T=1 block prologue field to use (fill with 00)
-	DWORD ulDataLength; // length of the following field
+    unsigned int ulDataLength; // length of the following field
 	unsigned char abData[1]; // APDU to send to the card (to be completed by the reader)
 } EIDMW_PP_VERIFY_CCID;
 
@@ -274,7 +279,7 @@ typedef struct
 	unsigned char bMsgIndex2; // index of 2d prompting message
 	unsigned char bMsgIndex3; // index of 3d prompting message
 	unsigned char bTeoPrologue[3]; // T=1 block prologue field to use (fill with 00)
-	DWORD ulDataLength; // length of the following field
+    unsigned int ulDataLength; // length of the following field
 	unsigned char abData[1]; // APDU to send to the card (to be completed by the reader)
 } EIDMW_PP_CHANGE_CCID;
 

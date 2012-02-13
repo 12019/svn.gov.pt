@@ -10,12 +10,7 @@
     <height>315</height>
    </rect>
   </property>
-  <property name="font">
-   <font>
-    <pointsize>11</pointsize>
-   </font>
-  </property>
-  <property name="windowTitle">
+   <property name="windowTitle">
    <string>Signature</string>
   </property>
   <property name="windowIcon">
@@ -55,6 +50,9 @@
        </item>
        <item>
         <widget class="QPushButton" name="pbSign">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="text">
           <string>Sign</string>
          </property>

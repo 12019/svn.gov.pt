@@ -67,6 +67,10 @@ APL_EIDCard::APL_EIDCard(APL_ReaderContext *reader, APL_CardType cardType):APL_S
 	m_fileCertRootSign=NULL;
 	m_fileCertRoot=NULL;
 	m_fileCertRootAuth=NULL;
+
+	m_sodCheck = false;
+	m_tokenLabel = NULL;
+	m_tokenSerial = NULL;
 }
 
 APL_EIDCard::~APL_EIDCard()
@@ -191,6 +195,19 @@ APL_EIDCard::~APL_EIDCard()
 		delete m_fileCertRoot;
 		m_fileCertRoot=NULL;
 	}
+
+	if(m_tokenLabel)
+	{
+		delete m_tokenLabel;
+		m_tokenLabel=NULL;
+	}
+
+	if (m_tokenSerial)
+	{
+		delete m_tokenSerial;
+		m_tokenSerial=NULL;
+	}
+
 }
 
 bool APL_EIDCard::isCardForbidden()
@@ -732,8 +749,13 @@ APL_EidFile_ID *APL_EIDCard::getFileID()
 		if(!m_FileID)
 		{
 			m_FileID=new APL_EidFile_ID(this);
+			if (m_sodCheck)
+				m_FileID->doSODCheck(m_sodCheck);
 		}
 	}
+
+	if (m_sodCheck)
+		m_FileID->doSODCheck(m_sodCheck);
 
 	return m_FileID;
 }
@@ -760,8 +782,13 @@ APL_EidFile_Address *APL_EIDCard::getFileAddress()
 		if(!m_FileAddress)
 		{
 			m_FileAddress=new APL_EidFile_Address(this);
+			if (m_sodCheck)
+				m_FileAddress->doSODCheck(m_sodCheck);
 		}
 	}
+
+	if (m_sodCheck)
+		m_FileAddress->doSODCheck(m_sodCheck);
 
 	return m_FileAddress;
 }
@@ -1255,6 +1282,26 @@ bool APL_EIDCard::isApplicationAllowed()
 	return (m_lWarningLevel==1);
 }
 
+const char *APL_EIDCard::getTokenSerialNumber(){
+	if (!m_tokenSerial){
+
+		BEGIN_CAL_OPERATION(m_reader)
+		m_tokenSerial = new string (m_reader->getCalReader()->GetSerialNr());
+		END_CAL_OPERATION(m_reader)
+	}
+	return m_tokenSerial->c_str();
+}
+
+const char *APL_EIDCard::getTokenLabel(){
+	if (!m_tokenLabel){
+
+		BEGIN_CAL_OPERATION(m_reader)
+					m_tokenLabel = new string (m_reader->getCalReader()->GetCardLabel());
+		END_CAL_OPERATION(m_reader)
+	}
+	return m_tokenLabel->c_str();
+}
+
 APLPublicKey *APL_EIDCard::getRootCAPubKey(){
 
 	if (!m_RootCAPubKey){
@@ -1288,6 +1335,21 @@ bool APL_EIDCard::Activate(const char *pinCode, CByteArray &BCDDate){
 	return out;
 }
 
+void APL_EIDCard::doSODCheck(bool check){
+	m_sodCheck = check;
+
+	if (m_FileAddress)
+		m_FileAddress->doSODCheck(check);
+	if (m_FileID)
+		m_FileID->doSODCheck(check);
+
+	if (check){
+		if (!m_FileSod){
+			getFileSod();
+		}
+		m_FileSod->VerifyFile();
+	}
+}
 
 /*****************************************************************************************
 ---------------------------------------- APL_EIdFullDoc -------------------------------------------
@@ -2789,11 +2851,11 @@ CByteArray APL_DocVersionInfo::getTLV()
 
 const char *APL_DocVersionInfo::getSerialNumber()
 {
-	return m_card->getFileTokenInfo()->getTokenSerialNumber();
+	return m_card->getTokenSerialNumber();
 }
 
 const char * APL_DocVersionInfo::getTokenLabel(){
-	return m_card->getFileTokenInfo()->getTokenLabel();
+	return m_card->getTokenLabel();
 }
 
 const char *APL_DocVersionInfo::getComponentCode()

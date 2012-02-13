@@ -46,6 +46,7 @@
 namespace eIDMW
 {
 
+EIDMW_APL_API bool APLVerifySignature(const char *container_path, char * errors, unsigned long* error_len);
 enum APL_DocumentType
 {
 	APL_DOCTYPE_FULL=0,
@@ -114,12 +115,10 @@ public:
 
 	EIDMW_APL_API CByteArray &SignXadesT(CByteArray ba, const char *URL);
 
-	EIDMW_APL_API CByteArray &SignXades(const char ** path, unsigned int n_paths);
+	EIDMW_APL_API CByteArray &SignXades(const char ** path, unsigned int n_paths, const char *output_path);
 
-	EIDMW_APL_API CByteArray &SignXadesT(const char ** path, unsigned int n_paths);
+	EIDMW_APL_API CByteArray &SignXadesT(const char ** path, unsigned int n_paths, const char *output_path);
 	
-	EIDMW_APL_API bool ValidateSignature(const CByteArray &signature, char * errors, unsigned long* error_len);
-
 
 	/**
 	  * Read a file on the card 
@@ -313,6 +312,9 @@ public:
 	
 	APL_CardFile_Info *getFileInfo();		/**< Return a pointer to the pseudo file info */
 
+	virtual const char *getTokenSerialNumber() = 0;	/**< Return the token serial number (pkcs15 parse) (NOT EXPORTED) */
+	virtual	const char *getTokenLabel() = 0;	/**< Return the token label (pkcs15 parse) (NOT EXPORTED) */
+
 protected:
 	/**
 	  * Constructor
@@ -341,6 +343,8 @@ protected:
 	CByteArray *m_challenge;
 	CByteArray *m_challengeResponse;
 	APLPublicKey *m_RootCAPubKey;
+	std::string *m_tokenSerial;
+	std::string *m_tokenLabel;
 };
 
 /******************************************************************************//**

@@ -1,0 +1,193 @@
+#include <fstream>
+
+#ifdef WIN32
+#include <Windows.h> //CharToOem()
+#endif
+
+#include "MiscUtil.h"
+#include "ByteArray.h"
+
+#include <openssl/sha.h>
+#include "miniz.c"
+#include "SigContainer.h"
+#include "Log.h"
+
+/*
+ * Zip compression/decompression functions for signatures and
+ * referenced files.
+ *
+ */
+
+namespace eIDMW
+{
+
+	Container::Container(const char *zip_path)
+	{
+	  memset(&zip_archive, 0, sizeof(zip_archive));
+	  mz_bool status = mz_zip_reader_init_file(&zip_archive, zip_path, 0);
+	  if (!status)
+	     MWLOG(LEV_ERROR, MOD_APL, L"Error in mz_zip_reader_init_file!\n");
+
+	}
+
+	Container::~Container()
+	{
+		//Close the zip file and other buffers
+		mz_zip_reader_end(&zip_archive);
+
+	}
+
+	CByteArray *Container::ExtractFile(const char *entry)
+	{
+		void *p;
+		size_t uncompressed_size = 0;
+		CByteArray *ba = new CByteArray();
+		//p = mz_zip_reader_extract_file_to_heap(&zip_archive, entry, &uncompressed_size, MZ_ZIP_FLAG_IGNORE_PATH);
+		p = mz_zip_reader_extract_file_to_heap(&zip_archive, entry, &uncompressed_size, 0);
+		if (!p)
+		{
+			MWLOG(LEV_ERROR, MOD_APL, L"Error in ExtractFile() %S\n", entry);
+			return ba;
+		}
+
+		ba->Append ((const unsigned char *)p, uncompressed_size);
+
+		return ba;
+	}
+
+	char *readFile(const char *path, int *size)
+	{
+		std::ifstream file(path, std::ios::binary|std::ios::ate);
+		char * in;
+
+		if (file.is_open())
+		{
+			*size = file.tellg();
+			in = (char *)malloc(*size);
+			file.seekg(0, std::ios::beg);
+			file.read (in, *size);
+		}
+		else
+			MWLOG(LEV_ERROR, MOD_APL, L"SigContainer::readFile() Error opening file %S\n", path);
+
+		file.close();
+		return in;
+	}
+	
+	CByteArray* Container::ExtractSignature()
+	{
+
+		//return ExtractFile("signature.xml");
+		return ExtractFile(SIG_INTERNAL_PATH);
+
+	}
+
+	tHashedFile** Container::getHashes(int *pn_files)
+	{
+		unsigned char out[20];
+		int i;
+		int c= 0;
+		void *p;
+
+		int n_files = mz_zip_reader_get_num_files(&zip_archive);
+		printf ("mz_zip_reader_get_num_files: %d\n", n_files);
+		tHashedFile **hashes = new tHashedFile*[n_files];
+
+		for (i = 0; i < n_files; i++)
+		{
+			size_t uncomp_size = 0;
+			mz_zip_archive_file_stat file_stat;
+			memset(out, 0, 20);
+			if (!mz_zip_reader_file_stat(&zip_archive, i, &file_stat))
+			{
+				fprintf(stderr, "mz_zip_reader_file_stat() failed!\n");
+				mz_zip_reader_end(&zip_archive);
+				continue;
+			}
+
+			if (strcmp(file_stat.m_filename, SIG_INTERNAL_PATH)!=0)
+			{
+				p = mz_zip_reader_extract_file_to_heap(&zip_archive,file_stat.m_filename, &uncomp_size, 0);
+				if (!p)
+				{
+					fprintf(stderr, "mz_zip_reader_extract_file_to_heap() failed!\n");
+					mz_zip_reader_end(&zip_archive);
+					continue;
+				}
+
+				CByteArray* ba = new CByteArray();
+
+				SHA1((unsigned char *)p, uncomp_size, out);
+				ba->Append(out, 20);
+				tHashedFile *t = new tHashedFile();
+				
+				t->hash = ba;
+				t->URI = new std::string(file_stat.m_filename);
+				hashes[c] = t;
+				c++;
+
+				//Cleanup each read file buffer
+				free(p);
+			}
+		}
+		hashes[c] = NULL;	
+		*pn_files = n_files-1;
+		return hashes;
+	}
+
+	void StoreSignatureToDisk(CByteArray& sig, const char **paths, int num_paths, const char *output_file)
+	{
+
+		int file_size = 0;
+		char *ptr_content = NULL;
+		const char *absolute_path = NULL;
+		char *zip_entry_name= NULL;
+		char *utf8_filename;
+		mz_bool status;
+
+		MWLOG(LEV_DEBUG, MOD_APL, L"StoreSignatureToDisk() called with output_file = %S\n",output_file); 
+
+		//Truncate the output file first...
+		Truncate(output_file);
+
+		// Append the referenced files to the zip file
+		for (unsigned int  i = 0; i < num_paths; i++)
+		{   
+			absolute_path = paths[i]; 	
+			ptr_content = readFile(absolute_path, &file_size);
+			MWLOG(LEV_DEBUG, MOD_APL, L"Compressing %d bytes from file %S\n", file_size, absolute_path);
+
+			zip_entry_name = Basename((char *)absolute_path);
+
+
+#ifdef WIN32
+			utf8_filename = new char[strlen(zip_entry_name)*2];
+			latin1_to_utf8((unsigned char *)zip_entry_name, (unsigned char *)utf8_filename);
+			zip_entry_name = utf8_filename;
+			MWLOG (LEV_DEBUG, MOD_APL, L"Compressing filename (after conversion): %S\n", zip_entry_name);
+#endif
+
+			status = mz_zip_add_mem_to_archive_file_in_place(output_file, zip_entry_name, ptr_content,
+					file_size, "", (unsigned short)0, MZ_BEST_COMPRESSION);
+			if (!status)
+			{
+				MWLOG(LEV_ERROR, MOD_APL, L"mz_zip_add_mem_to_archive_file_in_place failed with argument %S",
+						zip_entry_name);
+				return;
+			}
+
+			free(ptr_content);
+		}
+
+		//Append the signature file to the container
+
+		status = mz_zip_add_mem_to_archive_file_in_place(output_file, SIG_INTERNAL_PATH, sig.GetBytes(),
+				sig.Size(), "", (unsigned short)0, MZ_BEST_COMPRESSION);
+		if (!status)
+		{   
+			MWLOG(LEV_ERROR, MOD_APL, L"mz_zip_add_mem_to_archive_file_in_place failed for the signature file");
+			return ;
+		}
+
+	}
+};

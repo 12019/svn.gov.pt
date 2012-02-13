@@ -536,97 +536,6 @@ PTEID_CCXML_Doc& PTEID_EIDCard::getXmlCCDoc(PTEID_XmlUserRequestedInfo& userRequ
 }
 
 
-PTEID_ByteArray PTEID_EIDCard::SignXades(const char ** path, unsigned int n_paths)
-{
-
-	PTEID_ByteArray out;
-	
-	BEGIN_TRY_CATCH
-
-	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
-
-	CByteArray &ca = pcard->SignXades(path, n_paths);
-	out.Append(ca.GetBytes(), ca.Size());
-
-	END_TRY_CATCH
-
-	return out;
-}
-
-PTEID_ByteArray PTEID_EIDCard::SignXades(PTEID_ByteArray to_be_signed, const char *URL)
-{
-
-	PTEID_ByteArray out;
-	
-	BEGIN_TRY_CATCH
-
-	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
-
-	CByteArray &ca = pcard->SignXades(CByteArray(to_be_signed.GetBytes(), 
-			to_be_signed.Size()), URL);
-	out.Append(ca.GetBytes(), ca.Size());
-
-	END_TRY_CATCH
-
-	return out;
-
-
-}
-
-PTEID_ByteArray PTEID_EIDCard::SignXadesT(const char ** path, unsigned int n_paths)
-{
-
-	PTEID_ByteArray out;
-	
-	BEGIN_TRY_CATCH
-
-	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
-
-	CByteArray &ca = pcard->SignXadesT(path, n_paths);
-	out.Append(ca.GetBytes(), ca.Size());
-
-	END_TRY_CATCH
-
-	return out;
-}
-
-PTEID_ByteArray PTEID_EIDCard::SignXadesT(PTEID_ByteArray to_be_signed, const char *URL)
-{
-
-	PTEID_ByteArray out;
-	
-	BEGIN_TRY_CATCH
-
-	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
-
-	CByteArray &ca = pcard->SignXadesT(CByteArray(to_be_signed.GetBytes(), 
-			to_be_signed.Size()), URL);
-	out.Append(ca.GetBytes(), ca.Size());
-
-	END_TRY_CATCH
-
-	return out;
-
-
-}
-bool PTEID_EIDCard::VerifySignature(PTEID_ByteArray sig, char *error, unsigned long *error_length)
-{
-
-	bool res = false;
-	
-	BEGIN_TRY_CATCH
-
-	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
-	res = pcard->ValidateSignature(CByteArray(sig.GetBytes(), sig.Size()),
-			error, error_length); 
-	
-	END_TRY_CATCH
-
-	return res;
-
-}
-
-
 /*
  *
  */
@@ -1148,15 +1057,23 @@ bool PTEID_EIDCard::isActive(){
 
 
 void PTEID_EIDCard::doSODCheck(bool check){
-}
-
-bool PTEID_EIDCard::Activate(const char *pinCode, CByteArray &BCDDate){
-	bool out = false;
 
 	BEGIN_TRY_CATCH
 
 	APL_EIDCard *pcard=static_cast<APL_EIDCard *>(m_impl);
-	out =  pcard->Activate(pinCode,BCDDate);
+	pcard->doSODCheck(check);
+
+	END_TRY_CATCH
+}
+
+bool PTEID_EIDCard::Activate(const char *pinCode, PTEID_ByteArray &BCDDate){
+	bool out = false;
+	CByteArray cBCDDate = CByteArray(BCDDate.GetBytes(),BCDDate.Size());
+
+	BEGIN_TRY_CATCH
+
+	APL_EIDCard *pcard=static_cast<APL_EIDCard *>(m_impl);
+	out =  pcard->Activate(pinCode,cBCDDate);
 
 	END_TRY_CATCH
 
@@ -1255,7 +1172,7 @@ PTEID_ReaderContext* readerContext = NULL;
 PTEIDSDK_API long PTEID_Init(char *ReaderName){
 
 	try {
-		if (NULL == ReaderName)
+		if (NULL == ReaderName || strlen(ReaderName) == 0)
 			readerContext = &ReaderSet.getReader();
 		else
 			readerContext = &ReaderSet.getReaderByName(ReaderName);
@@ -1276,7 +1193,7 @@ PTEIDSDK_API long PTEID_Init(char *ReaderName){
 	}
 	catch(PTEID_Exception &ex)
 	{
-		std::cout << "PTEID_Exception exception" << std::endl;
+		std::cout << "PTEID_Exception exception " << ex.GetError()<< std::endl;
 	}
 	catch(...)
 	{
@@ -1567,10 +1484,12 @@ PTEIDSDK_API long PTEID_ReadSOD(unsigned char *out, unsigned long *outlen){
 		PTEID_EIDCard &card = readerContext->getEIDCard();
 
 		temp = card.getSod().getData();
+		CByteArray cb((unsigned char*)temp.GetBytes(), temp.Size());
+		cb.TrimRight(0);
 		memset(out,0,*outlen);
-		if (temp.Size() < *outlen)
-			*outlen = temp.Size();
-		memcpy(out,temp.GetBytes(), *outlen);
+		if (cb.Size() < *outlen)
+			*outlen = cb.Size();
+		memcpy(out,cb.GetBytes(), *outlen);
 	}
 
 	return 0;
@@ -1578,6 +1497,7 @@ PTEIDSDK_API long PTEID_ReadSOD(unsigned char *out, unsigned long *outlen){
 
 PTEIDSDK_API long PTEID_UnblockPIN(unsigned char PinId,	char *pszPuk, char *pszNewPin, long *triesLeft){
 	unsigned long id;
+	unsigned long tleft;
 
 	if (readerContext!=NULL){
 		if (PinId != 1 && PinId != 129 && PinId != 130 && PinId != 131)
@@ -1587,7 +1507,8 @@ PTEIDSDK_API long PTEID_UnblockPIN(unsigned char PinId,	char *pszPuk, char *pszN
 		for (unsigned long pinIdx=0; pinIdx < pins.count(); pinIdx++){
 			PTEID_Pin&	pin	= pins.getPinByNumber(pinIdx);
 			if (pin.getPinRef() == PinId){
-				pin.unlockPin(pszPuk, pszNewPin,(unsigned long *)triesLeft);
+				pin.unlockPin(pszPuk, pszNewPin,tleft);
+				*triesLeft = tleft;
 			}
 		}
 	}
@@ -1605,9 +1526,12 @@ PTEIDSDK_API long PTEID_UnblockPIN_Ext(unsigned char PinId,	char *pszPuk, char *
 
 PTEIDSDK_API long PTEID_SelectADF(unsigned char *adf, long adflen){
 	if (readerContext!=NULL){
-		PTEID_ByteArray pb(adf,adflen);
 		PTEID_EIDCard &card = readerContext->getEIDCard();
-		card.selectApplication(pb);
+		unsigned char ap[4] = {0x00, 0xA4, 0x00, 0x0C};
+		PTEID_ByteArray apdu(ap,(unsigned long)(sizeof(ap)/sizeof(unsigned char)));
+		apdu.Append((unsigned char*)&adflen,sizeof(unsigned char));
+		apdu.Append(adf,(unsigned long) adflen);
+		card.sendAPDU(apdu);
 	}
 
 	return 0;
@@ -1617,7 +1541,7 @@ PTEIDSDK_API long PTEID_ReadFile(unsigned char *file,int filelen,unsigned char *
 
 	if (readerContext!=NULL && (PinId == PTEID_ADDRESS_PIN_ID || PinId == PTEID_NO_PIN_NEEDED)){
 		PTEID_EIDCard &card = readerContext->getEIDCard();
-		CByteArray temp;
+		CByteArray filePath;
 		PTEID_ByteArray in;
 		PTEID_Pin*	pin = NULL;
 
@@ -1625,17 +1549,20 @@ PTEIDSDK_API long PTEID_ReadFile(unsigned char *file,int filelen,unsigned char *
 			PTEID_Pins &pins = readerContext->getEIDCard().getPins();
 			for (unsigned long pinIdx=0; pinIdx < pins.count(); pinIdx++){
 				pin	= &(pins.getPinByNumber(pinIdx));
-				if (pin->getId() == PinId-128){ // why 128? id = 1,2,3..., pinid = (1 or 129), 130, 131
+				if (pin->getPinRef() == PTEID_ADDRESS_PIN_ID){
 					break;
 				}
 			}
 		}
 
-		temp.Append(file,filelen);
-		card.readFile(temp.ToString(false).c_str(),in, pin,"");
+		filePath.Append(file,filelen);
+		card.readFile(filePath.ToString(false).c_str(),in, pin,"");
 
-		*outlen = (*outlen>in.Size() ? in.Size() : *outlen);
-		memcpy(out, in.GetBytes(),*outlen);
+		CByteArray cb(in.GetBytes(), in.Size());
+		cb.TrimRight(0);
+
+		*outlen = (*outlen>cb.Size() ? cb.Size() : *outlen);
+		memcpy(out, cb.GetBytes(),*outlen);
 	}
 
 	return 0;
@@ -1678,7 +1605,7 @@ PTEIDSDK_API long PTEID_IsActivated(unsigned long *pulStatus){
 PTEIDSDK_API long PTEID_Activate(char *pszPin, unsigned char *pucDate, unsigned long ulMode){
 	long retval = 0;
 	if (readerContext!=NULL){
-		CByteArray bcd(pucDate,BCD_DATE_LEN);
+		PTEID_ByteArray bcd(pucDate,BCD_DATE_LEN);
 		if (readerContext->getEIDCard().Activate(pszPin,bcd))
 			return 0;
 		return -1;
@@ -1724,6 +1651,21 @@ PTEIDSDK_API long PTEID_GetCVCRoot(PTEID_RSAPublicKey *pCVCRootKey){
 		pCVCRootKey->modulusLength = rootCAKey.getCardAuthKeyModulus().Size();
 		memcpy(pCVCRootKey->exponent, rootCAKey.getCardAuthKeyExponent().GetBytes(), rootCAKey.getCardAuthKeyExponent().Size());
 		pCVCRootKey->exponentLength = rootCAKey.getCardAuthKeyExponent().Size();
+	}
+
+	return 0;
+}
+
+PTEIDSDK_API long PTEID_SendAPDU(const unsigned char *ucRequest, unsigned long ulRequestLen, unsigned char *ucResponse, unsigned long *ulResponseLen){
+	if (readerContext!=NULL){
+		PTEID_EIDCard &card = readerContext->getEIDCard();
+		PTEID_ByteArray sApdu(ucRequest,ulRequestLen);
+		PTEID_ByteArray resp;
+
+		resp = card.sendAPDU(sApdu);
+
+		*ulResponseLen = (*ulResponseLen > resp.Size()) ? resp.Size() : *ulResponseLen;
+		memcpy(ucResponse,resp.GetBytes(),*ulResponseLen);
 	}
 
 	return 0;

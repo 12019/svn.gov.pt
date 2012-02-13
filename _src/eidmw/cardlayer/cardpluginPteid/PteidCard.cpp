@@ -292,43 +292,22 @@ CPkiCard(hCard, poContext, poPinpad)
 			break;
 	}
   try {
-	  m_ucCLA = 0x00;
-	  if (ulVersion == 1 )
-	  {
-		  m_oCardData = SendAPDU(0xCA, 0xDF, 0x30, 0x08);
-	  } else {
-		  m_oCardData = SendAPDU(0xCA, 0x02, 0x5A, 0x0D);
-	  }
-	  m_ucCLA = 0x00;
+        // Get Card Serial Number
+        m_oCardData = ReadFile("3f004f005032");
+        m_ucCLA = 0x00;
 
-		//if (m_oCardData.Size() < 23)
-		//lmedinas -- fixme for gemsafe v2
-		/*if(m_oCardData.Size() < 15) //PT have 15 not 23 serial number...
-		{
-			//printf("... OK exception\n");
-			throw CMWEXCEPTION(EIDMW_ERR_APPLET_VERSION_NOT_FOUND);
-			}*/
+        m_oCardData.Chop(2); // remove SW12 = '90 00'
 
-		m_oCardData.Chop(2); // remove SW12 = '90 00'
+        CByteArray parsesrnr;
+        parsesrnr = CByteArray(m_oCardData.GetBytes(), m_oCardData.Size());
+        m_oSerialNr  = parsesrnr.GetBytes(7,8);
 
-		m_oSerialNr = CByteArray(m_oCardData.GetBytes(), m_oCardData.Size());
-		// Get Card Applet Version
-		m_AppletVersion = ulVersion;
-
-
-		//m_ucAppletVersion = m_oCardData.GetByte(21);
-        /*if (m_ucAppletVersion < 0x20)
-            m_ucAppletVersion = (unsigned char) (16 * m_oCardData.GetByte(21) + m_oCardData.GetByte(22));
-
-		m_ul6CDelay = 0;
-		if (m_oCardData.GetByte(22) == 0x00 && m_oCardData.GetByte(23) == 0x01)
-			m_ul6CDelay = 50;*/
-
-		//m_selectAppletMode = selectAppletMode;
-	}
+        // Get Card Applet Version
+        m_AppletVersion = ulVersion;
+    }
     catch(CMWException e)
     {
-		MWLOG(LEV_CRIT, MOD_CAL, L"Failed to get CardData: 0x%0x", e.GetError());
+        MWLOG(LEV_CRIT, MOD_CAL, L"Failed to get CardData: 0x%0x", e.GetError());
         Disconnect(DISCONNECT_LEAVE_CARD);
     }
     catch(...)
@@ -434,7 +413,7 @@ bool CPteidCard::Activate(const char *pinCode, CByteArray &BCDDate){
 	return true;
 }
 
-bool CPteidCard::unlockPIN(const tPin &pin, const tPin *puk, const char *pszPuk, const char *pszNewPin, unsigned long *triesLeft){
+bool CPteidCard::unlockPIN(const tPin &pin, const tPin *puk, const char *pszPuk, const char *pszNewPin, unsigned long &triesLeft){
 	CByteArray oResp;
 	bool bOK = false;
 	unsigned long ulRemaining;
@@ -443,14 +422,14 @@ bool CPteidCard::unlockPIN(const tPin &pin, const tPin *puk, const char *pszPuk,
 	{
 		if (m_cardType == CARD_PTEID_IAS101){
 			if (PinCmd(PIN_OP_VERIFY, *puk, pszPuk, "", ulRemaining, NULL)) //martinho - verify puk
-				bOK = PinCmd(PIN_OP_RESET, pin, pszNewPin, "", *triesLeft, NULL); // martinho - reset pin
+				bOK = PinCmd(PIN_OP_RESET, pin, pszNewPin, "", triesLeft, NULL); // martinho - reset pin
 		} else if (m_cardType == CARD_PTEID_IAS07){
 			// need a gemsafe card!
 			//bOK = PinCmd(PIN_OP_RESET, pin, pszNewPin, "", *triesLeft, NULL); // martinho - reset pin
 			bOK = false;
 		}
 		if (bOK)
-			*triesLeft = PinStatus(pin);
+			triesLeft = PinStatus(pin);
 	}
 	catch(...)
 	{
@@ -1011,7 +990,7 @@ tCacheInfo CPteidCard::GetCacheInfo(const std::string &csPath)
 	case 69: // AOD (4401)
 	case 3: // 0003 (TRACE)
 	case 246: // EF07 (PersoData)
-	  return simpleCache;
+          return dontCache;
 	case 244: // EF05 (Address)
 	  return dontCache;
 	case 241: // EF02 (ID)
