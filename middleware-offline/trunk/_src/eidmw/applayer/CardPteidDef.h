@@ -36,8 +36,7 @@ namespace eIDMW
 #define PTEID_FILE_ADDRESS_SIGN				"3F00DF014034"
 //#define PTEID_FILE_PHOTO					"3F00DF014035"
 #define PTEID_FILE_SOD					"3F005F00EF06"
-#define PTEID_FILE_PHOTO					"3F005F00EF06"
-#define PTEID_FILE_TOKENINFO				"3F004F005032"
+#define PTEID_FILE_TOKENINFO			"3F004F005032"
 
 #define PTEID_FILE_CERT_AUTHENTICATION			"3F005F00EF09"
 #define PTEID_FILE_CERT_SIGNATURE				"3F005F00EF08"
@@ -242,12 +241,6 @@ namespace eIDMW
 #define PTEID_FIELD_BYTE_TOKENINFO_GraphicalPersonalisation             37
 #define PTEID_FIELD_BYTE_TOKENINFO_ElectricalPersonalisation            38
 #define PTEID_FIELD_BYTE_TOKENINFO_ElectricalPersonalisationInterface   39
-
-//martinho - ok
-#define PTEID_FIELD_TOKENINFO_POS_SERIAL		7
-#define PTEID_FIELD_TOKENINFO_LEN_SERIAL		8
-#define PTEID_FIELD_TOKENINFO_POS_LABEL			26
-#define PTEID_FIELD_TOKENINFO_LEN_LABEL			17
 
 //martinho - ok
 #define PTEIDNG_FIELD_ROOTCA_PK_POS_MODULUS				23
@@ -670,7 +663,7 @@ static const char *const _pteid_files_to_warn[] =
 {
 	PTEID_FILE_ID,			
 	PTEID_FILE_ADDRESS,		
-	PTEID_FILE_PHOTO,		
+	PTEID_FILE_SOD,
 	NULL
 };
 

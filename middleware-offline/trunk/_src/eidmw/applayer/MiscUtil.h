@@ -23,6 +23,10 @@
 #define __APL_MISCSUTIL_H__
 
 #include <string>
+#include <cstring> //POSIX basename
+#ifdef __APPLE__
+#include <libgen.h>
+#endif
 #include <vector>
 #include <map>
 #include <time.h>
@@ -30,6 +34,19 @@
 
 namespace eIDMW
 {
+
+//Implementation of some utility functions over POSIX and Win32
+char * Basename(char *absolute_path);
+int Truncate(const char *path);
+//Charset conversion
+void latin1_to_utf8(unsigned char * in, unsigned char *out);
+
+//Common type between 2/3 different cpp files
+typedef struct _hashed_file_
+{
+	CByteArray *hash;
+	std::string *URI;	
+} tHashedFile;
 
 /******************************************************************************//**
   * Util class for timestamp features 
