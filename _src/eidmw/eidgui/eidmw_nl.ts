@@ -24,6 +24,45 @@
         <translation>Data de Nascimento / &lt;i&gt;Date of Birth&lt;/i&gt;</translation>
     </message>
     <message>
+        <location filename="mainwnd.ui" line="23"/>
+        <source>Portuguese ID Card Management</source>
+        <translation>Aplicação Oficial do Cartão de Cidadão</translation>
+    </message>
+    <message>
+        <location filename="mainwnd.ui" line="1629"/>
+        <source>Additional Data</source>
+        <translation>Outros Dados</translation>
+    </message>
+    <message>
+        <location filename="mainwnd.ui" line="1608"/>
+        <source>Identity</source>
+        <translation>Identidade</translation>
+    </message>
+    <message>
+        <location filename="mainwnd.ui" line="1713"/>
+        <source>Notes</source>
+        <translation>Notas</translation>
+    </message>
+    <message>
+        <location filename="mainwnd.ui" line="1692"/>
+        <source>PIN Codes</source>
+        <translation>Códigos PIN</translation>
+    </message>
+    <message>
+        <location filename="mainwnd.ui" line="1775"/>
+        <location filename="mainwnd.ui" line="2086"/>
+        <source>Tools</source>
+        <translation>Opções</translation>
+    </message>
+    <message>
+        <location filename="mainwnd.ui" line="1984"/>
+        <location filename="mainwnd.ui" line="1749"/>
+        <location filename="mainwnd.ui" line="2341"/>
+        <source>Card</source>
+        <translation>Cartão</translation>
+    </message>
+    
+    <message>
         <location filename="mainwnd.ui" line="404"/>
         <source>Kaartnr. / &lt;i&gt;Card No&lt;/i&gt;</source>
         <translation>Num. Cartão / &lt;i&gt;Card No&lt;/i&gt;</translation>
@@ -250,23 +289,6 @@
         <location filename="mainwnd.cpp" line="2112"/>
         <source>Reload eID</source>
         <translation>(Re)Ler Cartão</translation>
-    </message>
-    <message>
-        <location filename="mainwnd.cpp" line="2339"/>
-        <location filename="mainwnd.cpp" line="2565"/>
-        <source>Save eID</source>
-        <translation>Guardar eID</translation>
-    </message>
-    <message>
-        <location filename="mainwnd.ui" line="2862"/>
-        <source>Save eID as...</source>
-        <translation>Guardar eID como</translation>
-    </message>
-    <message>
-        <location filename="mainwnd.cpp" line="2200"/>
-        <location filename="mainwnd.cpp" line="2236"/>
-        <source>Open eID</source>
-        <translation>Abrir eID</translation>
     </message>
     <message>
         <location filename="mainwnd.cpp" line="3613"/>
@@ -590,11 +612,11 @@ Do you want to accept it?
         <translation>Bad card type</translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="2137"/>
-        <location filename="mainwnd.cpp" line="2404"/>
-        <location filename="mainwnd.cpp" line="2523"/>
-        <location filename="mainwnd.cpp" line="2799"/>
-        <location filename="mainwnd.cpp" line="2885"/>
+        <location filename="mainwnd.cpp" line="1790"/>
+        <location filename="mainwnd.cpp" line="1942"/>
+        <location filename="mainwnd.cpp" line="2090"/>
+        <location filename="mainwnd.cpp" line="2242"/>
+        <location filename="mainwnd.cpp" line="2504"/>
         <source>No card present</source>
         <translation>Cartão não encontrado</translation>
     </message>
@@ -772,25 +794,25 @@ Please specify .xml, .csv or .eid</source>
         <translation>Certificaten ophalen mislukt</translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="1171"/>
+        <location filename="mainwnd.cpp" line="870"/>
         <source>Register certificate</source>
-        <translation>Registreer certificaat</translation>
+        <translation>Registar Certificados</translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="1172"/>
+        <location filename="mainwnd.cpp" line="871"/>
         <source>Registration of certificate </source>
-        <translation>Registratie van certificaat </translation>
+        <translation>Registo de certificados </translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="1175"/>
+        <location filename="mainwnd.cpp" line="874"/>
         <source>successful</source>
-        <translation>gelukt</translation>
+        <translation>bem sucedido</translation>
     </message>
     <message>
         <location filename="mainwnd.cpp" line="1179"/>
-        <location filename="mainwnd.cpp" line="2858"/>
+        <location filename="mainwnd.cpp" line="878"/>
         <source>failed</source>
-        <translation>mislukt</translation>
+        <translation>falhou</translation>
     </message>
     <message>
         <location filename="mainwnd.cpp" line="2935"/>
@@ -868,11 +890,12 @@ Please specify .xml, .csv or .eid</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="2868"/>
+        <location filename="mainwnd.cpp" line="2488"/>
+        <location filename="mainwnd.cpp" line="2730"/>
         <source>
 ( Number of tries left: </source>
         <translation>
-( Aantal pogingen over: </translation>
+( Número de tentativas restantes: </translation>
     </message>
     <message>
         <location filename="mainwnd.cpp" line="3680"/>
@@ -1020,14 +1043,14 @@ Please specify .xml, .csv or .eid</source>
         <translation>Versie</translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="985"/>
+        <location filename="mainwnd.cpp" line="684"/>
         <source>eID is still running</source>
-        <translation>eID is nog steeds aktief</translation>
+        <translation>A aplicação continua em execução</translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="986"/>
+        <location filename="mainwnd.cpp" line="685"/>
         <source>The application will continue to run. To stop this application, select &apos;Exit&apos; from the menu.</source>
-        <translation>Het programma blijft verder werken. Om de applicatie te stoppen, kies &apos;Afsluiten&apos; van het menu.</translation>
+        <translation>Para fechar a aplicação selecione a opção sair.</translation>
     </message>
     <message>
         <location filename="mainwnd.cpp" line="2142"/>
@@ -1207,8 +1230,8 @@ Please specify .xml, .csv or .eid</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="mainwnd.cpp" line="2174"/>
-        <source>Error loading card data</source>
+        <location filename="mainwnd.cpp" line="1827"/>
+        <source>Erro ao ler os dados do cartão</source>
         <translation></translation>
     </message>
     <message>
@@ -1536,6 +1559,11 @@ Please specify .xml, .csv or .eid</source>
         <location filename="dlgPrint.ui" line="64"/>
         <source>Print</source>
         <translation>Afdrukken</translation>
+    </message>
+    <message>
+        <location filename="dlgPrint.ui" line="14"/>
+        <source>Export PDF / Print</source>
+        <translation>Exportação PDF / Impressão</translation>
     </message>
     <message>
         <location filename="dlgPrint.ui" line="57"/>
