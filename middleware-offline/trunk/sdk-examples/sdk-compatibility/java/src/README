@@ -1,0 +1,28 @@
+
+TESTES DE RETROCOMPATIBILIDADE
+
+**** SDK Oficial
+Ficheiro testOficialJavaJDK.java
+Ficheiro para testar o SDK apontar para o middleware Oficial
+
+Compilar:
+javac -cp ./pteidlibj.jar testOficialJavaJDK.java
+
+Correr:
+java -cp .:./pteidlibj.jar testOficialJavaJDK.java
+java -cp .;./pteidlibj.jar testOficialJavaJDK.java
+
+
+
+**** SDK New Version
+Ficheiro testNewversionJavaJDK.java
+Ficheiro para testar o SDK apontar para o middleware Novo
+
+Compilar:
+javac -cp .:./pteid35libJava.jar testNewversionJavaJDK.java
+
+Correr:
+java -Djava.library.path=/usr/local/lib/  -classpath .:./pteid35libJava.jar testNewversionJavaJDK
+java -Djava.library.path=/usr/local/lib/  -classpath .;./pteid35libJava.jar testNewversionJavaJDK
+
+
