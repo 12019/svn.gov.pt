@@ -1,0 +1,13 @@
+
+TESTES A NOVA VESRSAO DO SDK 
+
+**** SDK Oficial
+Ficheiro testOficialCSDK.c 
+Ficheiro para testar o SDK apontar para o middleware Oficial
+
+Compilar:
+gcc -c testOficialCSDK.c
+gcc -lpteid -o testOficialCSDK testOficialCSDK.o
+
+Correr:
+./testOficialCSDK
