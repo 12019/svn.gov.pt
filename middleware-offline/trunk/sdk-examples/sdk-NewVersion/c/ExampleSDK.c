@@ -9,8 +9,7 @@
 #include "eidlibException.h"
 
 
-#define TEST_NEWVERSION_SDK
-#include "commonTests.h"
+//#include "commonTests.h"
 
 
 #define USAGE_STR "[-vs]\n\t-v: verbose\n\t-s: perform SOD checking"
@@ -87,52 +86,43 @@ int main(int argc, char **argv)
 		}
 	}
 
-
-	test_PTEID_Init();
-	test_PTEID_GetCardType();
-	//test_PTEID_GetID();
-	//test_PTEID_GetPic();
-	//test_UnblockPIN();
-	//test_UnblockPIN_Ext();
-
-	//test_PTEID_GetAddr();
-	//test_PTEID_GetCertificates();
-	//test_VerifyPINs();
-	//test_PTEID_GetPINs();
-
-	//test_PTEID_ReadSOD();
-	//test_PTEID_GetTokenInfo();
-	//test_PTEID_IsActivated();
-	//test_PTEID_selectADF();
-	test_PTEID_ReadFile();
-
-	//test_GetCardAuthenticationKey();
-	//test_PTEID_GetCVCRoot();
-
-	test_PTEID_Exit();
-
-	writeToFile();
-
-
-/*
-	// PTEID_Init
-	VERBOSE("*****PTEID_Init");
-	error = PTEID_Init ( 0 );
-	fprintf ( stdout, "PTEID_Init Result: %d\n",error);
-	if (error != 0) {
-		fprintf ( stderr, "PTEID_Init error: %s\n",
-				PTEID_errorString ( error ) );
-		exit ( 1 );
-	}
-*/
-
-
-	//PTEID_InitSDK();
-
-	//	PTEID_ReleaseSDK();
-
-	/*
-	PTEID_ReaderContext& readerContext = ReaderSet.getReader();
 	PTEID_InitSDK();
-	 */
+
+	// Get Reader Context
+	PTEID_ReaderContext& readerContext = ReaderSet.getReader();
+	if (!readerContext.isCardPresent())
+	{
+		cout << "No card found in the reader!" << endl;
+	}else{
+		cout << "Using Card Reader: " << readerContext.getName() << endl;
+	}
+
+
+	//Get Card
+	PTEID_EIDCard &card = readerContext.getEIDCard();
+
+	//Listing all PINS:
+	PTEID_Pins &pins = card.getPins();
+
+	cout << "Listing PINs: "<<endl;
+	for (unsigned long PinIdx=0; PinIdx < pins.count(); PinIdx++)
+	{
+		PTEID_Pin&	Pin	= pins.getPinByNumber(PinIdx);
+		cout << "PIN #" << PinIdx << ": " <<Pin.getLabel() << endl;
+	}
+
+	//Verify Pins
+	unsigned long rem = 0;
+	unsigned long &remaining_tries = rem;
+	PTEID_Pin &pin_to_verify = pins.getPinByNumber(0);
+
+	if (pin_to_verify.verifyPin("", remaining_tries, false)) {
+		cout << pin_to_verify.getLabel() << " PIN verified successfully." << endl;
+	} else{
+		cout << pin_to_verify.getLabel() << " Wrong PIN Inserted" << endl;
+	}
+
+
+
+
 }
