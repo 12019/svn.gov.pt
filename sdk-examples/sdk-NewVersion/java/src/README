@@ -1,9 +1,0 @@
-
-Exemplo de utilização da nova API
-
-Compilar:
-javac -cp ./pteidlibj.jar ExampleJDK.java
-
-Correr:
-java -cp .:./pteidlibj.jar testOficialJavaJDK.java
-java -cp .;./pteidlibj.jar testOficialJavaJDK.java

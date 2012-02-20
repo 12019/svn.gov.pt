@@ -1,9 +1,0 @@
-
-TESTES A NOVA VERSAO DO SDK 
-
-Compilar:
-gcc -c ExampleSDK.c
-gcc -lpteid -o ExampleSDK
-
-Correr:
-./ExampleSDK
