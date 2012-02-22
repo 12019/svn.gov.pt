@@ -1,6 +1,6 @@
-SOURCES := ExampleSDK.c 
+SOURCES := ExampleSDK.cpp
 CFLAGS := -O2 -I/usr/local/include -w
-LDFLAGS = -lpteidlib -lpteidapplayer -lrt -L/usr/local/lib
+LDFLAGS = -lpteidlib -lpteidapplayer -L/usr/local/lib
 TARGET = ExampleSDK
 
 all: clean build 

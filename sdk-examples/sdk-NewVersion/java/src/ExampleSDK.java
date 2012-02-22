@@ -15,8 +15,10 @@ import pt.gov.cartaodecidadao.PTEID_Pin;
 import pt.gov.cartaodecidadao.PTEID_Pins;
 import pt.gov.cartaodecidadao.PTEID_ReaderContext;
 import pt.gov.cartaodecidadao.PTEID_ReaderSet;
+import pt.gov.cartaodecidadao.PTEID_SigVerifier;
 import pt.gov.cartaodecidadao.PTEID_XmlUserRequestedInfo;
 import pt.gov.cartaodecidadao.PTEID_ulwrapper;
+import pt.gov.cartaodecidadao.SWIGTYPE_p_unsigned_long;
 import pt.gov.cartaodecidadao.XMLUserData;
 
 
@@ -136,7 +138,26 @@ public class ExampleSDK {
 				PTEID_Pin pin = pins.getPinByNumber(i);
 				if (pin.getLabel().equalsIgnoreCase("PIN da Morada")) {
 					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
-					if (pin.verifyPin("", wrap,true)) {
+					if (pin.verifyPin("", wrap,false)) {
+						System.out.println("PIN OK!!!!\n");
+					}
+				}
+			}
+		} catch (PTEID_Exception e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	private void verifySignPIN(){
+		PTEID_Pins pins;
+		try {
+			pins = this.idCard.getPins();
+			for (int i = 0; i < pins.count(); i++) {
+				PTEID_Pin pin = pins.getPinByNumber(i);
+				if (pin.getLabel().equalsIgnoreCase("PIN da Assinatura")) {
+					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+					if (pin.verifyPin("", wrap,false)) {
 						System.out.println("PIN OK!!!!\n");
 					}
 				}
@@ -149,13 +170,29 @@ public class ExampleSDK {
 
 	private void verifyPins(){
 
-		verifyAddressPIN();
-
-
-
+		//verifyAddressPIN();
+		verifySignPIN();
 
 	}
 
+	private void signXades(){
+		System.out.println("Here");
+		String[] file_list={"teste","teste2"};
+		idCard.SignXades(file_list,2,"signature2.zip");
+		
+	}
+	
+	private void verifySignature()
+	{
+		String errors = new String();  
+		PTEID_ulwrapper error_size = new PTEID_ulwrapper(200);
+		boolean result = PTEID_SigVerifier.VerifySignature("signature", errors, error_size);
+		if (!result)
+			System.out.println("Validation failed!");
+		else
+			System.out.println("Validation succeeded!");
+				
+	}
 
 
 
@@ -173,7 +210,11 @@ public class ExampleSDK {
 
 		eSDK.verifyPins();
 
+		eSDK.signXades();
 
+		eSDK.verifySignature();
+		
+		
 		/*
 		test_GetCardType();
 
