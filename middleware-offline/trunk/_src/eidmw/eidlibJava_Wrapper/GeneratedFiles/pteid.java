@@ -297,7 +297,7 @@ public class pteid {
     public static int UnblockPIN(byte b, String puk, String newPin) throws PteidException{
         PTEID_ulwrapper ul = new PTEID_ulwrapper(-1);
 
-	// martinho: artista
+		// martinho: artista
         long pinId = b & 0x00000000000000FF;
         
         if (readerContext!=null){
@@ -323,7 +323,7 @@ public class pteid {
     
     
     public static int UnblockPIN_Ext(byte b, String string, String string1, int i) throws PteidException{
-        return 0;
+    	return UnblockPIN(b,string, string1);
     }
     
     
@@ -432,9 +432,27 @@ public class pteid {
     
     
     public static void SetSODChecking(boolean bln) throws PteidException {
+        if (readerContext != null) {
+            try {
+                readerContext.getEIDCard().doSODCheck(bln);
+            } catch (Exception ex) {
+                throw new PteidException();
+            }
+        }
     }
 
+
     public static void SetSODCAs(PTEID_Certif[] pteidcs) throws PteidException {
+        if (readerContext != null) {
+            try {
+                for (PTEID_Certif pcert : pteidcs) {
+                    PTEID_ByteArray pba = new PTEID_ByteArray(pcert.certif, pcert.certif.length);
+                    readerContext.getEIDCard().getCertificates().addCertificate(pba);
+                }
+            } catch (Exception ex) {
+                throw new PteidException();
+            }
+        }
     }
     
     
