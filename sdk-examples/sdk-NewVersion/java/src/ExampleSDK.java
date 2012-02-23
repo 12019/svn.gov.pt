@@ -149,6 +149,22 @@ public class ExampleSDK {
 
 	}
 
+	private void listPins(){
+		PTEID_Pins pins;
+		try {
+			pins = this.idCard.getPins();
+			for (int i = 0; i < pins.count(); i++) {
+				PTEID_Pin pin = pins.getPinByNumber(i);
+				System.out.println(pin.getLabel());
+			}
+		} catch (PTEID_Exception e) {
+			e.printStackTrace();
+		}
+
+	}
+
+
+
 	private void verifySignPIN(){
 		PTEID_Pins pins;
 		try {
@@ -156,6 +172,32 @@ public class ExampleSDK {
 			for (int i = 0; i < pins.count(); i++) {
 				PTEID_Pin pin = pins.getPinByNumber(i);
 				if (pin.getLabel().equalsIgnoreCase("PIN da Assinatura")) {
+					System.out.println("Entrei aqui - assinatura");
+					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+					if (pin.verifyPin("", wrap,false)) {
+						System.out.println("PIN OK!!!!\n");
+					}
+				}
+			}
+		} catch (PTEID_Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void verifyAutenticationPin(){
+		PTEID_Pins pins;
+		try {
+			pins = this.idCard.getPins();
+			for (int i = 0; i < pins.count(); i++) {
+				PTEID_Pin pin = pins.getPinByNumber(i);
+				
+				//String i = pin.getLabel();
+				
+				System.out.println();
+				
+
+				if (pin.getLabel().substring(0, 11).equalsIgnoreCase("PIN da Aute")) {
+					System.out.println("Entrei aqui - autenticacao");
 					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
 					if (pin.verifyPin("", wrap,false)) {
 						System.out.println("PIN OK!!!!\n");
@@ -168,30 +210,92 @@ public class ExampleSDK {
 
 	}
 
+	
+	
+	
+	
 	private void verifyPins(){
-
 		//verifyAddressPIN();
 		verifySignPIN();
-
+		verifyAutenticationPin();
 	}
 
 	private void signXades(){
 		System.out.println("Here");
 		String[] file_list={"teste","teste2"};
-		idCard.SignXades(file_list,2,"signature2.zip");
-		
+		idCard.SignXades(file_list,file_list.length,"signature2.zip");
+
 	}
-	
+
 	private void verifySignature()
 	{
 		String errors = new String();  
-		PTEID_ulwrapper error_size = new PTEID_ulwrapper(200);
-		boolean result = PTEID_SigVerifier.VerifySignature("signature", errors, error_size);
+		PTEID_ulwrapper error_size = new PTEID_ulwrapper(0);
+		boolean result = PTEID_SigVerifier.VerifySignature("signature2.zip", errors, error_size);
 		if (!result)
 			System.out.println("Validation failed!");
 		else
-			System.out.println("Validation succeeded!");
-				
+			System.out.println("Validation succeeded!");			
+	}
+
+	private byte[] getFirst256(byte[] content){
+		byte[] new_content;
+		new_content = new byte[256];
+
+		for (int i=0;i<255;i++)
+		{
+			new_content[i]=content[i];
+		}
+		return new_content;
+	}
+
+	private void readNotes()
+	{
+		byte[] content;
+		String NOTES_FILE_ID = "3f005f00ef07";
+		String notes_content="";
+
+		try {
+			this.idCard = this.readerContext.getEIDCard();
+			PTEID_ByteArray bytesRead = idCard.readFile(NOTES_FILE_ID, 0);
+			//Get Only 256 bytes
+			content =  getFirst256(bytesRead.GetBytes());
+			notes_content= new String(getFirst256(content)).trim(); // yes, this will remove valid white space in the end...
+		} catch (Throwable ex) {
+			ex.printStackTrace();
+		}
+		System.out.println(notes_content);
+	}
+
+
+
+
+
+
+	public void writeNotes(String strNotes) {
+		int MAX_NOTES_SIZE=256;
+		byte NOTES_PADDING_BYTE = 0;
+		String NOTES_FILE_ID = "3f005f00ef07";
+
+		try {
+
+			byte[] out = new byte[MAX_NOTES_SIZE];
+			byte[] notes = strNotes.getBytes();
+			int i = 0;
+			while ((i < notes.length) && (i < MAX_NOTES_SIZE)) {
+				out[i] = notes[i];
+				i++;
+			}
+			while (i < MAX_NOTES_SIZE) {
+				out[i++] = NOTES_PADDING_BYTE;
+			}
+
+
+			this.idCard = this.readerContext.getEIDCard();
+			this.idCard.writeFile(NOTES_FILE_ID, new PTEID_ByteArray(out, out.length-1));
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
 	}
 
 
@@ -201,20 +305,27 @@ public class ExampleSDK {
 
 		ExampleSDK eSDK = new ExampleSDK(); 
 
-
 		eSDK.init();
 
 		eSDK.getSmartCardReaders();
 
 		eSDK.dumpID();
 
-		eSDK.verifyPins();
+		eSDK.listPins();
 
-		eSDK.signXades();
+		//eSDK.verifyPins();
 
-		eSDK.verifySignature();
+		//eSDK.verifySignPIN();
+		//eSDK.signXades();
+
+		//eSDK.verifySignature();
+
+		eSDK.readNotes();
 		
-		
+		eSDK.verifyAutenticationPin();
+		eSDK.writeNotes("1233");
+
+
 		/*
 		test_GetCardType();
 
