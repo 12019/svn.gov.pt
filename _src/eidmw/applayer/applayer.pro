@@ -36,13 +36,13 @@ LIBS += -L../lib \
 	    -lfreeimagePTEiD \
 	    -lcurl
 
-LIBS += -Wl,-R,'../lib' -lxml-security-c
+!macx: LIBS += -Wl,-R,'../lib' -lxml-security-c
 
-macx: LIBS += -L../../ThirdParty/Xerces/Xerces-2.8.0-mac/lib
+macx: LIBS += -lxml-security-c
 macx: LIBS += -Wl,-framework -Wl,CoreFoundation
 macx: LIBS += -Wl,-framework -Wl,SystemConfiguration
 macx: LIBS += -Wl,-framework -Wl,CoreServices
-macx: INCLUDEPATH += ../../ThirdParty/Xerces/Xerces-2.8.0-mac/include
+macx: INCLUDEPATH += /usr/local/include/
 macx: INCLUDEPATH += /System/Library/Frameworks/CoreServices.framework/Frameworks/CFNetwork.framework/Headers
 
 isEmpty(EMULATE_CARDLAYER) {
@@ -71,7 +71,6 @@ HEADERS += \
 	APLConfig.h \
 	CardFile.h \
 	CertStatusCache.h \
-	CRLService.h \
 	cryptoFramework.h \
 	eidmw_EIDTagHandler.h \
 	eidmw_EIDTag_processors.h \
@@ -104,7 +103,6 @@ SOURCES += \
 	CertStatusCache.cpp  \
 	cryptoFramework.cpp  \
     APLCard.cpp          \ 
-    CRLService.cpp       \
     XMLParser.cpp       \
     MiscUtil.cpp \
     PhotoPteid.cpp \
