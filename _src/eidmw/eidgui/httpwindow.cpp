@@ -40,45 +40,74 @@ QString fileName;
 HttpWindow::HttpWindow(std::string uri, std::string distro, QWidget *parent)
 : QDialog(parent)
 {
-	urli = uri;
-	getdistro = distro;
+    urli = uri;
+    getdistro = distro;
 
-	statusLabel = new QLabel(tr("There are updates available press Yes do perform the updates."));
+    statusLabel = new QLabel(tr("There are updates available press Yes do perform the updates."));
 
-	cancelButton = new QPushButton(tr("Cancel"));
-	cancelButton->setDefault(true);
-	downloadButton = new QPushButton(tr("Yes"));
-	downloadButton->setAutoDefault(false);
+    cancelButton = new QPushButton(tr("Cancel"));
+    cancelButton->setDefault(true);
+    downloadButton = new QPushButton(tr("Yes"));
+    downloadButton->setAutoDefault(false);
 
 
-	buttonBox = new QDialogButtonBox;
-	buttonBox->addButton(cancelButton, QDialogButtonBox::ActionRole);
-	buttonBox->addButton(downloadButton, QDialogButtonBox::RejectRole);
+    buttonBox = new QDialogButtonBox;
+    buttonBox->addButton(cancelButton, QDialogButtonBox::ActionRole);
+    buttonBox->addButton(downloadButton, QDialogButtonBox::RejectRole);
 
-	QTextEdit *textEditor = new QTextEdit();
-	textEditor->setText("Release Notes");
-	textEditor->setReadOnly(true);
+    QTextEdit *textEditor = new QTextEdit();
+    textEditor->setText(GetReleaseNotes());
+    textEditor->setReadOnly(true);
 
-	progressDialog = new QProgressDialog(this);
+    progressDialog = new QProgressDialog(this);
 
-	connect(progressDialog, SIGNAL(canceled()), this, SLOT(cancelDownload()));
-	connect(cancelButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(downloadButton, SIGNAL(clicked()), this, SLOT(downloadFile()));
+    connect(progressDialog, SIGNAL(canceled()), this, SLOT(cancelDownload()));
+    connect(cancelButton, SIGNAL(clicked()), this, SLOT(close()));
+    connect(downloadButton, SIGNAL(clicked()), this, SLOT(downloadFile()));
 
-	QHBoxLayout *topLayout = new QHBoxLayout;
+    QHBoxLayout *topLayout = new QHBoxLayout;
 
-	QVBoxLayout *mainLayout = new QVBoxLayout;
-	mainLayout->addLayout(topLayout);
-	mainLayout->addWidget(statusLabel);
-	mainLayout->addWidget(textEditor);
-	mainLayout->addWidget(buttonBox);
-	setLayout(mainLayout);
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addLayout(topLayout);
+    mainLayout->addWidget(statusLabel);
+    mainLayout->addWidget(textEditor);
+    mainLayout->addWidget(buttonBox);
+    setLayout(mainLayout);
 
-	setWindowTitle(QString::fromUtf8(dtitle.c_str()));
+    setWindowTitle(QString::fromUtf8(dtitle.c_str()));
 }
 
 HttpWindow::~HttpWindow()
 {
+}
+
+QString HttpWindow::GetReleaseNotes()
+{
+    QString line;
+    QString str;
+    QRegExp sep("\\#");
+
+    QString rnpath = QDir::tempPath();
+    rnpath.append("/version.txt");
+
+
+
+    QString s = QDir::toNativeSeparators(rnpath);
+
+    QFile file(s);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return "Get Release Notes failed";
+
+    QTextStream in(&file);
+
+    while (!in.atEnd())
+    {
+        line = in.readAll();
+    }
+
+    str = line.section(sep, 1, -1);
+
+    return str;
 }
 
 void HttpWindow::startRequest(QUrl url)
@@ -150,52 +179,63 @@ void HttpWindow::cancelDownload()
 
 void HttpWindow::httpFinished()
 {
-	if (httpRequestAborted) {
-		if (file) {
-			file->close();
-			file->remove();
-			delete file;
-			file = 0;
-		}
-		reply->deleteLater();
-		progressDialog->hide();
-		return;
-	}
+    if (httpRequestAborted)
+    {
+        if (file)
+        {
+            file->close();
+            file->remove();
+            delete file;
+            file = 0;
+        }
+        reply->deleteLater();
+        progressDialog->hide();
+        return;
+    }
 
-	progressDialog->hide();
-	file->flush();
-	file->close();
+    progressDialog->hide();
+    file->flush();
+    file->close();
 
-	QVariant redirectionTarget = reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
-	if (reply->error()) {
-		file->remove();
-		QMessageBox::information(this, QString::fromUtf8(dtitle.c_str()),
-				tr("Download failed: %1.")
-		.arg(reply->errorString()));
-		downloadButton->setEnabled(true);
-	} else if (!redirectionTarget.isNull()) {
-		QUrl newUrl = url.resolved(redirectionTarget.toUrl());
-		if (QMessageBox::question(this, QString::fromUtf8(dtitle.c_str()),
-				tr("Redirect to %1 ?").arg(newUrl.toString()),
-				QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
-			url = newUrl;
-			reply->deleteLater();
-			file->open(QIODevice::WriteOnly);
-			file->resize(0);
-			startRequest(url);
-			return;
-		}
-	} else {
-		downloadButton->setEnabled(true);
-		this->close();
-	}
+    QVariant redirectionTarget = reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
+    if (reply->error())
+    {
+        file->remove();
+        QMessageBox::information(this, QString::fromUtf8(dtitle.c_str()),
+                                 tr("Download failed: %1.")
+                                 .arg(reply->errorString()));
+        downloadButton->setEnabled(true);
+        this->close();
+    }
+    else if (!redirectionTarget.isNull())
+    {
+        QUrl newUrl = url.resolved(redirectionTarget.toUrl());
 
-	RunPackage(fileName.toStdString() , getdistro);
+        if (QMessageBox::question(this, QString::fromUtf8(dtitle.c_str()),
+                                  tr("Redirect to %1 ?").arg(newUrl.toString()),
+                                  QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes)
+        {
+            url = newUrl;
+            reply->deleteLater();
+            file->open(QIODevice::WriteOnly);
+            file->resize(0);
+            startRequest(url);
+            return;
+        }
+    }
+    else
+    {
+        downloadButton->setEnabled(true);
+        this->close();
+    }
 
-	reply->deleteLater();
-	reply = 0;
-	delete file;
-	file = 0;
+    if (!reply->error())
+        RunPackage(fileName.toStdString() , getdistro);
+
+    reply->deleteLater();
+    reply = 0;
+    delete file;
+    file = 0;
 }
 
 void HttpWindow::httpReadyRead()
@@ -240,6 +280,10 @@ void HttpWindow::RunPackage(std::string pkg, std::string distro)
     winpath.append("\PTeID-MSI.log");
 	CreateProcess(NULL, LPTSTR(winpath.c_str()), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 	exit(0);
+
+#elif __APPLE__
+
+	execl("/usr/bin/hdiutil", "hdiutil", "attach", pkgpath.c_str(), NULL);
 
 #else
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>483</width>
-    <height>292</height>
+    <width>489</width>
+    <height>290</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Assinatura de Ficheiros (XADES)</string>
+   <string>File Signature (XAdES)</string>
   </property>
   <property name="windowIcon">
    <iconset>
@@ -42,7 +42,7 @@
     </sizepolicy>
    </property>
    <property name="text">
-    <string>Adicionar Ficheiros</string>
+    <string>Add Files...</string>
    </property>
   </widget>
   <widget class="QLabel" name="labelHeader">
@@ -55,7 +55,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Lista de Ficheiros a assinar</string>
+    <string>Files to Sign</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pbCancel">
@@ -68,7 +68,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Cancelar</string>
+    <string>Cancel</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pbSign">
@@ -84,7 +84,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Assinar</string>
+    <string>Sign...</string>
    </property>
   </widget>
   <widget class="QListView" name="listView">
@@ -97,7 +97,7 @@
     </rect>
    </property>
   </widget>
-  <widget class="QCheckBox" name="checkBox">
+  <widget class="QCheckBox" name="checkbox_timestamp">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -107,7 +107,20 @@
     </rect>
    </property>
    <property name="text">
-    <string>Adicionar TimeStamp (XADES-T)</string>
+    <string>Add Timestamp (XAdES-T)</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkbox_singlefiles">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>260</y>
+     <width>221</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Create Individual Signatures</string>
    </property>
   </widget>
  </widget>

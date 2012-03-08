@@ -30,6 +30,7 @@
 #include "APLCertif.h"
 #include "PhotoPteid.h"
 #include "ByteArray.h"
+#include "CardPteid.h"
 
 //UNIQUE INDEX FOR RETRIEVING OBJECT
 #define INCLUDE_OBJECT_DOCEID			1
@@ -432,6 +433,7 @@ bool PTEID_SmartCard::verifyChallengeResponse(const PTEID_ByteArray &challenge, 
 *****************************************************************************************/
 PTEID_EIDCard::PTEID_EIDCard(const SDK_Context *context,APL_Card *impl):PTEID_SmartCard(context,impl)
 {
+	persoNotesDirty = false;
 }
 
 PTEID_EIDCard::~PTEID_EIDCard()
@@ -521,13 +523,14 @@ PTEID_CCXML_Doc& PTEID_EIDCard::getXmlCCDoc(PTEID_XmlUserRequestedInfo& userRequ
 	BEGIN_TRY_CATCH
 		APL_EIDCard *pcard=static_cast<APL_EIDCard *>(m_impl);
 		out = dynamic_cast<PTEID_CCXML_Doc *>(getObject(INCLUDE_OBJECT_CUSTOMDOC));
-		if(!out){
-			out = new PTEID_CCXML_Doc(m_context,&pcard->getXmlCCDoc(*(userRequestedInfo.customXml)));
-			if(out)
-				m_objects[INCLUDE_OBJECT_CUSTOMDOC]=out;
-			else
-				throw PTEID_ExUnknown();
-		}
+		if(out)
+			delete out;
+		out = new PTEID_CCXML_Doc(m_context,&pcard->getXmlCCDoc(*(userRequestedInfo.customXml)));
+		if(out)
+			m_objects[INCLUDE_OBJECT_CUSTOMDOC]=out;
+		else
+			throw PTEID_ExUnknown();
+
 	END_TRY_CATCH
 
 	return *out;
@@ -1038,6 +1041,33 @@ bool PTEID_EIDCard::Activate(const char *pinCode, PTEID_ByteArray &BCDDate){
 
 	APL_EIDCard *pcard=static_cast<APL_EIDCard *>(m_impl);
 	out =  pcard->Activate(pinCode,cBCDDate);
+
+	END_TRY_CATCH
+
+	return out;
+}
+
+bool PTEID_EIDCard::writePersonalNotes(const PTEID_ByteArray &out,PTEID_Pin *pin,const char *csPinCode){
+	BEGIN_TRY_CATCH
+
+	//martinho: TODO: isto terá de ser muito melhorado...
+	persoNotesDirty = writeFile("3F005F00EF07", out, pin, csPinCode);
+
+	END_TRY_CATCH
+
+	return persoNotesDirty;
+}
+
+const char *PTEID_EIDCard::readPersonalNotes(){
+	char *out = NULL;
+	BEGIN_TRY_CATCH
+
+	APL_EIDCard *pcard=static_cast<APL_EIDCard *>(m_impl);
+
+	// ensure that the file is read after being written
+	pcard->getFilePersoData()->getStatus(persoNotesDirty);
+	// ensure that the attributes are mapped again persoNotesDirty = true.
+	out = (char*)pcard->getPersonalNotes().getPersonalNotes(persoNotesDirty);
 
 	END_TRY_CATCH
 

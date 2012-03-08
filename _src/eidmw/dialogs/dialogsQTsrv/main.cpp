@@ -36,8 +36,6 @@
 #include "dlgWndAskPIN.h"
 #include "dlgWndAskPINs.h"
 #include "dlgWndBadPIN.h"
-#include "dlgWndAskAccess.h"
-#include "dlgWndModal.h"
 #include "dlgWndPinpadInfo.h"
 #include "SharedMem.h"
 #include "errno.h"
@@ -125,16 +123,27 @@ int main(int argc, char *argv[])
 				QString PINName;
 				if( oData->usage == DLG_PIN_UNKNOWN )
 				{
-					PINName = QString::fromWCharArray(oData->pinName);
+                    if( wcsstr(oData->pinName,L"PIN da Autentica") != 0 )
+                        PINName=QString::fromUtf8("Pin de Autenticação");
+                    else
+                        PINName = QString::fromWCharArray(oData->pinName);
 				}
-				else
+                else if (oData->usage == DLG_PIN_AUTH)
 				{
-					PINName = GETQSTRING_DLG(Pin);
+                    PINName = QString::fromUtf8("PIN da Autenticação");
 				}
+                else if (oData->usage == DLG_PIN_SIGN)
+                {
+                    PINName = QString::fromUtf8("PIN da Assinatura");
+                }
+                else if (oData->usage == DLG_PIN_ADDRESS)
+                {
+                    PINName = QString::fromUtf8("PIN da Morada");
+                }
 
 				//Quickfix for encoding problem! It should be fixed later!
-				if( wcsstr(oData->pinName,L"PIN da Autentica") != 0 )
-					PINName=QString::fromUtf8("Pin de Autenticacao");
+				//if( wcsstr(oData->pinName,L"PIN da Autentica") != 0 )
+				//	PINName=QString::fromUtf8("Pin de Autenticacao");
 
 				QString Header;
 				switch( oData->operation )
@@ -143,7 +152,7 @@ int main(int argc, char *argv[])
 						switch( oData->usage )
 						{
 							case DLG_PIN_AUTH:
-								Header = GETQSTRING_DLG(PleaseEnterYourPin);
+                                Header = GETQSTRING_DLG(PleaseEnterYourPin);
 								Header += ", ";
 								Header += GETQSTRING_DLG(InOrderToAuthenticateYourself);
 								Header += "\n";
@@ -333,15 +342,15 @@ int main(int argc, char *argv[])
 						else
 						{
 							PINName = QString::fromWCharArray(oData->pinName);
+                            QByteArray teste = PINName.toUtf8();
+                            QString mystr(teste);
 						}
 						break;
 				}
 
 				//Quickfix for encoding problem! It should be fixed later!
-				if( wcsstr(oData->pinName,L"PIN da Autentica") != 0 )
-					PINName=QString::fromUtf8("Pin de Autenticacao");
-				//wcout << "oData->pinName: " << oData->pinName << endl;
-				//wcout << "PINName " << PINName.toStdWString() << endl;
+                if( wcsstr(oData->pinName,L"PIN da Autentica") != 0 )
+                    PINName=QString::fromUtf8("PIN da Autentica\xc3\xa7\xc3\xa3o");
 
 				dlg = new dlgWndBadPIN(	PINName, oData->ulRemainingTries );
 				if( dlg->exec() ) 
@@ -493,6 +502,15 @@ int main(int argc, char *argv[])
 							}
 							PINName = QString::fromWCharArray(oInfoData->pinName);
 							break;
+                        case DLG_PIN_AUTH:
+                            PINName = QString::fromUtf8("PIN da Autenticação");
+                            break;
+                        case DLG_PIN_SIGN:
+                            PINName = QString::fromUtf8("PIN da Assinatura");
+                            break;
+                        case DLG_PIN_ADDRESS:
+                            PINName = QString::fromUtf8("PIN da Morada");
+                            break;
 						default:
 							if( wcscmp(oInfoData->pinName,L"") == 0  )
 							{
@@ -697,103 +715,7 @@ int main(int argc, char *argv[])
 			} 
 			return 0;
 		} 
-		else if (iFunctionIndex == DLG_DISPLAY_MODAL)
-		{
-			QApplication a(argc, argv);
-			DlgDisplayModalArguments* oData;
-			SharedMem oShMemory;
-			oShMemory.Attach( sizeof(DlgDisplayModalArguments), readableFilePath.c_str(),(void **) &oData);
-
-			dlgWndModal *dlg = NULL;
-			try 
-			{
-				QString qsMesg;
-				qsMesg=QString::fromWCharArray(oData->mesg);
-
-				dlg = new dlgWndModal(  
-									  oData->icon, 
-									  qsMesg, 
-									  oData->buttons,
-									  oData->EnterButton,
-									  oData->CancelButton );
-				dlg->exec();
-
-				eIDMW::DlgRet dlgResult = dlg->dlgResult;
-				oData->returnValue = dlgResult;
-
-				delete dlg;
-				dlg = NULL;
-				oShMemory.Detach((void *)oData);
-
-				return 0;
-			}
-			catch( ... )
-			{
-				if( dlg ) delete dlg;
-
-				oData->returnValue = DLG_ERR;
-				oShMemory.Detach((void *)oData);
-
-				return 0;
-			}
-			oData->returnValue = DLG_CANCEL;
-			oShMemory.Detach((void *)oData);
-			return 0;
-		} 
-		else if (iFunctionIndex == DLG_ASK_ACCESS) 
-		{
-
-			QApplication a(argc, argv);
-			// attach to the segment and get a pointer
-			DlgAskAccessArguments *oData = NULL;
-
-			SharedMem oShMemory;
-			oShMemory.Attach( sizeof(DlgAskAccessArguments), readableFilePath.c_str(),(void **) &oData);
-
-			dlgWndAskAccess *dlg = NULL;
-			try 
-			{
-				QString qsAppPath;
-				qsAppPath=QString::fromWCharArray( oData->appPath );
-				QString qsReaderName;
-				qsReaderName=QString::fromWCharArray( oData->readerName);
-
-				dlg = new dlgWndAskAccess(  
-										  qsAppPath, 
-										  qsReaderName, oData->operation );
-				dlg->exec();
-
-				eIDMW::DlgRet dlgResult = dlg->dlgResult;
-				oData->returnValue = dlgResult;
-
-				if(dlg->ForAllIsChecked())
-				{
-					oData->forAllOperations =1;
-				}
-				else
-				{
-					oData->forAllOperations = 0;
-				}
-
-				delete dlg;
-				dlg = NULL;
-				oShMemory.Detach((void *)oData);
-				return 0;
-			}
-			catch( ... )
-			{
-				if( dlg )  delete dlg;
-				oData->returnValue = DLG_ERR;
-				oShMemory.Detach((void *)oData);
-				return 0;
-			}
-			oData->returnValue = DLG_ERR;
-			oShMemory.Detach((void *)oData);
-      
-			return 0;
-		}
-
-	} 
+	}
 	else 
 	{
 		// wrong number of arguments

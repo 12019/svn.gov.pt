@@ -28,6 +28,7 @@ dlgWndPinpadInfo::dlgWndPinpadInfo( unsigned long ulHandle,
 	: QWidget(parent)
 {
 	ui.setupUi(this);
+    setFixedSize(417, 259);
 
 	QString Title="";
 
@@ -37,21 +38,30 @@ dlgWndPinpadInfo::dlgWndPinpadInfo( unsigned long ulHandle,
 	//	Title+=QString::fromWCharArray(GETSTRING_DLG(Belpic));
 	//	Title+=": ";
 	//}
-	Title+=QString::fromWCharArray(GETSTRING_DLG(PinpadInfo));
+
+    if (operation == DLG_PIN_OP_CHANGE)
+        Title+=QString::fromUtf8("Alterar PIN ");
+    else if (operation == DLG_PIN_OP_VERIFY)
+        Title+=QString::fromUtf8("Verificar PIN ");
+    else
+        Title+=QString::fromWCharArray(GETSTRING_DLG(PinpadInfo));
+
 	if(!Reader.isEmpty())
 	{
 		Title+=" - ";
 		Title+=Reader;
 	}
+
 	parent->setWindowTitle( Title );
 
 	QString tmpHeader;
 	tmpHeader = PINName;
 
-//	ui.label_2->setText( tmpHeader );
-//	ui.label_2->setAccessibleName( tmpHeader );
-//	ui.label->setText( Message );
-//	ui.label->setAccessibleName( Message );
+    ui.label_2->setText( tmpHeader );
+    ui.label_2->setAccessibleName( tmpHeader );
+    ui.label->wordWrap();
+    ui.label->setText(QString::fromWCharArray(GETSTRING_DLG(PleaseEnterYourPinOnThePinpadReader)));
+    ui.label->setAccessibleName(QString::fromWCharArray(GETSTRING_DLG(PleaseEnterYourPinOnThePinpadReader)));
 	m_ulHandle = ulHandle;
 //	ui.lblIcon->setPixmap( QPixmap( ":/Resources/ICO_CARD_PIN_128x128.png" ) );
 
