@@ -30,9 +30,9 @@
 #include "APLCard.h"
 #include "APLDoc.h"
 #include "ByteArray.h"
-#include "xmlUserData.h"
 #include "PhotoPteid.h"
 #include "APLPublicKey.h"
+#include "eidlib.h"
 
 namespace eIDMW
 {
@@ -45,10 +45,9 @@ class APL_EidFile_IDSign;
 class APL_EidFile_Address;
 class APL_EidFile_AddressSign;
 class APL_EidFile_Sod;
-class APL_EidFile_PersoData;
 class APL_EidFile_TokenInfo;
 class APL_CardFile_Certificate;
-
+class APL_EidFile_PersoData;
 class APL_CCXML_Doc;
 class APL_DocEId;
 class APL_AddrEId;
@@ -176,7 +175,7 @@ public:
 	APL_EidFile_Address *getFileAddress();			/**< Return a pointer to the file Address (NOT EXPORTED) */
 	APL_EidFile_AddressSign *getFileAddressSign();	/**< Return a pointer to the file Address signature (NOT EXPORTED) */
 	APL_EidFile_Sod *getFileSod();				/**< Return a pointer to the file Photo (NOT EXPORTED) */
-	APL_EidFile_PersoData *getFilePersoData();				/**< Return a pointer to the file PersoData (NOT EXPORTED) */
+	EIDMW_APL_API APL_EidFile_PersoData *getFilePersoData();				/**< Return a pointer to the file PersoData (NOT EXPORTED) */
 	APL_EidFile_TokenInfo *getFileTokenInfo();		/**< Return a pointer to the file Token Info (NOT EXPORTED) */
 	const char *getTokenSerialNumber();				/**< Return the token serial number (pkcs15 parse) (NOT EXPORTED) */
 	const char *getTokenLabel();					/**< Return the token label (pkcs15 parse) (NOT EXPORTED) */
@@ -344,8 +343,6 @@ public:
 	EIDMW_APL_API const char *getAccidentalIndications();	/**< Return field AccidentalIndications */
 	EIDMW_APL_API const char *getValidation();		/**< Return field Validation from the Trace file */
 
-	EIDMW_APL_API const char *getPersoData();
-
 protected:
 	/**
 	  * Constructor
@@ -453,7 +450,7 @@ public:
 	EIDMW_APL_API virtual CByteArray getCSV();						/**< Build the CSV document */
 	EIDMW_APL_API virtual CByteArray getTLV();						/**< Build the TLV document */
 
-	EIDMW_APL_API const char *getPersonalNotes();					/**< Return field AddressVersion from the Address file */
+	EIDMW_APL_API const char *getPersonalNotes(bool forceMap=false);					/**< Return field AddressVersion from the Address file */
 
 protected:
 	/**

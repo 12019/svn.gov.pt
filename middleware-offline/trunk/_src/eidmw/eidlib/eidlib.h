@@ -25,10 +25,161 @@
 #include <map>
 #include <set>
 #include "eidlibdefines.h"
-#include "xmlUserData.h"
 
 namespace eIDMW
 {
+
+// XMLUSERDATA - BEGIN
+#define XML_ROOT_ELEMENT 					"ccpt"
+#define XML_ROOT_ELEMENT_ATTR_TIMESTAMP		"timestamp"
+#define XML_ROOT_ELEMENT_ATTR_SERVERNAME	"servername"
+#define XML_ROOT_ELEMENT_ATTR_SERVERADDRESS	"serveraddress"
+#define XML_PHOTO_ELEMENT 					"photo"
+#define XML_BASIC_INFO_ELEMENT				"basicInformation"
+#define XML_NAME_ELEMENT					"name"
+#define XML_GIVEN_NAME_ELEMENT				"givenName"
+#define XML_SURNAME_ELEMENT					"surname"
+#define XML_NIC_ELEMENT						"nic"
+#define XML_EXPIRY_DATE_ELEMENT				"expiryDate"
+#define XML_CIVIL_INFO_ELEMENT				"CivilInformation"
+#define XML_GENDER_ELEMENT					"sex"
+#define XML_HEIGHT_ELEMENT					"height"
+#define XML_NATIONALITY_ELEMENT				"nationality"
+#define XML_DATE_OF_BIRTH_ELEMENT			"dateOfBirth"
+#define XML_GIVEN_NAME_FATHER_ELEMENT		"givenNameFather"
+#define XML_SURNAME_FATHER_ELEMENT			"surnameFather"
+#define XML_GIVEN_NAME_MOTHER_ELEMENT		"givenNameMother"
+#define XML_SURNAME_MOTHER_ELEMENT			"surnameMother"
+#define XML_ACCIDENTAL_INDICATIONS_ELEMENT	"notes"
+#define XML_IDENTIFICATION_NUMBERS_ELEMENT	"IdentificationNumbers"
+#define XML_DOCUMENT_NO_ELEMENT				"DocumentNo"
+#define XML_TAX_NO_ELEMENT					"TaxNo"
+#define XML_SOCIAL_SECURITY_NO_ELEMENT		"SocialSecurityNo"
+#define XML_HEALTH_NO_ELEMENT				"HealthNo"
+#define XML_MRZ1_ELEMENT					"mrz1"
+#define XML_MRZ2_ELEMENT					"mrz2"
+#define XML_MRZ3_ELEMENT					"mrz3"
+#define XML_CARD_VALUES_ELEMENT				"CardValues"
+#define XML_CARD_VERSION_ELEMENT			"cardVersion"
+#define XML_CARD_NUMBER_PAN_ELEMENT			"cardNumberPAN"
+#define XML_ISSUING_DATE_ELEMENT			"issuingDate"
+#define XML_ISSUING_ENTITY_ELEMENT			"issuingEntity"
+#define XML_DOCUMENT_TYPE_ELEMENT			"documentType"
+#define XML_LOCAL_OF_REQUEST_ELEMENT		"localOfRequest"
+#define XML_VERSION_ELEMENT					"version"
+#define XML_ADDRESS_ELEMENT					"Address"
+#define XML_DISTRICT_ELEMENT				"district"
+#define XML_MUNICIPALITY_ELEMENT			"municipality"
+#define XML_CIVIL_PARISH_ELEMENT			"civilParish"
+#define XML_ABBR_STREET_TYPE_ELEMENT		"abrStreetType"
+#define XML_STREET_TYPE_ELEMENT				"streetType"
+#define XML_STREET_NAME_ELEMENT				"streetName"
+#define XML_ABBR_BUILDING_TYPE_ELEMENT		"abrBuildingType"
+#define XML_BUILDING_TYPE_ELEMENT			"buildingType"
+#define XML_DOOR_NO_ELEMENT					"doorNo"
+#define XML_FLOOR_ELEMENT					"floor"
+#define XML_SIDE_ELEMENT					"side"
+#define XML_PLACE_ELEMENT					"place"
+#define XML_LOCALITY_ELEMENT				"locality"
+#define XML_ZIP4_ELEMENT					"zip4"
+#define XML_ZIP3_ELEMENT					"zip3"
+#define XML_POSTAL_LOCALITY_ELEMENT			"postalLocality"
+#define XML_PERSONAL_NOTES_ELEMENT			"userNotes"
+
+#define XML_FOREIGN_COUNTRY_ELEMENT			"foreignCountry"
+#define XML_FOREIGN_ADDRESS_ELEMENT			"foreignAddress"
+#define XML_FOREIGN_CITY_ELEMENT			"foreignCity"
+#define XML_FOREIGN_REGION_ELEMENT			"foreignRegion"
+#define XML_FOREIGN_LOCALITY_ELEMENT		"foreignLocality"
+#define XML_FOREIGN_POSTAL_CODE_ELEMENT		"foreignPostalCode"
+
+#define XML_OPEN_TAG(tag) "<" tag ">"
+#define XML_OPEN_TAG_NEWLINE(tag) "<" tag ">\n"
+#define XML_CLOSE_TAG(tag) "</" tag ">\n"
+
+#define XML_ATTRIBUTE(container,attributename, data) \
+	container+=attributename; \
+	container+="=\""; \
+	container+=data; \
+	container+="\" ";
+#define XML_ROOT_S "<" XML_ROOT_ELEMENT " "
+#define XML_ROOT_E ">\n"
+
+#define BUILD_XML_ELEMENT(container, tag, data) \
+	container+=XML_OPEN_TAG(tag); \
+	container+=data; \
+	container+=XML_CLOSE_TAG(tag);
+
+#define BUILD_XML_ELEMENT_NEWLINE(container, tag, data) \
+	container+=XML_OPEN_TAG_NEWLINE(tag); \
+	container+=data; \
+	container+=XML_CLOSE_TAG(tag);
+
+#define XML_ESCAPE_QUOTE	"\"", "&quot;"
+#define XML_ESCAPE_APOS		"'", "&apos;"
+#define XML_ESCAPE_LT		"<", "&lt;"
+#define XML_ESCAPE_GT		">", "&gt;"
+#define XML_ESCAPE_AMP		"&", "&amp;"
+
+enum XMLUserData
+{
+	XML_PHOTO=0,
+	XML_NAME,
+	XML_GIVEN_NAME,
+	XML_SURNAME,
+	XML_NIC,
+	XML_EXPIRY_DATE,
+	XML_GENDER,
+	XML_HEIGHT,
+	XML_NATIONALITY,
+	XML_DATE_OF_BIRTH,
+	XML_GIVEN_NAME_FATHER,
+	XML_SURNAME_FATHER,
+	XML_GIVEN_NAME_MOTHER,
+	XML_SURNAME_MOTHER,
+	XML_ACCIDENTAL_INDICATIONS,
+	XML_DOCUMENT_NO,
+	XML_TAX_NO,
+	XML_SOCIAL_SECURITY_NO,
+	XML_HEALTH_NO,
+	XML_MRZ1,
+	XML_MRZ2,
+	XML_MRZ3,
+	XML_CARD_VERSION,
+	XML_CARD_NUMBER_PAN,
+	XML_ISSUING_DATE,
+	XML_ISSUING_ENTITY,
+	XML_DOCUMENT_TYPE,
+	XML_LOCAL_OF_REQUEST,
+	XML_VERSION,
+	XML_DISTRICT,
+	XML_MUNICIPALITY,
+	XML_CIVIL_PARISH,
+	XML_ABBR_STREET_TYPE,
+	XML_STREET_TYPE,
+	XML_STREET_NAME,
+	XML_ABBR_BUILDING_TYPE,
+	XML_BUILDING_TYPE,
+	XML_DOOR_NO,
+	XML_FLOOR,
+	XML_SIDE,
+	XML_PLACE,
+	XML_LOCALITY,
+	XML_ZIP4,
+	XML_ZIP3,
+	XML_POSTAL_LOCALITY,
+	XML_PERSONAL_NOTES,
+	XML_FOREIGN_COUNTRY,
+	XML_FOREIGN_ADDRESS,
+	XML_FOREIGN_CITY,
+	XML_FOREIGN_REGION,
+	XML_FOREIGN_LOCALITY,
+	XML_FOREIGN_POSTAL_CODE
+};
+// XMLUSERDATA - END
+
+
+
 
 struct SDK_Context;
 
@@ -695,6 +846,8 @@ public:
 	PTEIDSDK_API PTEID_Address& getAddr();					/**< Get the Address document */
 	PTEIDSDK_API PTEID_Sod& getSod();							/**< Get the sod document */
 	PTEIDSDK_API PTEID_CardVersionInfo& getVersionInfo();		/**< Get the info document  */
+	PTEIDSDK_API bool writePersonalNotes(const PTEID_ByteArray &out,PTEID_Pin *pin=NULL,const char *csPinCode="");
+	PTEIDSDK_API const char *readPersonalNotes();
 
 	PTEIDSDK_API PTEID_Certificate &getCert(PTEID_CertifType type);/**< Return certificate by type from the card */
 	PTEIDSDK_API PTEID_Certificate &getRoot();				/**< Return the root certificate from the card */
@@ -708,7 +861,7 @@ public:
 	PTEIDSDK_API bool Activate(const char *pinCode, PTEID_ByteArray &BCDDate); 	/**< Activate the pteid card */
 
 
-	/** Produce Xades Signature of Arbitrary Contents (from memory or local files)
+	    /** Produce Xades Signature of Arbitrary Contents (from memory or local files)
 	    *
 	    *  The next 4 Methods return an UTF-8 encoded byte array containing a full XAdES or XAdES-T
 	    *  signature of the content supplied (either as pointer to a memory buffer
@@ -723,6 +876,8 @@ public:
 	     PTEIDSDK_API PTEID_ByteArray SignXades(PTEID_ByteArray to_be_signed, const char *URL); /** Return a Xades signature as a UTF-8 string (supports multiple files)*/
 	     PTEIDSDK_API PTEID_ByteArray SignXadesT(const char * const* path, unsigned int n_paths, const char *output_path); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
 	     PTEIDSDK_API PTEID_ByteArray SignXadesT(PTEID_ByteArray to_be_signed, const char *URL); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
+	     PTEIDSDK_API void SignXadesIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the XAdes signature in individual zip containers  */
+	     PTEIDSDK_API void SignXadesTIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the Xades-T signature in individual zip containers  */
 
 
 	/**
@@ -749,6 +904,7 @@ protected:
 private:
 	PTEID_EIDCard(const PTEID_EIDCard& card);						/**< Copy not allowed - not implemented */
 	PTEID_EIDCard& operator= (const PTEID_EIDCard& card);			/**< Copy not allowed - not implemented */
+	bool persoNotesDirty;
 
 friend PTEID_Card &PTEID_ReaderContext::getCard();				/**< For internal use : This method must access protected constructor */
 };
@@ -981,7 +1137,6 @@ public:
 	PTEIDSDK_API const char *getParents();					/**< Return field Parents */
 	PTEIDSDK_API PTEID_Photo& getPhotoObj();				/**< Return object Photo */
 	PTEIDSDK_API PTEID_PublicKey& getCardAuthKeyObj();	/**< Return object CardAuthKey */
-	PTEIDSDK_API const char *getPersoData();				/**< Return field PersoData */
 	PTEIDSDK_API const char *getValidation();				/**< Return field Validation */
 	PTEIDSDK_API const char *getMRZ1();						/**< Return field MRZ block 1 */
 	PTEIDSDK_API const char *getMRZ2();						/**< Return field MRZ block 2 */
@@ -1090,6 +1245,12 @@ public:
  	  */
 	PTEIDSDK_API PTEID_Pin &getPinByNumber(unsigned long ulIndex);
 
+	/**
+	  * Get the pin by its pin reference.
+	  * Throw PTEID_ExParamRange exception if the index is out of range.
+	  */
+	PTEIDSDK_API PTEID_Pin &getPinByPinRef(unsigned long pinRef);
+
 private:
 	PTEID_Pins(const PTEID_Pins& pins);					/**< Copy not allowed - not implemented */
 	PTEID_Pins& operator= (const PTEID_Pins& pins);		/**< Copy not allowed - not implemented */
@@ -1107,6 +1268,11 @@ class APL_Pin;
 class PTEID_Pin : public PTEID_Crypto
 {
 public:
+
+	static const unsigned long AUTH_PIN = 129;
+	static const unsigned long SIGN_PIN = 130;
+	static const unsigned long ADDR_PIN = 131;
+
 	PTEIDSDK_API virtual ~PTEID_Pin();				/**< Destructor */
 
 	PTEIDSDK_API unsigned long getIndex();		/**< Get the index of the pin */
@@ -1174,6 +1340,7 @@ private:
 	PTEID_Pin(const SDK_Context *context,APL_Pin *impl);						/**< For internal use : Constructor */
 
 friend PTEID_Pin &PTEID_Pins::getPinByNumber(unsigned long ulIndex);	/**< For internal use : This method must access protected constructor */
+friend PTEID_Pin &PTEID_Pins::getPinByPinRef(unsigned long pinRef);		/**< For internal use : This method must access protected constructor */
 };
 
 class APL_Certifs;
@@ -1364,8 +1531,6 @@ private:
   * Function for Logging.
   *********************************************************************************/
 PTEIDSDK_API void PTEID_LOG(PTEID_LogLevel level, const char *module_name, const char *format, ...);
-
-
 
 #if !defined SWIGJAVA && !defined SWIGCSHARP
 

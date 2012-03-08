@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8.00"
+	Version="8,00"
 	Name="pkcs11"
 	ProjectGUID="{12F6CD4F-FC01-4E0A-AE06-F7A315094DFE}"
 	RootNamespace="pteidpkcs11"
@@ -66,8 +66,8 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkLibraryDependencies="false"
-				AdditionalDependencies="pteid35DlgsWin32D.lib pteid35commonD.lib pteid35cardlayerD.lib"
-				OutputFile="../_Binaries35/$(ConfigurationName)/pteid35$(ProjectName)D.dll"
+				AdditionalDependencies="pteidDlgsWin32D.lib pteidcommonD.lib pteidcardlayerD.lib"
+				OutputFile="../_Binaries35/$(ConfigurationName)/pteid$(ProjectName)D.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="..\_Binaries35/$(ConfigurationName)"
 				GenerateDebugInformation="true"
@@ -97,90 +97,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy ..\_Binaries35\$(ConfigurationName)\pteid35pkcs11D.dll ..\_Binaries35\$(ConfigurationName)\pteidpkcs11D.dll"
-			/>
-		</Configuration>
-		<Configuration
-			Name="Release|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
-			CharacterSet="1"
-			WholeProgramOptimization="1"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				AdditionalIncludeDirectories="..\common, ..\cardlayer"
-				PreprocessorDefinitions="PTEID_35;WIN32;NDEBUG;_WINDOWS;_USRDLL;PTEIDPKCS11_EXPORTS"
-				RuntimeLibrary="2"
-				UsePrecompiledHeader="0"
-				WarningLevel="3"
-				Detect64BitPortabilityProblems="true"
-				DebugInformationFormat="0"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="PTEID_35;_UNICODE;UNICODE"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				LinkLibraryDependencies="false"
-				AdditionalDependencies="pteid35DlgsWin32.lib pteid35common.lib pteid35cardlayer.lib"
-				OutputFile="../_Binaries35/$(ConfigurationName)/pteid35$(ProjectName).dll"
-				LinkIncremental="1"
-				AdditionalLibraryDirectories="..\_Binaries35/$(ConfigurationName)"
-				GenerateDebugInformation="true"
-				SubSystem="2"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				TargetMachine="1"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-				CommandLine="copy ..\_Binaries35\$(ConfigurationName)\pteid35pkcs11.dll ..\_Binaries35\$(ConfigurationName)\pteidpkcs11.dll&#x0D;&#x0A;copy ..\_Binaries35\$(ConfigurationName)\pteid35pkcs11.dll &quot;..\_Binaries35\$(ConfigurationName)\Portugal Identity Card PKCS11.dll&quot;&#x0D;&#x0A;"
+				CommandLine="copy ..\_Binaries35\$(ConfigurationName)\pteidpkcs11D.dll ..\_Binaries35\$(ConfigurationName)\pteidpkcs11D.dll"
 			/>
 		</Configuration>
 		<Configuration
@@ -232,8 +149,8 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkLibraryDependencies="false"
-				AdditionalDependencies="pteid35DlgsWin32D.lib pteid35commonD.lib pteid35cardlayerD.lib"
-				OutputFile="..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteid35$(ProjectName)D.dll"
+				AdditionalDependencies="pteidDlgsWin32D.lib pteidcommonD.lib pteidcardlayerD.lib"
+				OutputFile="..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteid$(ProjectName)D.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="..\_Binaries35\$(PlatformName)\$(ConfigurationName)"
 				GenerateDebugInformation="true"
@@ -263,7 +180,90 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy ..\_Binaries35\$(ConfigurationName)\pteid35pkcs11D.dll ..\_Binaries35\$(ConfigurationName)\pteidpkcs11D.dll"
+				CommandLine="copy ..\_Binaries35\$(ConfigurationName)\pteidpkcs11D.dll ..\_Binaries35\$(ConfigurationName)\pteidpkcs11D.dll"
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="2"
+			CharacterSet="1"
+			WholeProgramOptimization="1"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				Optimization="2"
+				AdditionalIncludeDirectories="..\common, ..\cardlayer"
+				PreprocessorDefinitions="PTEID_35;WIN32;NDEBUG;_WINDOWS;_USRDLL;PTEIDPKCS11_EXPORTS"
+				RuntimeLibrary="2"
+				UsePrecompiledHeader="0"
+				WarningLevel="3"
+				Detect64BitPortabilityProblems="true"
+				DebugInformationFormat="0"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+				PreprocessorDefinitions="PTEID_35;_UNICODE;UNICODE"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				LinkLibraryDependencies="false"
+				AdditionalDependencies="pteidDlgsWin32.lib pteidcommon.lib pteidcardlayer.lib"
+				OutputFile="../_Binaries35/$(ConfigurationName)/pteid$(ProjectName).dll"
+				LinkIncremental="1"
+				AdditionalLibraryDirectories="..\_Binaries35/$(ConfigurationName)"
+				GenerateDebugInformation="true"
+				SubSystem="2"
+				OptimizeReferences="2"
+				EnableCOMDATFolding="2"
+				TargetMachine="1"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				CommandLine="copy ..\_Binaries35\$(ConfigurationName)\pteidpkcs11.dll ..\_Binaries35\$(ConfigurationName)\pteidpkcs11.dll&#x0D;&#x0A;copy ..\_Binaries35\$(ConfigurationName)\pteidpkcs11.dll &quot;..\_Binaries35\$(ConfigurationName)\Portugal Identity Card PKCS11.dll&quot;&#x0D;&#x0A;"
 			/>
 		</Configuration>
 		<Configuration
@@ -314,8 +314,8 @@
 			<Tool
 				Name="VCLinkerTool"
 				LinkLibraryDependencies="false"
-				AdditionalDependencies="pteid35DlgsWin32.lib pteid35common.lib pteid35cardlayer.lib"
-				OutputFile="..\_Binaries35\$(PlatformName)\$(ConfigurationName)/pteid35$(ProjectName).dll"
+				AdditionalDependencies="pteidDlgsWin32.lib pteidcommon.lib pteidcardlayer.lib"
+				OutputFile="..\_Binaries35\$(PlatformName)\$(ConfigurationName)/pteid$(ProjectName).dll"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="..\_Binaries35\$(PlatformName)\$(ConfigurationName)"
 				GenerateDebugInformation="true"
@@ -347,7 +347,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="copy ..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteid35pkcs11.dll ..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteidpkcs11.dll&#x0D;&#x0A;copy ..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteid35pkcs11.dll &quot;..\_Binaries35\$(PlatformName)\$(ConfigurationName)\Portugal Identity Card PKCS11.dll&quot;&#x0D;&#x0A;"
+				CommandLine="copy ..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteidpkcs11.dll ..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteidpkcs11.dll&#x0D;&#x0A;copy ..\_Binaries35\$(PlatformName)\$(ConfigurationName)\pteidpkcs11.dll &quot;..\_Binaries35\$(PlatformName)\$(ConfigurationName)\Portugal Identity Card PKCS11.dll&quot;&#x0D;&#x0A;"
 			/>
 		</Configuration>
 	</Configurations>
@@ -418,10 +418,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\pteid_p11.h"
-				>
-			</File>
-			<File
 				RelativePath=".\cal.h"
 				>
 			</File>
@@ -443,6 +439,10 @@
 			</File>
 			<File
 				RelativePath=".\include\rsaref220\pkcs11t.h"
+				>
+			</File>
+			<File
+				RelativePath=".\pteid_p11.h"
 				>
 			</File>
 			<File

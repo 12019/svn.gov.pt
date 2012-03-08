@@ -1,4 +1,5 @@
 #include <fstream>
+#include <cstring>
 
 #ifdef WIN32
 #include <Windows.h> //CharToOem()
@@ -102,8 +103,10 @@ namespace eIDMW
 				mz_zip_reader_end(&zip_archive);
 				continue;
 			}
-
-			if (strcmp(file_stat.m_filename, SIG_INTERNAL_PATH)!=0)
+			// Exclude from signed file checking the Signature itself 
+			// and the README file that gets added to all signed containers
+			if (strcmp(file_stat.m_filename, SIG_INTERNAL_PATH) != 0
+				&& strcmp(file_stat.m_filename, "README.txt") != 0)
 			{
 				p = mz_zip_reader_extract_file_to_heap(&zip_archive,file_stat.m_filename, &uncomp_size, 0);
 				if (!p)
@@ -131,6 +134,26 @@ namespace eIDMW
 		hashes[c] = NULL;	
 		*pn_files = n_files-1;
 		return hashes;
+	}
+
+	
+	void AddReadMe(const char *output)
+	{
+
+		mz_bool status = MZ_FALSE;
+
+		#ifdef WIN32
+		//TODO: Convert README to "system codepage" or something
+
+		#endif
+
+		status = mz_zip_add_mem_to_archive_file_in_place (output, "README.txt", README, strlen(README),
+				"", (unsigned short)0, MZ_BEST_COMPRESSION);
+
+		if (!status)
+		{
+			MWLOG (LEV_ERROR, MOD_APL, L"mz_zip_add_mem_to_archive_file_in_place failed for README.txt");
+		}
 	}
 
 	void StoreSignatureToDisk(CByteArray& sig, const char **paths, int num_paths, const char *output_file)
@@ -178,7 +201,7 @@ namespace eIDMW
 			free(ptr_content);
 		}
 
-		//Append the signature file to the container
+		//Add the signature file to the container
 
 		status = mz_zip_add_mem_to_archive_file_in_place(output_file, SIG_INTERNAL_PATH, sig.GetBytes(),
 				sig.Size(), "", (unsigned short)0, MZ_BEST_COMPRESSION);
@@ -187,6 +210,10 @@ namespace eIDMW
 			MWLOG(LEV_ERROR, MOD_APL, L"mz_zip_add_mem_to_archive_file_in_place failed for the signature file");
 			return ;
 		}
+
+		//Add a README file to the container 
+
+		AddReadMe(output_file);
 
 	}
 };

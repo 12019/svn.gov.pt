@@ -174,14 +174,12 @@ void CPkiCard::WriteUncachedFile(const std::string & csPath,
         SendAPDU(0xD6, 0x00, 0x00, oDataVoid);
 
     }
-
+    SendAPDU(0x0E, 0x00, 0x02, 0x00);
     bool bEOF = false;
 
-    int cardfilesize = 1000;
-
-    for (unsigned long i = 0; i < cardfilesize && !bEOF && ulDataLen != 0; i += MAX_APDU_WRITE_LEN)
+    for (unsigned long i = 0; i < PERSODATAFILESIZE && !bEOF && ulDataLen != 0; i += MAX_APDU_WRITE_LEN)
     {
-        unsigned long ulLen = ulDataLen - i;
+        unsigned long ulLen = ulDataLen - i ;
         if (ulLen > MAX_APDU_WRITE_LEN)
             ulLen = MAX_APDU_WRITE_LEN;
 
@@ -189,23 +187,27 @@ void CPkiCard::WriteUncachedFile(const std::string & csPath,
         unsigned long ulSW12 = getSW12(oResp);
 
         if (ulSW12 == 0x9000 || (i != 0 && ulSW12 == 0x6B00))
-            oDatan.Append(oResp.GetBytes(), oResp.Size());
-        else if (ulSW12 == 0x6982) {
-            throw CNotAuthenticatedException(
-                        EIDMW_ERR_NOT_AUTHENTICATED, fileInfo.lReadPINRef);
+        {
+            oDatan.Chop(2);
         }
+        else if (ulSW12 == 0x6982)
+            throw CNotAuthenticatedException(EIDMW_ERR_NOT_AUTHENTICATED, fileInfo.lReadPINRef);
         else if (ulSW12 == 0x6B00)
             throw CMWEXCEPTION(EIDMW_ERR_PARAM_RANGE);
         else if (ulSW12 == 0x6D00)
             throw CMWEXCEPTION(EIDMW_ERR_NOT_ACTIVATED);
-
+        //EOF for Gemsafe cards
         else if (ulSW12 == 0x6282)
             bEOF = false;
-        else
-            throw CMWEXCEPTION(m_poContext->m_oPCSC.SW12ToErr(ulSW12));
+        //Avoid problems with IAS cards (file not found)
+        else if (ulSW12 == 0x6D80)
+            bEOF = false;
+        //Comment to Avoid problems with IAS cards
+        //else
+            //throw CMWEXCEPTION(m_poContext->m_oPCSC.SW12ToErr(ulSW12));
     }
 
-        MWLOG(LEV_INFO, MOD_CAL, L"Written file %ls to card", utilStringWiden(csPath).c_str());
+    MWLOG(LEV_INFO, MOD_CAL, L"Written file %ls to card", utilStringWiden(csPath).c_str());
 }
 
 unsigned char CPkiCard::PinUsage2Pinpad(const tPin & Pin, const tPrivKey *pKey)
@@ -270,9 +272,10 @@ bad_pin:
 	}
 
     unsigned long ulSW12 = getSW12(oResp);
-    if (ulSW12 == 0x9000)
+    if (ulSW12 == 0x9000){
         bRet = true;
-    else if (ulSW12 == 0x6983)
+        ulRemaining = 3;
+    } else if (ulSW12 == 0x6983)
         ulRemaining = 0;
     else if (ulSW12 / 16 == 0x63C)
         ulRemaining = ulSW12 % 16;
@@ -291,13 +294,9 @@ bad_pin:
 
 	// If PIN command OK and no SSO, then state that we have now
 	// verified this PIN, this info is needed in the Sign() method
-	if (bRet && !m_poContext->m_bSSO)
+	if (bRet)
 	{
-		bool bFound = false;
-		for (size_t i = 0; i < m_verifiedPINs.size() && !bFound; i++)
-			bFound = (m_verifiedPINs[i] == Pin.ulID);
-		if (!bFound)
-			m_verifiedPINs.push_back(Pin.ulID);
+		m_verifiedPINs[Pin.ulID] = *pcsPin1; //Caching PIN
 	}
 
 	return bRet;
@@ -333,22 +332,23 @@ bad_pin:
     CByteArray oAPDUCHANGE;
     CByteArray oResp;
 
-	//00 A4 04 00 07 60 46 32 FF 00 01 02
-	CByteArray init;
-	init.Append(0x00);
-	init.Append(0xA4);
-	init.Append(0x04);
-	init.Append(0x00);
-	init.Append(0x07);
-	init.Append(0x60);
-	init.Append(0x46);
-	init.Append(0x32);
-	init.Append(0xFF);
-	init.Append(0x00);
-	init.Append(0x01);
-	init.Append(0x02);
-	SendAPDU(init);
-
+    if (Pin.ulPinRef == 130 || Pin.ulPinRef == 131){ // signature and address pins need the next apdu first
+    	//00 A4 04 00 07 60 46 32 FF 00 01 02
+    	CByteArray init;
+    	init.Append(0x00);
+    	init.Append(0xA4);
+    	init.Append(0x04);
+    	init.Append(0x00);
+    	init.Append(0x07);
+    	init.Append(0x60);
+    	init.Append(0x46);
+    	init.Append(0x32);
+    	init.Append(0xFF);
+    	init.Append(0x00);
+    	init.Append(0x01);
+    	init.Append(0x02);
+    	SendAPDU(init);
+    }
 
 	switch(operation){
 	case PIN_OP_VERIFY:
@@ -399,9 +399,10 @@ bad_pin:
 	}
 
     unsigned long ulSW12 = getSW12(oResp);
-    if (ulSW12 == 0x9000)
+    if (ulSW12 == 0x9000){
         bRet = true;
-    else if (ulSW12 == 0x6983)
+        ulRemaining = 3;
+    }else if (ulSW12 == 0x6983)
         ulRemaining = 0;
     else if (ulSW12 / 16 == 0x63C)
         ulRemaining = ulSW12 % 16;
@@ -420,13 +421,14 @@ bad_pin:
 
 	// If PIN command OK and no SSO, then state that we have now
 	// verified this PIN, this info is needed in the Sign() method
-	if (bRet && !m_poContext->m_bSSO)
+	if (bRet)
 	{
-		bool bFound = false;
+		/*bool bFound = false;
 		for (size_t i = 0; i < m_verifiedPINs.size() && !bFound; i++)
 			bFound = (m_verifiedPINs[i] == Pin.ulID);
 		if (!bFound)
-			m_verifiedPINs.push_back(Pin.ulID);
+			m_verifiedPINs.push_back(Pin.ulID); */
+		m_verifiedPINs[Pin.ulID] = *pcsPin1; //Caching PIN
 	}
 
 	return bRet;
@@ -441,44 +443,11 @@ bool CPkiCard::LogOff(const tPin & Pin)
 CByteArray CPkiCard::Sign(const tPrivKey & key, const tPin & Pin,
         unsigned long algo, const CByteArray & oData)
 {
-	// If SSO (Single Sign-On) is false and we didn't verify the
-	// PIN yet, then we do this first without trying if it's
-	// realy needed.
 
-    	if (!m_poContext->m_bSSO)
-	{
-		bool bFound = false;
-		for (size_t i = 0; i < m_verifiedPINs.size() && !bFound; i++)
-			bFound = (m_verifiedPINs[i] == Pin.ulID);
+	MWLOG(LEV_INFO, MOD_CAL, L"     No SSO: ask PIN and sign (key: ID=0x%0x, algo=0x%0x, "
+			L"%d bytes input)", key.ulID, algo, oData.Size());
+	return SignInternal(key, algo, oData, &Pin);
 
-		if (!bFound)
-		{
-			MWLOG(LEV_INFO, MOD_CAL, L"     No SSO: ask PIN and sign (key: ID=0x%0x, algo=0x%0x, "
-				L"%d bytes input)", key.ulID, algo, oData.Size());
-			return SignInternal(key, algo, oData, &Pin);
-		}
-	}
-
-	// First try to sign.
-    // If this returns a "Security conditions not satisfied"
-    // then first do a Pin verify and then try again
-	MWLOG(LEV_INFO, MOD_CAL, L"     Trying to Sign (key: ID=0x%0x, algo=0x%0x, "
-		L"%d bytes input)", key.ulID, algo, oData.Size());
-	//printf ("Trying to Sign (key: ID=0x%0x, algo=0x%0x, %d bytes input\n", key.ulID, algo, oData.Size());
-    try
-    {
-        return SignInternal(key, algo, oData, &Pin);
-    }
-    catch(CMWException & e)
-    {
-      if ((unsigned)e.GetError() == EIDMW_ERR_NOT_AUTHENTICATED)
-        {
-			MWLOG(LEV_INFO, MOD_CAL, L"     Couldn't sign, asking PIN and trying again");
-            return SignInternal(key, algo, oData);
-        }
-        else
-            throw e;
-    }
 }
 
 CByteArray CPkiCard::Sign(const tPrivKey & key, const tPin & Pin,
@@ -593,14 +562,15 @@ CByteArray CPkiCard::SelectByPath(const std::string & csPath, bool bReturnFileIn
         oPath.Append(Hex2Byte(csPath, i));
 
     CByteArray oResp = SendAPDU(0xA4, 0x00, ucP2, oPath);
-	if (ShouldSelectApplet(0xA4, getSW12(oResp)))
-	{
-		// The file still wasn't found, so let's first try to select the applet
-		if (SelectApplet())
-		{
-			m_selectAppletMode = ALW_SELECT_APPLET;
-			oResp = SendAPDU(0xA4, 0x80, ucP2, oPath);		}
-	}
+    if (ShouldSelectApplet(0xA4, getSW12(oResp)))
+    {
+        // The file still wasn't found, so let's first try to select the applet
+        if (SelectApplet())
+        {
+            m_selectAppletMode = ALW_SELECT_APPLET;
+            oResp = SendAPDU(0xA4, 0x80, ucP2, oPath);
+        }
+    }
 
 	getSW12(oResp, 0x9000);
 
@@ -618,7 +588,7 @@ CByteArray CPkiCard::ReadBinary(unsigned long ulOffset, unsigned long ulLen)
 CByteArray CPkiCard::UpdateBinary(unsigned long ulOffset, const CByteArray & oData)
 {
     // Update Binary
-	CByteArray oDataVoid;
+    CByteArray oDataVoid;
 
     if (ulOffset == 0)
     {
@@ -626,10 +596,8 @@ CByteArray CPkiCard::UpdateBinary(unsigned long ulOffset, const CByteArray & oDa
         SendAPDU(0xD6, 0x00, 0x00, oDataVoid);
     }
 
-    CByteArray ret = SendAPDU(0xD6, (unsigned char) (ulOffset / 256),
-                              (unsigned char) (ulOffset % 256), oData);
-
-    return ret;
+    return SendAPDU(0xD6, (unsigned char) (ulOffset / 256),
+                    (unsigned char) (ulOffset % 256), oData);
 }
 
 DlgPinOperation CPkiCard::PinOperation2Dlg(tPinOperation operation)
