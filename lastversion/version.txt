@@ -1,4 +1,10 @@
 4,6
-<b>Nova versão disponível</b>
 
-<p>Verificação de Xades-T implementada.</p>
+#<b>* Release Notes</b>
+<p>
+- Fix pkcs11 implementation with gcc 4.7<p>
+- Fix cardlayer<p>
+- Fix Bad Java methods<p>
+- Implement SAM<p>
+- Update pin pads<p>
+- New RPM<p>
