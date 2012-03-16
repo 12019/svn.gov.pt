@@ -1,8 +1,8 @@
 /**
  *
- * XAdES signature generation for PTEid Middleware
+ * XAdES and XAdES-T signature generation for PT-Eid Middleware
  *
- * Author: Andre Guerreiro <andre.guerreiro@caixamagica.pt>
+ * Author: André Guerreiro <andre.guerreiro@caixamagica.pt>
  *
  */
 
@@ -17,7 +17,13 @@
 #include "XadesSignature.h"
 #include "MWException.h"
 #include "eidErrors.h"
+
 #include "MiscUtil.h"
+
+// Timestamp.cc contains the implementation for local
+// timestamp validation using OpenSSL 1.0. ATM its disabled because
+// it complicates the deployment
+//#include "Timestamp.h"
 
 #include "Log.h"
 #include "ByteArray.h"
@@ -57,6 +63,7 @@
 //OpenSSL
 #include <openssl/sha.h>
 #include <openssl/evp.h>
+#include <openssl/bio.h>
 
 //stat
 #include <sys/types.h>
@@ -83,6 +90,9 @@ namespace eIDMW
 {
 
 	CByteArray XadesSignature::mp_timestamp_data = CByteArray();
+
+	CByteArray XadesSignature::mp_validate_data = CByteArray();
+
 	CByteArray XadesSignature::HashFile(const char *file_path)
 	{
 
@@ -109,7 +119,6 @@ namespace eIDMW
 		//OpenSSL call
 		SHA1 ((unsigned char *)in, size, out);
 		return CByteArray((const unsigned char*)out, 20L);
-		
 
 	}
 	
@@ -162,11 +171,27 @@ namespace eIDMW
 
 	}
 	
+	size_t XadesSignature::curl_write_validation_data(char *ptr, size_t size, size_t nmemb, void * stream)
+	{
+		size_t realsize = size * nmemb;
+		mp_validate_data.Append((const unsigned char*)ptr, realsize);
+
+		return realsize;
+
+	}
+
 	void XadesSignature::generate_asn1_request_struct(unsigned char *sha_1)
 	{
 
 		for (unsigned int i=0; i != SHA1_LEN; i++)
 		    timestamp_asn1_request[SHA1_OFFSET +i] = sha_1[i];
+	}
+
+	std::string XadesSignature::getTS_CAPath()
+	{
+		APL_Config certs_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_CERTS_DIR);
+		std::string m_certs_dir = certs_dir.getString();
+		return m_certs_dir + "tsa_chain.pem";
 	}
 
 	static XMLCh s_Id[] = {
@@ -259,6 +284,131 @@ namespace eIDMW
 
 	}
 
+	void base64Decode(const char *array, unsigned int inlen, unsigned char *&decoded, unsigned int &decoded_len)
+	{
+
+		BIO *bio, *b64;
+		unsigned int outlen = 0;
+		unsigned char *inbuf = new unsigned char[512];
+		memset(inbuf, 0, 512);
+
+		b64 = BIO_new(BIO_f_base64());
+		BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
+		bio = BIO_new_mem_buf((void *)array, inlen);
+		bio = BIO_push(b64, bio);
+
+		outlen = BIO_read(bio, inbuf, 512);
+		decoded = inbuf;
+
+		decoded_len = outlen;
+
+		BIO_free_all(bio);
+	}
+
+	char *strip_backslashes(const char *str)
+	{
+		char *cleaned = new char[strlen(str)];
+		int j = 0;
+		for (unsigned int i=0; i < strlen(str); i++)
+		{
+			if (str[i] != '\n') //Skips all backslash sequences, it works for base64 strings
+				cleaned[j++] = str[i]; 
+		}
+		cleaned[j] = 0;
+		return cleaned;
+	}
+
+
+	/* This function validates timestamps using the HTTP Form available
+	 at http://ts.cartaodecidadao.pt/tsaclient/validate.html */
+	#define TSA_VALIDATE_URL "http://ts.cartaodecidadao.pt/tsaclient/validate.html"
+
+	void XadesSignature::do_post_validate_timestamp(char *input, unsigned int input_len, char *sha1_string)
+	{
+
+		CURL *curl;
+		CURLcode res;
+		char error_buf[CURL_ERROR_SIZE];
+
+		//Get Timestamping server URL from config
+		APL_Config tsa_url(CConfig::EIDMW_CONFIG_PARAM_XSIGN_TSAURL);
+		const char * TSA_URL = tsa_url.getString();
+		static const char expect_header[] = "Expect:";
+
+		curl_global_init(CURL_GLOBAL_ALL);
+
+		curl = curl_easy_init();
+
+		if (curl) 
+		{
+
+			struct curl_slist *headers= NULL;
+			struct curl_httppost* formpost = NULL;
+		      	struct curl_httppost* lastptr = NULL;
+
+			headers = curl_slist_append(headers, "User-Agent: PTeID Middleware v2");
+			headers = curl_slist_append(headers, expect_header);
+
+			/* Build the form contents */
+
+			curl_formadd(&formpost,
+				     &lastptr,
+				    CURLFORM_COPYNAME, "hash",
+				    CURLFORM_COPYCONTENTS, sha1_string,
+			            CURLFORM_END);
+
+			curl_formadd(&formpost,
+				     &lastptr,
+				    CURLFORM_COPYNAME, "filename", "filename.xml",
+				    CURLFORM_COPYCONTENTS, generateId(20),  //It should have some randomness
+			            CURLFORM_END);
+
+			curl_formadd(&formpost,
+          			     &lastptr,
+			             CURLFORM_COPYNAME, "fileUpload",
+			             CURLFORM_BUFFER, "ts_resp",
+			             CURLFORM_BUFFERPTR, input,
+			             CURLFORM_BUFFERLENGTH, input_len,
+			             CURLFORM_END);
+
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+			/* Now specify the POST data */ 
+			curl_easy_setopt(curl, CURLOPT_HTTPPOST, formpost);
+
+			curl_easy_setopt(curl, CURLOPT_URL, TSA_VALIDATE_URL);
+
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+
+			curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
+
+			//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &XadesSignature::curl_write_validation_data);
+
+			/* Perform the request, res will get the return code */ 
+			res = curl_easy_perform(curl);
+
+			if (res != 0)
+			{
+				MWLOG(LEV_ERROR, MOD_APL, L"Timestamp Validation error in HTTP POST request. LibcURL returned %S\n", 
+						(char *)error_buf);
+			}
+
+			/* always cleanup */ 
+			curl_easy_cleanup(curl);
+
+			curl_slist_free_all(headers);
+			curl_formfree(formpost);
+
+
+		}
+
+
+	}
+
+
 	void XadesSignature::timestamp_data(const unsigned char *input, unsigned int data_len)
 	{
 
@@ -269,6 +419,8 @@ namespace eIDMW
 		//Get Timestamping server URL from config
 		APL_Config tsa_url(CConfig::EIDMW_CONFIG_PARAM_XSIGN_TSAURL);
 		const char * TSA_URL = tsa_url.getString();
+
+		curl_global_init(CURL_GLOBAL_ALL);
 
 		curl = curl_easy_init();
 
@@ -302,7 +454,7 @@ namespace eIDMW
 
 			if (res != 0)
 			{
-				MWLOG(LEV_ERROR, MOD_APL, L"Timestamping error in HTTP POST request. LibcURL returned %s\n", 
+				MWLOG(LEV_ERROR, MOD_APL, L"Timestamping error in HTTP POST request. LibcURL returned %S\n", 
 						(char *)error_buf);
 			}
 
@@ -413,15 +565,166 @@ bool XadesSignature::checkExternalRefs(DSIGReferenceList *refs, tHashedFile **ha
 	return true;
 }
 
+/*
+ * A little HTML-scraping to get the validation result
+ */
+bool XadesSignature::grep_validation_result (char *time_and_date)
+{
+	
+	// Accented 'a' encoded in latin-1 as expected
+	const char * valid_timestamp_pattern = "Selo Temporal V\xE1lido.";
+	const char * invalid_timestamp_pattern = "Selo Temporal n\xE3o corresponde ao ficheiro seleccionado";
+	const char * general_error_pattern = "Ocorreu um erro";
+	unsigned char *haystack = mp_validate_data.GetBytes();
 
-/*TODO: We'll have to to validate the timestamp if the signature
- *      actually contains one  */
+	if (mp_validate_data.Size() == 0)
+	{
+		MWLOG(LEV_DEBUG, MOD_APL, L"ValidateTimestamp: grep_validation_result called with empty mp_timestamp_data");
+		return false;
+	}
+	
+	const char *ts_str = strstr((const char *)haystack, valid_timestamp_pattern);
+
+	if (ts_str != NULL)
+	{
+		//Grab the TimeDate string
+		strncpy(time_and_date, ts_str+36, 27);
+		time_and_date[27] = 0;
+
+		return true; 
+	}
+	else
+	{
+		if (strstr((const char *)haystack, invalid_timestamp_pattern) == NULL)
+		//Unexpected output but invalid nonetheless!
+			MWLOG(LEV_ERROR, MOD_APL, 
+	L"ValidateTimestamp: Unexpected output in the timestamp validation form, considered invalid");
+
+		return false; 
+	}
+
+}
+
+char *getHexString(unsigned char *bytes, unsigned int len)
+{
+	char *hex = new char[len*2+1];
+	memset (hex, 0, len*2+1);
+	
+	for (unsigned int i = 0; i!=len; i++)
+		sprintf(hex+(i*2), "%02x", bytes[i]);
+
+	return hex;
+}
+
+bool XadesSignature::ValidateTimestamp (CByteArray signature, CByteArray ts_resp, char *errors,
+				unsigned long *error_length)
+{
+
+//TODO: The DOMDocument should be already cached by ValidateXades()
+	bool errorsOccured = false;
+
+	bool result = false;
+	unsigned char *signature_bin;
+	MWLOG(LEV_DEBUG, MOD_APL, L"ValidateTimestamp() called with XML content of %d bytes."
+		L"Error buffer addr: 0x%x, error_length=%d ", signature.Size(), errors, *error_length);
+
+	if (signature.Size() == 0)
+	{
+		int err_len = _snprintf(errors, *error_length, getString(0));
+		*error_length = err_len;
+		MWLOG(LEV_ERROR, MOD_APL, L"ValidateTimestamp() received empty Signature. This most likely means a corrupt zipfile");
+		return false;
+	}
+
+	initXerces();
+
+	//Load XML from a MemoryBuffer
+	MemBufInputSource * source = new MemBufInputSource(signature.GetBytes(),
+			(XMLSize_t)signature.Size(),
+			XMLString::transcode(generateId(20)));
+
+	XercesDOMParser * parser = new XercesDOMParser;
+	Janitor<XercesDOMParser> j_parser(parser);
+
+	parser->setDoNamespaces(true);
+	parser->setCreateEntityReferenceNodes(true);
+
+	// Now parse out file
+
+	xsecsize_t errorCount = 0;
+	try
+	{
+		parser->parse(*source);
+	}
+
+	catch (const XMLException& e)
+	{
+		MWLOG(LEV_ERROR, MOD_APL, L"An error occured during parsing\n   Message: %s",
+				XMLString::transcode(e.getMessage()));
+		errorsOccured = true;
+	}
+	catch (const DOMException& e)
+	{
+		MWLOG(LEV_ERROR, MOD_APL, L"A DOM error occured during parsing\n   DOMException code: %d",
+				e.code);
+		errorsOccured = true;
+	}
+
+	if (errorsOccured)
+		return false;
+
+	DOMNode *doc;
+
+	doc = parser->getDocument();
+
+	// Find the signature node
+	
+	DOMNode *sigNode = findDSIGNode(doc, "Signature");
+
+	XSECProvider prov;
+	unsigned char signature_hash[SHA1_LEN];
+	char time_and_date[100];
+	unsigned int sig_len = 0;
+	XERCES_NS DOMDocument * theDOM = dynamic_cast<XERCES_NS DOMDocument *>(doc);
+	DSIGSignature * sig = prov.newSignatureFromDOM(theDOM, sigNode);
+	
+	sig->load();
+
+	const char* tmp = XMLString::transcode(sig->getSignatureValue());
+	char *tmp2 = strip_backslashes(tmp);
+	base64Decode(tmp2, strlen(tmp2), signature_bin, sig_len);
+	SHA1(signature_bin, sig_len, signature_hash);
+
+	char * sha1_string = getHexString(signature_hash, SHA1_LEN);
+
+	//std::cerr << "POST Parameter (hash): " << sha1_string << std::endl; 
+	
+	do_post_validate_timestamp((char *)ts_resp.GetBytes(), ts_resp.Size(), sha1_string);
+
+	if (mp_validate_data.Size() == 0)
+	{
+		*error_length = _snprintf(errors, *error_length, getString(8));
+		return false;
+	}
+	
+	result = grep_validation_result(time_and_date);
+
+	if (result)
+		*error_length = _snprintf(errors, *error_length, "%s", time_and_date);
+	else
+		*error_length = _snprintf(errors, *error_length, getString(2));
+
+	return result;
+
+}
+
+
 bool XadesSignature::ValidateXades(CByteArray signature, tHashedFile **hashes, char *errors, unsigned long *error_length)
 {
 	bool errorsOccured = false;
 	
 	MWLOG(LEV_DEBUG, MOD_APL, L"ValidateXades() called with XML content of %d bytes."
-		L"Error buffer addr: 0x%x, error_length=%d ",signature.Size(), errors, *error_length);
+		L"Error buffer addr: 0x%x, error_length=%d ", signature.Size(), errors, *error_length);
 
 	if (signature.Size() == 0)
 	{
@@ -469,7 +772,7 @@ bool XadesSignature::ValidateXades(CByteArray signature, tHashedFile **hashes, c
 
 	if (errorsOccured) {
 		//Write to output report 
-		int err_len = _snprintf(errors, *error_length, "Signature Validation error: Malformed XML Document");
+		int err_len = _snprintf(errors, *error_length, getString(4));
 		*error_length = err_len;
 		MWLOG(LEV_ERROR, MOD_APL, L"Errors parsing XML Signature, bailing out");
 		return false;
@@ -524,8 +827,7 @@ bool XadesSignature::ValidateXades(CByteArray signature, tHashedFile **hashes, c
 			extern_result = checkExternalRefs(refs, hashes);
 		if (!extern_result)
 		{
-			int err_len = _snprintf(errors, *error_length,
-			"Signature Validation error: At least one of the signed file(s) was changed or is missing");
+			int err_len = _snprintf(errors, *error_length, getString(6));
 			*error_length = err_len;
 			return false;
 		}
@@ -555,6 +857,26 @@ bool XadesSignature::ValidateXades(CByteArray signature, tHashedFile **hashes, c
 
 	return result;
 
+}
+
+const XMLCh * locateTimestamp(XERCES_NS DOMDocument *doc)
+{
+	safeBuffer str;
+	//Qualified Tag Name
+	makeQName(str, XMLString::transcode("etsi") ,"EncapsulatedTimeStamp");
+	DOMNodeList *list = doc->getElementsByTagNameNS(XMLString::transcode("*"),
+		       	XMLString::transcode("EncapsulatedTimeStamp"));
+
+	if (list->getLength() == 0)
+	{
+	   return NULL;
+	}
+
+
+	DOMNode * timestamp = list->item(0);
+
+	return timestamp->getFirstChild()->getNodeValue();
+	
 }
 
 XMLCh* XadesSignature::createURI(const char *path)
@@ -681,7 +1003,8 @@ CByteArray &XadesSignature::SignXades(const char ** paths, unsigned int n_paths,
 			CByteArray *timestamp_blob = &XadesSignature::mp_timestamp_data;
 
 			if (timestamp_blob->Size() == 0)
-				MWLOG(LEV_ERROR, MOD_APL, L"An error occurred in timestamp_data.IIt's possible that the timestamp service is down ");
+				MWLOG(LEV_ERROR, MOD_APL,
+			    L"An error occurred in timestamp_data. It's possible that the timestamp service is down ");
 			else
 			{
 				unsigned char * base64str = base64Encode(timestamp_blob->GetBytes(), timestamp_blob->Size());
@@ -698,7 +1021,7 @@ CByteArray &XadesSignature::SignXades(const char ** paths, unsigned int n_paths,
 	catch (XSECException &e)
 	{
 		MWLOG(LEV_ERROR, MOD_APL, L"An error occured during a signature load. Message: %s\n",
-		 e.getMsg());;
+		 e.getMsg());
 		
 	}
 
