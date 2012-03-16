@@ -112,6 +112,14 @@ public class ExampleSDK {
 		}
 	}
 	
+	private void release() {
+		try {
+			PTEID_ReaderSet.releaseSDK();
+		} catch (PTEID_Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+	
 	private void InitializeCard() {
 		try {
 			this.idCard = this.readerContext.getEIDCard();
@@ -386,7 +394,7 @@ public class ExampleSDK {
 
 	private void signXadesT(){
 		try{
-			String[] file_list={"teste","teste2"};
+			String[] file_list={"teste.txt","teste2.txt"};
 			idCard.SignXadesT(file_list,file_list.length,"signature-xadest-2.zip");
 		}catch (Exception e){
 			e.printStackTrace();
@@ -546,45 +554,98 @@ public class ExampleSDK {
 			
 			
 			verifyAddressPIN();
-			PTEID_XmlUserRequestedInfo req3 = new PTEID_XmlUserRequestedInfo();
-	        	PTEID_CCXML_Doc result3 = this.idCard.getXmlCCDoc(req3);
-	        	System.out.println("----------> "+ result3.getCCXML());
 			
+			System.out.println("A gerar XML Vazio:");
+			PTEID_XmlUserRequestedInfo req = new PTEID_XmlUserRequestedInfo();
+			//req1.add(XMLUserData.XML_PHOTO);
+			PTEID_CCXML_Doc result = this.idCard.getXmlCCDoc(req);
+			System.out.println("Documento XML: \n"+ result.getCCXML());
 			
-			
-			System.out.println("gerar morada");
+			System.out.println("A gerar XML com campo District:");
 			PTEID_XmlUserRequestedInfo req1 = new PTEID_XmlUserRequestedInfo();
 			req1.add(XMLUserData.XML_DISTRICT);
 			//req1.add(XMLUserData.XML_PHOTO);
 			PTEID_CCXML_Doc result1 = this.idCard.getXmlCCDoc(req1);
-			System.out.println("resultado = "+ result1.getCCXML());
-
+			System.out.println("Documento XML: \n"+ result1.getCCXML());
 			
-			System.out.println("gerar xml NIC");
+			
+			System.out.println("A gerar XML com campo NIC:");
 			PTEID_XmlUserRequestedInfo req2 = new PTEID_XmlUserRequestedInfo();
 			req2.add(XMLUserData.XML_NIC);
 			//req1.add(XMLUserData.XML_PHOTO);
 			PTEID_CCXML_Doc result2 = this.idCard.getXmlCCDoc(req2);
-			System.out.println("resultado = "+ result2.getCCXML());
+			System.out.println("Documento XML: \n"+ result2.getCCXML());
 
-/*			System.out.println("gerar xml só com foto");
-			PTEID_XmlUserRequestedInfo req2 = new PTEID_XmlUserRequestedInfo();
-			req2.add(XMLUserData.XML_PHOTO);
-			PTEID_CCXML_Doc result2 = this.idCard.getXmlCCDoc(req2);	
-
-			System.out.println("resultado2 = "+ result2.getCCXML());
+			System.out.println("A gerar XML com todos os campos existentes:");
+			PTEID_XmlUserRequestedInfo req3 = new PTEID_XmlUserRequestedInfo();
 			
-			*/
+			req3.add(XMLUserData.XML_ABBR_BUILDING_TYPE);
+			req3.add(XMLUserData.XML_ABBR_STREET_TYPE);
+			req3.add(XMLUserData.XML_ACCIDENTAL_INDICATIONS);
+			req3.add(XMLUserData.XML_BUILDING_TYPE);
+			req3.add(XMLUserData.XML_CARD_NUMBER_PAN);
+			req3.add(XMLUserData.XML_CARD_VERSION);
+			req3.add(XMLUserData.XML_CIVIL_PARISH);
+			req3.add(XMLUserData.XML_DATE_OF_BIRTH);
+			req3.add(XMLUserData.XML_DISTRICT);
+			req3.add(XMLUserData.XML_DOCUMENT_NO);
+			req3.add(XMLUserData.XML_DOCUMENT_TYPE);
+			req3.add(XMLUserData.XML_DOOR_NO);
+			req3.add(XMLUserData.XML_EXPIRY_DATE);
+			req3.add(XMLUserData.XML_FLOOR);
+			req3.add(XMLUserData.XML_FOREIGN_ADDRESS);
+			req3.add(XMLUserData.XML_FOREIGN_CITY);
+			req3.add(XMLUserData.XML_FOREIGN_COUNTRY);
+			req3.add(XMLUserData.XML_FOREIGN_LOCALITY);
+			req3.add(XMLUserData.XML_FOREIGN_POSTAL_CODE);
+			req3.add(XMLUserData.XML_FOREIGN_REGION);
+			req3.add(XMLUserData.XML_GENDER);
+			req3.add(XMLUserData.XML_GIVEN_NAME);
+			req3.add(XMLUserData.XML_GIVEN_NAME_FATHER);
+			req3.add(XMLUserData.XML_GIVEN_NAME_MOTHER);
+			req3.add(XMLUserData.XML_HEALTH_NO);
+			req3.add(XMLUserData.XML_HEIGHT);
+			req3.add(XMLUserData.XML_ISSUING_DATE);
+			req3.add(XMLUserData.XML_ISSUING_ENTITY);
+			req3.add(XMLUserData.XML_LOCAL_OF_REQUEST);
+			req3.add(XMLUserData.XML_LOCALITY);
+			req3.add(XMLUserData.XML_MRZ1);
+			req3.add(XMLUserData.XML_MRZ2);
+			req3.add(XMLUserData.XML_MRZ3);
+			req3.add(XMLUserData.XML_MUNICIPALITY);
+			req3.add(XMLUserData.XML_NAME);
+			req3.add(XMLUserData.XML_NIC);
+			req3.add(XMLUserData.XML_PERSONAL_NOTES);
+			req3.add(XMLUserData.XML_PHOTO);
+			req3.add(XMLUserData.XML_PLACE);
+			req3.add(XMLUserData.XML_POSTAL_LOCALITY);
+			req3.add(XMLUserData.XML_SIDE);
+			req3.add(XMLUserData.XML_SOCIAL_SECURITY_NO);
+			req3.add(XMLUserData.XML_STREET_NAME);
+			req3.add(XMLUserData.XML_STREET_TYPE);
+			req3.add(XMLUserData.XML_SURNAME);
+			req3.add(XMLUserData.XML_SURNAME_FATHER);
+			req3.add(XMLUserData.XML_SURNAME_MOTHER);
+			req3.add(XMLUserData.XML_TAX_NO);
+			req3.add(XMLUserData.XML_VERSION);
+			req3.add(XMLUserData.XML_ZIP3);
+			req3.add(XMLUserData.XML_ZIP4);
+			
+			req3.add(XMLUserData.XML_NIC);
+			req3.add(XMLUserData.XML_PHOTO);
+			req3.add(XMLUserData.XML_SOCIAL_SECURITY_NO);
+			req3.add(XMLUserData.XML_TAX_NO);
+			req3.add(XMLUserData.XML_DOCUMENT_NO);
+			PTEID_CCXML_Doc result3 = this.idCard.getXmlCCDoc(req3);
+			System.out.println("Documento XML: \n"+ result2.getCCXML());
+
+		
 		} catch (Exception e){
 			e.printStackTrace();
 		}
-		
-		
 	}
 
-
-
-
+	
 	public static void main(String args[]){
 		System.out.println("Testing Java SDK");
 
@@ -596,14 +657,15 @@ public class ExampleSDK {
 		
 		eSDK.generateXML();
 		
-		/*
-
+		
 		eSDK.dumpID();
+
+		
 
 		eSDK.verifyAddressPIN();
 		eSDK.dumpAddress();
-		eSDK.listPins();
-
+		//eSDK.listPins();
+		
 		// Pins Operations
 		//eSDK.verifyPins();
 		//eSDK.verifySignPIN();
@@ -611,21 +673,12 @@ public class ExampleSDK {
 		// Sign Operations  - XADES / XADEST
 		//eSDK.verifySignPIN();
 		eSDK.verifySignPINNoWindow();
-		eSDK.signXades();
-
-		 */
-		
-
-	
+		eSDK.signXades();		
 		
 		
-		
-		
-		
-		
-		
-		//eSDK.signXadesT();
-		//eSDK.verifySignatureXadesT();
+		eSDK.verifySignPINNoWindow();
+		eSDK.signXadesT();
+		eSDK.verifySignatureXadesT();
 
 		// Sign Method - used for Authentication Proccess on mw web 
 		//eSDK.verifyAuthPINNoWindow();
@@ -654,6 +707,9 @@ public class ExampleSDK {
 
 		Utils.writeToFile();
 		 */
+		
+		eSDK.release();
+		
 	}
 
 
