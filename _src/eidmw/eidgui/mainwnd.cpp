@@ -377,13 +377,21 @@ void MainWnd::on_btnSelectTab_Notes_clicked()
 void MainWnd::on_btn_menu_card_clicked()
 {
 	m_ui.wdg_submenu_card->setVisible(true);
-	m_ui.wdg_submenu_card->setGeometry(0,4,126,110);
+	//If defined language is portuguese, then the dialog needs to be larger
+	if (m_Settings.getGuiLanguageCode() == GenPur::LANG_NL)
+		m_ui.wdg_submenu_card->setGeometry(0,4,136,110);
+	else
+		m_ui.wdg_submenu_card->setGeometry(0,4,126,110);
 }
 
 void MainWnd::on_btn_menu_tools_clicked()
 {
 	m_ui.wdg_submenu_tools->setVisible(true);
-	m_ui.wdg_submenu_tools->setGeometry(128,4,126,110);
+	if (m_Settings.getGuiLanguageCode() == GenPur::LANG_NL)
+		m_ui.wdg_submenu_tools->setGeometry(128,4,146,110);
+	else
+		m_ui.wdg_submenu_tools->setGeometry(128,4,126,110);
+
 }
 
 void MainWnd::on_btn_menu_language_clicked()
@@ -660,14 +668,14 @@ void MainWnd::resizeEvent( QResizeEvent * event )
 
 void MainWnd::closeEvent( QCloseEvent *event)
 {
-	if ( m_pTrayIcon->isVisible() ) 
+    if ( m_pTrayIcon->isVisible() )
 	{
 		if (m_msgBox)
 		{
 			delete(m_msgBox);
 			m_msgBox = NULL;
 		}
-		//clearGuiContent();
+        clearGuiContent();
 		hide();
 		if(m_ShowBalloon)
 		{
@@ -679,6 +687,9 @@ void MainWnd::closeEvent( QCloseEvent *event)
 		m_pMinimizeAction->setEnabled(false);
 		m_pRestoreAction->setEnabled(true);
 		event->ignore();
+
+        //To avoid problem when restoring the eidgui and clears data
+        loadCardData();
 	}
 }
 
@@ -1824,6 +1835,8 @@ void MainWnd::loadCardData( void )
 //*****************************************************
 void MainWnd::loadCardDataAddress( void )
 {
+    if (!m_CI_Data.isDataLoaded())
+        return;
 	//----------------------------------------------------------------
 	// if we load a new card, clear the certificate contexts we kept
 	//----------------------------------------------------------------
@@ -1975,6 +1988,9 @@ void MainWnd::loadCardDataAddress( void )
 //*****************************************************
 bool MainWnd::loadCardDataPersoData( void )
 {
+    if (!m_CI_Data.isDataLoaded())
+        return false;
+
 	//----------------------------------------------------------------
 	// if we load a new card, clear the certificate contexts we kept
 	//----------------------------------------------------------------
@@ -2083,7 +2099,7 @@ bool MainWnd::loadCardDataPersoData( void )
 	{
 		QString msg(tr("Card changed"));
 		ShowPTEIDError( e.GetError(), msg );
-		m_CI_Data.Reset();
+        m_CI_Data.Reset();
 		loadCardData();
 	}
 	catch (PTEID_ExReaderSetChanged e)
@@ -2124,6 +2140,8 @@ bool MainWnd::loadCardDataPersoData( void )
 //*****************************************************
 void MainWnd::loadCardDataCertificates( void )
 {
+    if (!m_CI_Data.isDataLoaded())
+        return;
 	//----------------------------------------------------------------
 	// if we load a new card, clear the certificate contexts we kept
 	//----------------------------------------------------------------
@@ -3029,6 +3047,7 @@ void MainWnd::LoadDataPersoData(PTEID_EIDCard& Card)
 {
 	setEnabledPinButtons(false);
 	setEnabledCertifButtons(false);
+    m_ui.btnPersoDataSave->setEnabled(true);
 	m_TypeCard = Card.getType();
 	CardDataLoader loader(m_CI_Data, Card, m_CurrReaderName);
 	QFuture<void> future = QtConcurrent::run(loader, &CardDataLoader::LoadPersoData);
@@ -3520,6 +3539,9 @@ void MainWnd::refreshTabIdentityExtra()
 //*****************************************************
 void MainWnd::refreshTabAddress( void )
 {
+    if (!m_CI_Data.isDataLoaded())
+        return;
+
 	if (pinactivate == 1)
 	{
 		if (!addressPINRequest_triggered())
@@ -3581,7 +3603,8 @@ void MainWnd::updatetext()
 	TotalBytes.append(" / 1000");
 	m_ui.txtPersoDataCount->setText(TotalBytes);
 
-	if (TxtPersoDataString.count()>1000){
+    if (TxtPersoDataString.count()>1000)
+    {
 		TxtPersoDataString = m_ui.txtPersoData->toPlainText();
 		TxtPersoDataString.truncate(TxtPersoDataString.size()-1);
 		m_ui.txtPersoData->setPlainText(TxtPersoDataString);
@@ -3590,29 +3613,28 @@ void MainWnd::updatetext()
 
 void MainWnd::PersoDataSaveButtonClicked( void )
 {
-	QString TxtPersoDataString = m_ui.txtPersoData->toPlainText().toUtf8();
-	m_ui.txtPersoData->setMaximumBlockCount(1000);
+    try {
+        QString TxtPersoDataString = m_ui.txtPersoData->toPlainText().toUtf8();
+        m_ui.txtPersoData->setMaximumBlockCount(1000);
 
-	PTEID_ReaderContext &ReaderContext  = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
-	PTEID_EIDCard	 &Card	= ReaderContext.getEIDCard();
-	PTEID_Pins &Pins	= Card.getPins();
-	PTEID_Pin &Pin	= Pins.getPinByNumber(1);
+        PTEID_ReaderContext &ReaderContext  = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
+        PTEID_EIDCard	 &Card	= ReaderContext.getEIDCard();
+        PTEID_Pins &Pins	= Card.getPins();
+        PTEID_Pin &Pin	= Pins.getPinByNumber(1);
 
-	if (pinNotes == 1)
-		authPINRequest_triggered();
+        if (pinNotes == 1)
+            authPINRequest_triggered();
 
-    if (pinNotes == 0)
-    {
-        try {
-
+        if (pinNotes == 0)
+        {
             const PTEID_ByteArray oData(reinterpret_cast<const unsigned char*> (TxtPersoDataString.toStdString().c_str()), TxtPersoDataString.toStdString().size());
             Card.writePersonalNotes(oData);
             QMessageBox::information( this, tr("Notas Pessais"),  tr("Notas pessoais escritas com sucesso!"), QMessageBox::Ok );
-        } catch (PTEID_Exception& e) {
-            QMessageBox::critical(this, tr("Notas Pessais"), tr("Erro ao escrever notas pessoais!"), QMessageBox::Ok );
-        }
-	}
 
+        }
+    } catch (PTEID_Exception& e) {
+        QMessageBox::critical(this, tr("Notas Pessais"), tr("Erro ao escrever notas pessoais!"), QMessageBox::Ok );
+    }
 }
 //*****************************************************
 // refresh the tab with the PTeid Personal Data
@@ -3866,27 +3888,11 @@ void MainWnd::setLanguageEn( void )
 }
 
 //**************************************************
-// Switch UI language to Dutch
+// Switch UI language to Portuguese
 //**************************************************
 void MainWnd::setLanguageNl( void )
 {
 	setLanguage(GenPur::LANG_NL);
-}
-
-//**************************************************
-// Switch UI language to French
-//**************************************************
-void MainWnd::setLanguageFr( void )
-{
-	setLanguage(GenPur::LANG_FR);
-}
-
-//**************************************************
-// Switch UI language to German
-//**************************************************
-void MainWnd::setLanguageDe( void )
-{
-	setLanguage(GenPur::LANG_DE);
 }
 
 //**************************************************
@@ -4271,42 +4277,44 @@ void MainWnd::customEvent( QEvent* pEvent )
 //**************************************************
 void MainWnd::doPicturePopup( PTEID_Card& card )
 {
-	//------------------------------------------------
-	// just return, we don't show the picture when the card is inserted
-	// The setting to show the picture is used for the textballoon
-	//------------------------------------------------
-	return;
-	if (!m_Settings.getShowPicture())
-	{
-		return;
-	}
+    //------------------------------------------------
+    // just return, we don't show the picture when the card is inserted
+    // The setting to show the picture is used for the textballoon
+    //------------------------------------------------
 
-	//------------------------------------------------
-	// To show the picture we must:
-	// - keep the status if test cards were allowed or not
-	// - allways allow a testcard
-	// - load the picture for the popup
-	// - reset the allowTestCard like the user has set it
-	//------------------------------------------------
-	PTEID_EIDCard& eidCard		 = static_cast<PTEID_EIDCard&>(card);
-	bool		  bAllowTestCard = eidCard.getAllowTestCard();
-	
-	if (!bAllowTestCard)
-	{
-	    eidCard.setAllowTestCard(true);
-	}
+    if (!m_Settings.getShowPicture())
+    {
+        return;
+    }
 
-	QImage myImage, myImagescaled;
-	QPixmap				  pixMap;
+    //------------------------------------------------
+    // To show the picture we must:
+    // - keep the status if test cards were allowed or not
+    // - allways allow a testcard
+    // - load the picture for the popup
+    // - reset the allowTestCard like the user has set it
+    //------------------------------------------------
+    PTEID_EIDCard& eidCard		 = static_cast<PTEID_EIDCard&>(card);
+    bool		  bAllowTestCard = eidCard.getAllowTestCard();
 
-	if (pixMap.loadFromData(m_CI_Data.m_PersonInfo.m_BiometricInfo.m_pPictureData, "PNG"))
-	{
-		pixMap = pixMap.scaledToWidth(50);
-		m_Pop->setPixmap(pixMap);
-		m_Pop->popUp();
-	}
-	eidCard.setAllowTestCard(bAllowTestCard);
+    if (!bAllowTestCard)
+    {
+        eidCard.setAllowTestCard(true);
+    }
 
+    QImage myImage, myImagescaled;
+    QPixmap				  pixMap;
+
+    m_CI_Data.Reset();
+    loadCardData();
+
+    if (pixMap.loadFromData(m_CI_Data.m_PersonInfo.m_BiometricInfo.m_pPictureData, "PNG"))
+    {
+        pixMap = pixMap.scaledToWidth(150);
+        m_Pop->setPixmap(pixMap);
+        m_Pop->popUp();
+    }
+    eidCard.setAllowTestCard(bAllowTestCard);
 }
 
 //**************************************************

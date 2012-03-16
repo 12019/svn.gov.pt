@@ -39,7 +39,7 @@ namespace eIDMW
 
 	}
 
-	CByteArray *Container::ExtractFile(const char *entry)
+	CByteArray &Container::ExtractFile(const char *entry)
 	{
 		void *p;
 		size_t uncompressed_size = 0;
@@ -47,13 +47,13 @@ namespace eIDMW
 		p = mz_zip_reader_extract_file_to_heap(&zip_archive, entry, &uncompressed_size, 0);
 		if (!p)
 		{
-			MWLOG(LEV_ERROR, MOD_APL, L"Error in ExtractFile() %S\n", entry);
-			return ba;
+			MWLOG(LEV_ERROR, MOD_APL, L"Error in ExtractFile() %s\n", entry);
+			return *ba;
 		}
 
 		ba->Append ((const unsigned char *)p, uncompressed_size);
 
-		return ba;
+		return *ba;
 	}
 
 	char *readFile(const char *path, int *size)
@@ -69,17 +69,20 @@ namespace eIDMW
 			file.read (in, *size);
 		}
 		else
-			MWLOG(LEV_ERROR, MOD_APL, L"SigContainer::readFile() Error opening file %S\n", path);
+			MWLOG(LEV_ERROR, MOD_APL, L"SigContainer::readFile() Error opening file %s\n", path);
 
 		file.close();
 		return in;
 	}
 	
-	CByteArray* Container::ExtractSignature()
+	CByteArray& Container::ExtractSignature()
 	{
-
 		return ExtractFile(SIG_INTERNAL_PATH);
+	}
 
+	CByteArray& Container::ExtractTimestamp()
+	{
+		return ExtractFile(TS_INTERNAL_PATH);
 	}
 
 	tHashedFile** Container::getHashes(int *pn_files)
@@ -105,8 +108,10 @@ namespace eIDMW
 			}
 			// Exclude from signed file checking the Signature itself 
 			// and the README file that gets added to all signed containers
+			// and the "workaround timestamp response" file
 			if (strcmp(file_stat.m_filename, SIG_INTERNAL_PATH) != 0
-				&& strcmp(file_stat.m_filename, "README.txt") != 0)
+				&& strcmp(file_stat.m_filename, "README.txt") != 0
+				&& strcmp(file_stat.m_filename, TS_INTERNAL_PATH) != 0)
 			{
 				p = mz_zip_reader_extract_file_to_heap(&zip_archive,file_stat.m_filename, &uncomp_size, 0);
 				if (!p)
@@ -142,11 +147,6 @@ namespace eIDMW
 
 		mz_bool status = MZ_FALSE;
 
-		#ifdef WIN32
-		//TODO: Convert README to "system codepage" or something
-
-		#endif
-
 		status = mz_zip_add_mem_to_archive_file_in_place (output, "README.txt", README, strlen(README),
 				"", (unsigned short)0, MZ_BEST_COMPRESSION);
 
@@ -156,7 +156,7 @@ namespace eIDMW
 		}
 	}
 
-	void StoreSignatureToDisk(CByteArray& sig, const char **paths, int num_paths, const char *output_file)
+	void StoreSignatureToDisk(CByteArray& sig, CByteArray *ts_data, const char **paths, int num_paths, const char *output_file)
 	{
 
 		int file_size = 0;
@@ -209,6 +209,18 @@ namespace eIDMW
 		{   
 			MWLOG(LEV_ERROR, MOD_APL, L"mz_zip_add_mem_to_archive_file_in_place failed for the signature file");
 			return ;
+		}
+
+		if (ts_data != NULL)
+		{
+			status = mz_zip_add_mem_to_archive_file_in_place(output_file, TS_INTERNAL_PATH, ts_data->GetBytes(),
+					ts_data->Size(), "", (unsigned short)0, MZ_BEST_COMPRESSION);
+
+			if (!status)
+			{   
+				MWLOG(LEV_ERROR, MOD_APL, L"mz_zip_add_mem_to_archive_file_in_place failed for the Timestamp file");
+				return ;
+			}
 		}
 
 		//Add a README file to the container 

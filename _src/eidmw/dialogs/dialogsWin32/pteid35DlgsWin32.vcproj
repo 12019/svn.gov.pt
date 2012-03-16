@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8,00"
+	Version="8.00"
 	Name="DlgsWin32"
 	ProjectGUID="{E27CF8F7-E472-4966-B7D6-448B1427A0D6}"
 	RootNamespace="BeIdDlgsWin32"
@@ -252,7 +252,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="pteid35common.lib psapi.lib"
+				AdditionalDependencies="pteidcommon.lib psapi.lib"
 				OutputFile="..\..\_Binaries35\$(ConfigurationName)\pteid35$(ProjectName).dll"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="..\..\_Binaries35\$(ConfigurationName)"
@@ -488,6 +488,14 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
+			<File
+				RelativePath=".\Images\bg_AuthenticationPin.bmp"
+				>
+			</File>
+			<File
+				RelativePath=".\Images\bg_SignaturePin.bmp"
+				>
+			</File>
 			<File
 				RelativePath=".\DlgsWin32.rc"
 				>
