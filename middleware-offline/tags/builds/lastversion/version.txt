@@ -2,8 +2,8 @@
 
 #<b>* Release Notes</b>
 <p>
-- CorrecÃ§Ã£o de vÃ¡rias traduÃ§Ãµes;
-- ImplementaÃ§Ã£o de verificaÃ§Ã£o de Xades-T;
-- Melhoramento grÃ¡fico da aplicaÃ§Ã£o;
-- CorrecÃ§Ã£o de pequenos bugs.
+- Correcção de várias traduções;
+- Implementação de verificação de Xades-T;
+- Melhoramento gráfico da aplicação;
+- Correcção de pequenos bugs.
 <p>
