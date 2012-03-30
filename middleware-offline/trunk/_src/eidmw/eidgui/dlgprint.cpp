@@ -43,7 +43,7 @@ dlgPrint::dlgPrint( QWidget* parent, CardInformation& CI_Data, GenPur::UI_LANGUA
     if (CI_Data.isDataLoaded())
     {
 		ui.setupUi(this);
-		setFixedSize(385, 245);
+		setFixedSize(398, 245);
 		const QIcon Ico = QIcon( ":/images/Images/Icons/Print.png" );
 		this->setWindowIcon( Ico );
 
@@ -319,6 +319,12 @@ bool dlgPrint::addressPINRequest_triggered(CardInformation& CI_Data)
                             QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
                             return false;
                     }
+					else
+					{
+					
+							CI_Data.LoadDataAddress(Card, m_CurrReaderName);
+				
+					}
                     QMessageBox::information( this, caption,  msg, QMessageBox::Ok );
                     break;
                 }

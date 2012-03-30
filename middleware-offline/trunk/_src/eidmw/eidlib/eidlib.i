@@ -888,6 +888,8 @@ return $jnicall;
 %javaexception("PTEID_Exception") SignXadesIndividual	JAVA_CODE_THROW
 %javaexception("PTEID_Exception") SignXadesTIndividual	JAVA_CODE_THROW
 %javaexception("PTEID_Exception") doSODCheck			JAVA_CODE_THROW
+%javaexception("PTEID_Exception") getRootCAPubKey		JAVA_CODE_THROW
+%javaexception("PTEID_Exception") readPersonalNotes		JAVA_CODE_THROW
 
 //------------------------------------------------------------
 // class PTEID_CCXML_Doc ccxml
@@ -977,6 +979,8 @@ return $jnicall;
 %javaexception("PTEID_Exception") getMRZ2	          		JAVA_CODE_THROW
 %javaexception("PTEID_Exception") getMRZ3        	  		JAVA_CODE_THROW
 %javaexception("PTEID_Exception") getAccidentalIndications 	JAVA_CODE_THROW
+%javaexception("PTEID_Exception") getPhotoObj				JAVA_CODE_THROW
+%javaexception("PTEID_Exception") getCardAuthKeyObj			JAVA_CODE_THROW
 
 //------------------------------------------------------------
 // class PTEID_Address
@@ -1022,6 +1026,7 @@ return $jnicall;
 %javaexception("PTEID_Exception") verifyPin		JAVA_CODE_THROW
 %javaexception("PTEID_Exception") changePin		JAVA_CODE_THROW
 %javaexception("PTEID_Exception") getPinRef 	JAVA_CODE_THROW
+%javaexception("PTEID_Exception") unlockPin		JAVA_CODE_THROW
 
 //------------------------------------------------------------
 // class PTEID_Certificates
