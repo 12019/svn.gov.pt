@@ -37,7 +37,7 @@ static const unsigned long PTEIDNG_ACTIVATION_CODE_ID = 4;
 /* martinho - ANY_ID_BIGGER_THAN_6 will be the ulID in the tPin struct 1-6 are already taken */
 static const unsigned long ANY_ID_BIGGER_THAN_6 = 7;
 /* martinho - some meaningful label */
-static const string LABEL = "ACTIVATION_CODE";
+static const string LABEL = "Card Activation Code";
 /* martinho - date in bcd format must have 4 bytes*/
 static const unsigned long BCDSIZE = 4;
 /* martinho - trace file*/
@@ -49,7 +49,7 @@ unsigned long ulVersion;
 // can't be present because it's the same for all plugins
 #ifndef CARDPLUGIN_IN_CAL
 CCard *GetCardInstance(unsigned long ulVersion, const char *csReader,
-	unsigned long hCard, CContext *poContext, CPinpad *poPinpad)
+	unsigned long hCard, CContext *poContext, GenericPinpad *poPinpad)
 {
 	return PteidCardGetInstance(ulVersion, csReader, hCard, poContext, poPinpad);
 }
@@ -106,7 +106,7 @@ static CByteArray ReadInternalIAS(CPCSC *poPCSC, SCARDHANDLE hCard, unsigned lon
 }
 
 CCard *PTeidCardGetVersion (unsigned long ulVersion, const char *csReader,
-	SCARDHANDLE hCard, CContext *poContext, CPinpad *poPinpad)
+	SCARDHANDLE hCard, CContext *poContext, GenericPinpad *poPinpad)
 {
 	CCard *poCard = NULL;
 	bool bIsPtgemCard = false;
@@ -139,7 +139,7 @@ CCard *PTeidCardGetVersion (unsigned long ulVersion, const char *csReader,
 }
 
 CCard *PteidCardGetInstance(unsigned long ulVersion, const char *csReader,
-	SCARDHANDLE hCard, CContext *poContext, CPinpad *poPinpad)
+	SCARDHANDLE hCard, CContext *poContext, GenericPinpad *poPinpad)
 {
 
 	CCard *poCard = NULL;
@@ -241,7 +241,7 @@ CCard *PteidCardGetInstance(unsigned long ulVersion, const char *csReader,
 }
 
 CPteidCard::CPteidCard(SCARDHANDLE hCard, CContext *poContext,
-		     CPinpad *poPinpad, const CByteArray & oData, tSelectAppletMode selectAppletMode, unsigned long ulVersion) :
+		     GenericPinpad *poPinpad, const CByteArray & oData, tSelectAppletMode selectAppletMode, unsigned long ulVersion) :
 CPkiCard(hCard, poContext, poPinpad)
 {
     switch (ulVersion){
@@ -331,17 +331,44 @@ unsigned long CPteidCard::PinStatus(const tPin & Pin)
 CByteArray CPteidCard::RootCAPubKey(){
 	CByteArray oResp;
 
+
 	try
 	{
-		CByteArray select("3F00",true);
-		oResp = SendAPDU(0xA4, 0x00, 0x0C, select);
-		getSW12(oResp, 0x9000);
+		switch (GetType()){
+		case CARD_PTEID_IAS101:
+		{
+			CByteArray select("3F00",true);
+			oResp = SendAPDU(0xA4, 0x00, 0x0C, select);
+			getSW12(oResp, 0x9000);
 
-		//4D - extended header list, 04 - size, FFA001 - SDO root CA, 80 - give me all?
-		CByteArray getData("4D04FFA00180",true);
-		oResp = SendAPDU(0xCB, 0x3F, 0xFF, getData);
-		getSW12(oResp, 0x9000);
-		oResp.Chop(2); //martinho: remove the returning code 0x9000
+			//4D - extended header list, 04 - size, FFA001 - SDO root CA, 80 - give me all?
+			CByteArray getData("4D04FFA00180",true);
+			oResp = SendAPDU(0xCB, 0x3F, 0xFF, getData);
+			getSW12(oResp, 0x9000);
+			oResp.Chop(2); //martinho: remove the returning code 0x9000
+		}
+		break;
+		case CARD_PTEID_IAS07:
+		{
+			CByteArray getModule("B6038301447F490281008E",true);
+			CByteArray oRespModule = SendAPDU(0xCB, 0x00, 0xFF, getModule);
+			getSW12(oRespModule, 0x9000);
+			oRespModule.Chop(2); //martinho: remove the returning code 0x9000
+
+			CByteArray getExponent("B6038301447F4902820010",true);
+			CByteArray oRespExponent = SendAPDU(0xCB, 0x00, 0xFF, getExponent);
+			getSW12(oRespExponent, 0x9000);
+			oRespExponent.Chop(2); //martinho: remove the returning code 0x9000
+
+			//martinho: hmmm ok..
+			oResp.Append(oRespModule);
+			oResp.Append(oRespExponent);
+		}
+		break;
+		default:
+			throw CMWEXCEPTION(EIDMW_ERR_CARDTYPE_UNKNOWN);
+			break;
+		}
 	}
 	catch(...)
 	{
@@ -353,8 +380,21 @@ CByteArray CPteidCard::RootCAPubKey(){
 
 
 bool CPteidCard::Activate(const char *pinCode, CByteArray &BCDDate){
+	unsigned char padChar;
+
+	switch (GetType()){
+		case CARD_PTEID_IAS101:
+			padChar = 0x2F;
+			break;
+		case CARD_PTEID_IAS07:
+			padChar = 0xFF;
+			break;
+		default:
+			throw CMWEXCEPTION(EIDMW_ERR_CARDTYPE_UNKNOWN);
+	}
+
 	/* the activation code is not listed in the internal card structures */
-	tPin activationPin = {true,LABEL,0,0,0,ANY_ID_BIGGER_THAN_6,0,0,8,8,8,PTEIDNG_ACTIVATION_CODE_ID,0x20,PIN_ENC_ASCII,"",""};
+	tPin activationPin = {true,LABEL,0,0,0,ANY_ID_BIGGER_THAN_6,0,0,4,8,8,PTEIDNG_ACTIVATION_CODE_ID,padChar,PIN_ENC_ASCII,"",""};
 	unsigned long ulRemaining;
 
 	bool bOK = PinCmd(PIN_OP_VERIFY, activationPin, pinCode, "", ulRemaining, NULL);
@@ -370,6 +410,8 @@ bool CPteidCard::Activate(const char *pinCode, CByteArray &BCDDate){
 	data.Append(1); // data = day month year 0 1   -- 6 bytes written to 3F000003 trace file
 
 	WriteFile(TRACEFILE,0,data);
+	while (ulRemaining > 0) // block puk
+		PinCmd(PIN_OP_VERIFY, activationPin, "1000", "", ulRemaining, NULL);
 
 	return true;
 }

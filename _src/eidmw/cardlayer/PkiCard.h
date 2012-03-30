@@ -35,10 +35,8 @@ namespace eIDMW
 class CPkiCard : public CCard
 {
 public:
-    CPkiCard(SCARDHANDLE hCard, CContext *poContext, CPinpad *poPinpad);
+    CPkiCard(SCARDHANDLE hCard, CContext *poContext, GenericPinpad *poPinpad);
     virtual ~CPkiCard(void);
-
-    virtual bool IsPinpadReader();
 
     virtual tCardType GetType() = 0;
     virtual CByteArray GetInfo() = 0;
@@ -97,7 +95,7 @@ protected:
 
     virtual CByteArray MakePinCmd(tPinOperation operation, const tPin & Pin);
     virtual CByteArray MakePinCmdIAS(tPinOperation operation, const tPin & Pin);
-    virtual CByteArray MakePinBuf(const tPin & Pin, const std::string & csPin, bool bEmptyPin);
+    virtual CByteArray MakePinBuf(const tPin & Pin, const std::string & csPin, bool bEmptyPin, bool bPukMerge);
 
     virtual void SetSecurityEnv(const tPrivKey & key, unsigned long algo,
         unsigned long ulInputLen) = 0;

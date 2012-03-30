@@ -488,10 +488,6 @@
         <translation>Género / &lt;i&gt;Sex&lt;/i&gt; </translation>
     </message>
     <message>
-        <source>Belgian EID Middleware</source>
-        <translation type="unfinished">Belgian EID Middleware</translation>
-    </message>
-    <message>
         <source>The Root Certificate is not correct.
 This may be a test card.
 
@@ -827,39 +823,35 @@ Please specify .xml, .csv or .eid</source>
     </message>
     <message>
         <source>Error writing file</source>
-        <translation>Fout bij het schrijven van bestand</translation>
+        <translation>Erro durante a escrita do ficheiro</translation>
     </message>
     <message>
         <source>Version</source>
-        <translation>Versie</translation>
+        <translation>Versão</translation>
     </message>
     <message>
-        <source>eID is still running</source>
-        <translation type="unfinished">A aplicação continua em execução</translation>
+        <source>Portuguese ID Card Management is still running</source>
+        <translation>A aplicação continua em execução</translation>
     </message>
     <message>
         <source>The application will continue to run. To stop this application, select &apos;Exit&apos; from the menu.</source>
-        <translation type="unfinished">Para fechar a aplicação selecione a opção sair.</translation>
+        <translation>Para fechar a aplicação selecione a opção sair.</translation>
     </message>
     <message>
         <source>Card changed</source>
-        <translation type="unfinished">Kaart gewijzigd</translation>
+        <translation>Cartão alterado</translation>
     </message>
     <message>
         <source>Readers changed</source>
-        <translation type="unfinished">Leitor de cartões alterado</translation>
+        <translation>Leitor de cartões alterado</translation>
     </message>
     <message>
         <source>Bad transaction</source>
-        <translation type="unfinished">Bad transaction</translation>
-    </message>
-    <message>
-        <source>eID bin Files (*.eid);;eID XML files (*.xml);;eID CSV files (*.csv);;all files (*.*)</source>
-        <translation>eID bin bestanden (*.eid);;eID XML bestanden (*.xml);;eID CSV bestanden (*.csv);;alle bestanden (*.*)</translation>
+        <translation>Bad transaction</translation>
     </message>
     <message>
         <source>Number of tries left: </source>
-        <translation type="unfinished">Aantal pogingen over: </translation>
+        <translation>Número de tentativas restantes: </translation>
     </message>
     <message>
         <source>Checking card readers</source>
@@ -1044,15 +1036,50 @@ Please specify .xml, .csv or .eid</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>EID Viewer</source>
-        <translation type="unfinished"></translation>
+        <source>Portuguese ID Card Management</source>
+        <translation>Aplicação Oficial do Cartão de Cidadão Português</translation>
     </message>
 </context>
 <context>
-    <name>Updates</name>
+	<name>HttpWindow</name>
+	<message>
+        <source>Auto-Update</source>
+        <translation>Actualização automática</translation>
+    </message>
+	<message>
+        <source>There are updates available press Install do perform the updates.</source>
+        <translation>Existem Actualizações Disponíves. Clique em Instalar para prosseguir.</translation>
+    </message>
+    <message>
+        <source>Unable to download the update please check your Network Connection.</source>
+        <translation>Impossível transferir o ficheiro. Verifique a sua ligação à internet.</translation>
+    </message>
+    <message>
+        <source>Download failed: %1.</source>
+        <translation>A Transferência falhou: %1.</translation>
+    </message>
+    <message>
+        <source>Downloading %1.</source>
+        <translation>A transferir %1.</translation>
+    </message>
+    <message>
+        <source>Install</source>
+        <translation>Instalar</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+</context>
+<context>
+    <name>AutoUpdates</name>
     <message>
         <source>Auto-update</source>
         <translation>Actualizações Automáticas</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Sim</translation>
     </message>
     <message>
         <source>Do you want to check for updates?</source>
@@ -1062,24 +1089,44 @@ Please specify .xml, .csv or .eid</source>
 <context>
     <name>dlgAbout</name>
     <message>
-        <source>Identity Card: About</source>
-        <translation>Identity Card: About</translation>
+        <source>Portuguese ID Card Management.</source>
+        <translation>Aplicação Oficial do Cartão de Cidadão Português.</translation>
     </message>
     <message>
-        <source>Developed by the Belgian Government</source>
-        <translation>Ontwikkeld door de Belgische overheid</translation>
+        <source>Version 2.0</source>
+        <translation>Versão 2.0</translation>
     </message>
     <message>
-        <source>&amp;OK</source>
-        <translation>&amp;OK</translation>
+        <source>If you have any troubles during the use of this software,</source>
+        <translation>Caso tenha dificuldades na utilização desta aplicação,</translation>
     </message>
     <message>
-        <source>Belgian eID Runtime</source>
-        <translation>Belgische eID Runtime</translation>
+        <source>please check the user manuals and FAQ section in this</source>
+        <translation>por favor consulte os manuais e secção de "Perguntas</translation>
+    </message>
+    <message>
+        <source>site:</source>
+        <translation>Frequentes" (FAQ), no site do cartão de cidadão:</translation>
+    </message>
+    <message utf8="true">
+        <source>Developed by Portuguese Government (Agência para a</source>
+        <translation>Desenvolvido pelo Estado Português (Agência para a</translation>
+    </message>
+    <message>
+        <source>Modernização Administrativa IP e Instituto de Registos</source>
+        <translation>Modernização Administrativa IP e Instituto de Registos</translation>
+    </message>
+    <message>
+        <source>e Notariado IP).</source>
+        <translation>e Notariado IP).</translation>
     </message>
     <message utf8="true">
         <source>Copyright © 2009-2010</source>
         <translation>Copyright © 2009-2010</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Fechar</translation>
     </message>
 </context>
 <context>
@@ -1093,7 +1140,7 @@ Please specify .xml, .csv or .eid</source>
         <translation>Arranque</translation>
     </message>
     <message>
-        <source>Determins whether the application should start reading the card from the moment it&apos;s detected in the cardreader or not</source>
+        <source>determins whether the application should start reading the card from the moment it's detected in the cardreader or not</source>
         <translation>Determina se a aplicação deve começar a ler o cartão logo que é detectada a sua inserção</translation>
     </message>
     <message>
@@ -1316,8 +1363,8 @@ Please specify .xml, .csv or .eid</source>
         <translation>Assinatura de Ficheiros (XAdES)</translation>
     </message>
     <message>
-        <source>Add Files...</source>
-        <translation>Adicionar Ficheiros...</translation>
+        <source>Add Files</source>
+        <translation>Adicionar Ficheiros</translation>
     </message>
     <message>
         <source>Files to Sign</source>
@@ -1379,16 +1426,20 @@ Please specify .xml, .csv or .eid</source>
         <translation>Validação de Assinatura</translation>
     </message>
     <message>
-        <source>Selecione o ficheiro de Assinaturas a validar:</source>
-        <translation></translation>
+        <source>The success in the signature validation proves the integrity</source>
+        <translation>A validação bem sucedida de uma assinatura digital garante</translation>
+    </message>
+    <message>
+        <source>of it.</source>
+        <translation>a integridade da assinatura.</translation>
     </message>
     <message>
         <source>Close</source>
         <translation>Fechar</translation>
     </message>
     <message>
-        <source>Select Signature File...</source>
-        <translation>Seleccionar Ficheiro Assinado...</translation>
+        <source>Verify signature file</source>
+        <translation>Validar assinatura</translation>
     </message>
     <message>
         <source>Open Signature files</source>
