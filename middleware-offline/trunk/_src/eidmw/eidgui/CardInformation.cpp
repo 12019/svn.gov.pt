@@ -37,6 +37,7 @@ void CardInformation::Reset()
 	m_PersonInfo.Reset();
 	m_MiscInfo.Reset();
 	m_AddressInfo.Reset();
+	m_PersoDataInfo.Reset();
 	m_pCard = NULL;
 	m_cardReader = "";
 }
@@ -45,7 +46,7 @@ bool CardInformation::LoadData(PTEID_EIDCard& Card, QString const& cardReader)
 {
 	bool bRetVal = false;
 
-	Reset();
+	//Reset();
 
 	switch(Card.getType())
 	{
@@ -66,7 +67,7 @@ bool CardInformation::LoadDataAddress(PTEID_EIDCard& Card, QString const& cardRe
 {
 	bool bRetVal = false;
 
-	Reset();
+	//Reset();
 
 	switch(Card.getType())
 	{
@@ -87,7 +88,7 @@ bool CardInformation::LoadDataPersoData(PTEID_EIDCard& Card, QString const& card
 {
 	bool bRetVal = false;
 
-	Reset();
+	//Reset();
 
 	switch(Card.getType())
 	{
@@ -108,7 +109,7 @@ bool CardInformation::LoadDataCertificates(PTEID_EIDCard& Card, QString const& c
 {
 	bool bRetVal = false;
 
-	Reset();
+	//Reset();
 
 	switch(Card.getType())
 	{
@@ -124,4 +125,19 @@ bool CardInformation::LoadDataCertificates(PTEID_EIDCard& Card, QString const& c
 	}
 	return bRetVal;
 }
+
+/*
+void LoadPinInfo(PTEID_EIDCard&	   Card, QString const& cardReader ){
+	PTEID_Pins& pins = Card.getPins();
+
+	PTEID_Pin pin = pins.getPinByPinRef(PTEID_Pin::AUTH_PIN);
+	m_PinsInfo.
+	pins.getPinByPinRef(PTEID_Pin::SIGN_PIN);
+	pins.getPinByPinRef(PTEID_Pin::ADDR_PIN);
+
+}
+*/
+
+
+
 

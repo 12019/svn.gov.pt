@@ -3,6 +3,77 @@
 <TS version="2.0" language="nl">
 <context>
     <name>MainWnd</name>
+     <message>
+        <source>Bytes available:</source>
+        <translation>Bytes disponíveis:</translation>
+     </message>
+      <message>
+        <source>Certification path</source>
+        <translation>Caminho da certificação</translation>
+     </message>
+     <message>
+        <source>The certificates could not be validated, the certification path is not complete</source>
+        <translation>Os certificados não foram validados, o caminho de certificação não está completo</translation>
+</message>
+<message>
+	<source>Change Authentication and OTP PIN</source>
+	<translation>Alterar Pin de Autenticação e OTP</translation>
+</message>
+<message>
+	<source>Attention: your current authentication PIN will be requested twice in two different dialog boxes.</source>
+	<translation>Atenção: o seu actual PIN de autenticação vai ser requerido duas vezes neste processo.</translation>
+	</message>
+
+	<message>
+	<source>Sorry, this operation is unsupported on this reader</source>
+	<translation>Pedimos desculpa, mas esta operação não é suportada neste leitor de cartões</translation>
+</message>
+
+	<message>
+	<source>Verification of your current PIN failed</source>
+	<translation>O PIN actual está incorrecto.</translation>
+</message>
+<message>
+	<source>Error connecting to the OTP Server. Please check your internet connection.</source>
+	<translation>Erro na ligação ao servidor de OTP. Por favor certifica-se de que está ligado à Internet.</translation>
+</message>
+<message>
+	<source>Error connecting to the OTP Server. Your authentication certificate was rejected.</source>
+	<translation>Erro na ligação ao servidor de OTP. O seu certificado de autenticação foi rejeitado.</translation>
+</message>
+<message>
+	<source>Error connecting to the OTP Server. </source>
+	<translation>Erro na ligação ao servidor de OTP.</translation>
+</message>
+<message>
+	<source> Unexpected error in the OTP Server results. Aborting Pin change operation"</source>
+	<translation>Resultado inesperado recebido do servidor de OTP. Operação abortada.</translation>
+</message>
+<message>
+
+	<source>Error ocurred changing the authentication PIN. Please try again to avoid out-of-sync PINs</source>
+	<translation>Erro ocorrido na alteração de PIN de autenticação. Por favor tente outra vez para evitar ter PINs dessincronizados</translation>
+</message>
+     <message>
+        <source>%1 tries remaining</source>
+        <translation>Restam %1 tentativas</translation>
+     </message>
+     <message>
+        <source>%1 try remaining</source>
+        <translation>Resta %1 tentativa</translation>
+     </message>
+     <message>
+        <source>Reading card data...</source>
+        <translation>A ler os dados do cartão...</translation>
+    </message>
+     <message>
+        <source>Time for entering PIN expired (30 seconds)</source>
+        <translation>O tempo para introdução do PIN expirou (30 segundos)</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Gravar</translation>
+    </message>
     <message>
         <source>Warning</source>
         <translation type="unfinished">Aviso</translation>
@@ -10,6 +81,14 @@
     <message>
         <source>A problem has occurred while trying to read card. Please, try again.</source>
         <translation type="unfinished">Ocorreu um erro ao tentar ler o cartão. Tente novamente por favor.</translation>
+    </message>
+    <message>
+        <source>The address cannot be accessed because the maximum number of PIN entry attempts has been reached</source>
+        <translation>Não foi possível aceder aos dados da morada porque o respectivo PIN está bloqueado</translation>
+    </message>
+    <message>
+        <source>Maximum number of PIN entry attempts has been reached! Couldn't save personal notes</source>
+        <translation>PIN da autenticação bloqueado. Não foi possível guardar as notas pessoais</translation>
     </message>
     <message>
         <source>Portuguese ID Card Management</source>
@@ -738,8 +817,12 @@ Please specify .xml, .csv or .eid</source>
         <translation type="unfinished">O PIN introduzido está errado!</translation>
     </message>
     <message>
-        <source>PIN change </source>
-        <translation type="unfinished">Alteração de PIN </translation>
+        <source>PIN change passed</source>
+        <translation type="unfinished">Alteração de PIN efectuada</translation>
+    </message>
+    <message>
+        <source>PIN change failed</source>
+        <translation type="unfinished">Alteração de PIN falhou</translation>
     </message>
     <message>
         <source>txt_ECard_1</source>
@@ -1028,16 +1111,12 @@ Please specify .xml, .csv or .eid</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Cartao Inserido:</source>
+        <source>Cartão Inserido:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>setEventCallbacks</source>
         <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Portuguese ID Card Management</source>
-        <translation>Aplicação Oficial do Cartão de Cidadão Português</translation>
     </message>
 </context>
 <context>
@@ -1083,7 +1162,7 @@ Please specify .xml, .csv or .eid</source>
     </message>
     <message>
         <source>Do you want to check for updates?</source>
-        <translation>Deseja verificar se existem actulizações disponiveis?</translation>
+        <translation>Deseja verificar se existem actualizações disponíveis?</translation>
     </message>
 </context>
 <context>
