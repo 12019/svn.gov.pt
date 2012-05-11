@@ -690,6 +690,7 @@ void APL_Certifs::foundCertificate(const char *SubDir, const char *File, void *p
 
 #ifdef WIN32
 	errno_t werr;
+	path+= "\\"; //Quick Fix for a messy situation with the certificates subdir
 #endif
 	path+=SubDir;
 #ifdef WIN32
@@ -725,19 +726,11 @@ void APL_Certifs::foundCertificate(const char *SubDir, const char *File, void *p
 	certifs->addCert(*cert, APL_CERTIF_TYPE_UNKNOWN, false);
 
 	err:
-	MWLOG(LEV_DEBUG, MOD_APL, L"APL_Certifs::foundCertificate: problem with file %s ", path.c_str());
+	MWLOG(LEV_DEBUG, MOD_APL, L"APL_Certifs::foundCertificate: problem with file %ls ", utilStringWiden(string(path)).c_str());
 }
 
 APL_Certif *APL_Certifs::findIssuer(const APL_Certif *cert)
 {
-	return findIssuer(&cert->getData());
-}
-
-APL_Certif *APL_Certifs::findIssuer(const CByteArray *data)
-{
-	if(!data)
-		return NULL;
-
 	APL_Certif *issuer=NULL;
 
 	//First we look in the already loaded
@@ -745,39 +738,10 @@ APL_Certif *APL_Certifs::findIssuer(const CByteArray *data)
 	for(itr=m_certifs.begin();itr!=m_certifs.end();itr++)
 	{
 		issuer=itr->second;
-		if(m_cryptoFwk->isIssuer(*data,issuer->getData()))
+		if(m_cryptoFwk->isIssuer(cert->getData(),issuer->getData())){
 			return issuer;
+		}
 	}
-
-	//Check in the hard coded store
-	const unsigned char *const *pucIssuer;
-	int i;
-
-	//Comment code that is causing troubles on certificates
-	//we look in the hard coded root array
-	/*for(pucIssuer=_pteid_root_certs,i=0;*pucIssuer!=NULL;pucIssuer++,i++)
-	{
-		CByteArray issuer_data(*pucIssuer,_pteid_root_certs_size[i]);
-
-		if(m_cryptoFwk->isIssuer(*data,issuer_data))
-		{
-			APL_Certif *issuer = addCert(issuer_data,APL_CERTIF_TYPE_ROOT,true);
-			return issuer;
-		}
-	}*/
-
-	//we look in the hard coded issuer array
-	/*for(pucIssuer=_pteid_issuer_certs,i=0;*pucIssuer!=NULL;pucIssuer++,i++)
-	{
-		CByteArray issuer_data(*pucIssuer,_pteid_issuer_certs_size[i]);
-
-		if(m_cryptoFwk->isIssuer(*data,issuer_data))
-		{
-			APL_Certif *issuer = addCert(issuer_data,APL_CERTIF_TYPE_CA,true);
-			return issuer;
-		}
-	}*/
-
 	return NULL;
 }
 
@@ -1336,7 +1300,7 @@ void APL_Certif::resetIssuer()
 void APL_Certif::resetRoot()
 {
     //Make temporary fix to make certificates appear on certain IAS cards
-    if(m_issuer==this)
+    if(m_cryptoFwk->isSelfIssuer(getData()))
 		m_root=1;
 	else
 		m_root=0;
@@ -1370,9 +1334,9 @@ void APL_Certif::resetTest()
 APL_Certif *APL_Certif::getIssuer()
 {
 	//If this is the root, there is no issuer
-	if(m_root)
-		return NULL;
-
+	if(m_root){
+		return this;
+	}
 	return m_issuer;
 }
 

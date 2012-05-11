@@ -29,6 +29,8 @@
 #include "XadesSignature.h"
 #include "SigContainer.h"
 #include "MiscUtil.h"
+#include "EMV-Cap-Helper.h"
+#include "SSLConnection.h"
 
 #include <time.h>
 #include <sys/types.h>
@@ -165,6 +167,74 @@ CByteArray &APL_Card::SignXades(const char ** paths, unsigned int n_paths, const
 	return signature;
 }
 
+bool APL_Card::ChangeCapPin(const char * new_pin)
+{
+
+	// TODO and notes: Detect usage of Pinpad readers (we'll need to do an unsecure PIN verify)
+	// and cases where the PINs will be asked interactively 
+	char *encrypted_apdu = NULL;
+	const unsigned char IAS_PTEID_APPLET_AID[] = {0x60, 0x46, 0x32, 0xFF, 0x00, 0x01, 0x02};
+	const unsigned char GEMSAFE_APPLET_AID[] = {0x60, 0x46, 0x32, 0xFF, 0x00, 0x00, 0x02};
+
+	//Establish SSL Connection with otp server to get the CAP PIN Change APDU
+	SSLConnection conn;
+
+	char* cookie = conn.do_OTP_1stpost();
+
+	if (cookie == NULL)
+		throw CMWEXCEPTION(EIDMW_OTP_PROTOCOL_ERROR);
+
+	//Get OTP Params from EMV-Applet
+	OTPParams otp_params, otp_params2;
+	EMVCapHelper cap_helper(this);
+	cap_helper.getOtpParams(&otp_params);
+	otp_params.pin = (char*)new_pin;
+
+	encrypted_apdu = conn.do_OTP_2ndpost(cookie, &otp_params);
+
+	if (encrypted_apdu != NULL)
+	{
+		char * response_code = cap_helper.changeCapPin(encrypted_apdu);
+		conn.do_OTP_3rdpost(cookie, response_code);
+		//Reset script counter only needed for Gemsafe Cards
+		if (this->getType() == APL_CARDTYPE_PTEID_IAS07)
+		{
+
+			EMVCapHelper new_cap_helper(this);
+			new_cap_helper.getOnlineTransactionParams(&otp_params2);
+			otp_params2.pin = (char*)new_pin;
+			char *cdol2 = conn.do_OTP_4thpost(cookie, &otp_params2);
+
+			char *reset_response_code = new_cap_helper.resetScriptCounter(cdol2);
+			conn.do_OTP_5thpost(cookie, reset_response_code);
+		}
+
+	}
+	else
+		throw CMWEXCEPTION(EIDMW_OTP_PROTOCOL_ERROR);
+
+	//Re-select the IAS applet before returning
+	bool IsGemsafe = this->getType() == APL_CARDTYPE_PTEID_IAS07;
+	CByteArray Cmd;
+
+	Cmd.Append(0x00);
+	Cmd.Append(0xA4); 
+	Cmd.Append(0x04);
+	Cmd.Append(IsGemsafe ? 0x00 : 0x0C);
+	Cmd.Append(0x07);
+
+	if (IsGemsafe)
+		Cmd.Append(GEMSAFE_APPLET_AID, sizeof(GEMSAFE_APPLET_AID));
+	else
+		Cmd.Append(IAS_PTEID_APPLET_AID, sizeof(IAS_PTEID_APPLET_AID));
+
+	this->sendAPDU(Cmd);
+
+return true;
+
+
+}
+
 void replace_lastdot_inplace(char* str_in)
 {
 	// We can only search forward because memrchr and strrchr 
@@ -226,6 +296,7 @@ void APL_Card::SignIndividual(const char ** paths, unsigned int n_paths, const c
 	   throw CMWEXCEPTION(EIDMW_ERR_CHECK);
 
 	XadesSignature sig(this);
+	CByteArray *ts_data = NULL;
         const char **files_to_sign = new const char*[1];
 
 	for (unsigned int i=0; i!= n_paths; i++)
@@ -233,9 +304,11 @@ void APL_Card::SignIndividual(const char ** paths, unsigned int n_paths, const c
 
 		files_to_sign[0] = paths[i];
 		CByteArray &signature = sig.SignXades(files_to_sign, 1, timestamp);
+		if (timestamp)
+			ts_data = &XadesSignature::mp_timestamp_data;
 		
 		const char *output_file = generateFinalPath(output_dir, paths[i]);
-		StoreSignatureToDisk (signature, NULL, files_to_sign, 1, output_file);
+		StoreSignatureToDisk (signature, ts_data, files_to_sign, 1, output_file);
 		delete []output_file;
 
 		//Set SSO on after first iteration to avoid more PinCmd() user interaction for the remaining 
@@ -281,15 +354,25 @@ bool APLVerifySignature(const char *container_path, char * errors, unsigned long
 	CByteArray timestamp = container->ExtractTimestamp();
 
 	delete container;
+
+	//TODO: We need to sort out the multiple checks issue, error messages are
+	// getting overwritten by valid timestamp messages
 	
 	result = XadesSignature::ValidateXades(sig_content, hashes, errors, error_len);
 	
-	if (timestamp.Size() > 0)
-		result &= XadesSignature::ValidateTimestamp(sig_content, timestamp, errors, error_len);
+	if (result)
+	{
+	   if (timestamp.Size() > 0)
+		   result &= XadesSignature::ValidateTimestamp(sig_content, timestamp, errors, error_len);
+	}
+	unsigned long subject_len = XadesSignature::mp_subject_name.Size();
+	
+	if (errors[*error_len-1] != '\n')
+		strcat(errors, "\n");
 
-	else if (result)
-	//This indicates that we don't have any "success message" on *errors* parameter
-		*error_len = 0; 	    	
+	if (subject_len > 0)
+	  strncat(errors, (const char*)XadesSignature::mp_subject_name.GetBytes(),
+	    subject_len);
 
 	return result;
 

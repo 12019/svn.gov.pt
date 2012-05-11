@@ -21,6 +21,7 @@
 #ifndef MAINWND_H
 #define MAINWND_H
 
+#include <map>
 #include <QtGui>
 #include <QFutureWatcher>
 #ifdef WIN32
@@ -51,12 +52,12 @@ class PinInfo
 
 public:
 	QString pin_name;
-	QString pin_status;
+	unsigned long triesLeft;
 	QString pin_id;
 
 	PinInfo() {};
-	PinInfo(int id, const char *pin_name, const char *pin_status=""): 
-	  pin_name(QString::fromUtf8(pin_name)), pin_id(QString::number(id)), pin_status(QString::fromUtf8(pin_status))
+	PinInfo(unsigned long id, const char *pin_name, long tLeft):
+	  pin_name(QString::fromUtf8(pin_name)), pin_id(QString::number(id)), triesLeft(tLeft)
 	  { };
 };
 
@@ -164,23 +165,18 @@ private:
 class QTreeCertItem : public QTreeWidgetItem
 {
 public:
-	QTreeCertItem(QTreeWidget *view, int type):QTreeWidgetItem(view,type) {}
-	QTreeCertItem(QTreeCertItem *parent, int type):QTreeWidgetItem(parent,type){}
+	QTreeCertItem(int type, PTEID_Certificate &cert):QTreeWidgetItem(QStringList(QString::fromUtf8(cert.getOwnerName())),type) {init(cert);}
+	QTreeCertItem(QTreeWidget *view, int type, PTEID_Certificate &cert):QTreeWidgetItem(view,QStringList(QString::fromUtf8(cert.getOwnerName())),type) {init(cert);}
+	QTreeCertItem(QTreeCertItem *parent, int type, PTEID_Certificate &cert):QTreeWidgetItem(parent,QStringList(QString::fromUtf8(cert.getOwnerName())),type){init(cert);}
 
-	void setIssuer(QString Issuer) {m_Issuer=Issuer;}
+
 	QString const& getIssuer() {return m_Issuer;}
-
-	void setOwner(QString Owner) {m_Owner=Owner;}
 	QString const& getOwner() {return m_Owner;}
-
-	void setValidityBegin(QString ValidityBegin) {m_ValidityBegin=ValidityBegin;}
 	QString const& getValidityBegin() {return m_ValidityBegin;}
-
-	void setValidityEnd(QString ValidityEnd) {m_ValidityEnd=ValidityEnd;}
 	QString const& getValidityEnd() {return m_ValidityEnd;}
-
-	void setKeyLen(QString KeyLen) {m_KeyLen=KeyLen;}
 	QString const& getKeyLen() {return m_KeyLen;}
+	QString const& getLabel() {return m_Label;}
+	PTEID_Certificate *getCert() { return cert;}
 
 private:
 	QString m_Issuer;
@@ -188,6 +184,38 @@ private:
 	QString m_ValidityBegin;
 	QString m_ValidityEnd;
 	QString m_KeyLen;
+	QString m_Label;
+	PTEID_Certificate *cert;
+
+	void init(PTEID_Certificate &cert){
+		this->cert = &cert;
+		m_Issuer = QString::fromUtf8(cert.getIssuerName());
+		m_Owner = QString::fromUtf8(cert.getOwnerName());
+		m_ValidityBegin = QString::fromUtf8(cert.getValidityBegin());
+		m_ValidityEnd = QString::fromUtf8(cert.getValidityEnd());
+		m_KeyLen = QString::number(cert.getKeyLength());
+		m_Label = QString::fromUtf8(cert.getLabel());
+	}
+};
+
+/* Helper Class for Threaded Data Loading */
+class CardDataLoader
+{
+private:
+	CardInformation& information;
+	PTEID_EIDCard &card;
+	QString &readerName;
+	MainWnd *mwnd;
+
+
+public:
+	CardDataLoader(CardInformation& info, PTEID_EIDCard& Card, QString& ReaderName, MainWnd *mw = NULL):
+		information(info), card(Card), readerName(ReaderName), mwnd(mw)
+	{ }
+
+	void Load();
+	void LoadPersoData();
+	void LoadCertificateData();
 };
 
 class MainWnd : public QMainWindow
@@ -302,7 +330,8 @@ protected:
 	QProgressDialog *m_progress;
 	QFutureWatcher<void> FutureWatcher;
 
-	PinInfo list_of_pins[3]; 
+	PinInfo list_of_pins[3];
+	std::map<long unsigned int,PinInfo *> m_pinsInfo;
 
 
 private:
@@ -312,7 +341,6 @@ private:
 	void loadCardDataAddress ();
 	bool loadCardDataPersoData ();
 	void loadCardDataCertificates ();
-	void setStatus( unsigned int Status );
 
 	// Refresh Data
 	void showTabs( void );
@@ -323,6 +351,7 @@ private:
 	void refreshTabIdentity( void );
 	void refreshTabIdentityExtra( void );
 	void refreshTabAddress( void );
+	void clearAddressData( void );
 	void refreshTabPersoData( void );
 	void refreshTabCertificates( void );
 	void refreshTabCardPin( void );
@@ -380,6 +409,7 @@ private:
 			break;
 		}
 	}
+	void ChangeAuthPin(PTEID_ReaderContext&, unsigned int);
 	void fillSoftwareInfo( void );
 	void setLanguageMenu( GenPur::UI_LANGUAGE language );
 	void setLanguageMenu( QString const& uiLang );
@@ -391,8 +421,8 @@ private:
 	void enableFileSave( bool bEnabled );
 	void enablePrintMenu( void );
 	bool ImportSelectedCertificate( void );
-	unsigned long getCertificateIndex( QString const& label );
-	void fillPinList(PTEID_EIDCard& Card);
+	void fillPinList( void );
+	void loadPinData(PTEID_EIDCard& Card);
 	void fillCertificateList( void );
 	void stopAllEventCallbacks( void );
 	void setEventCallbacks( void );
@@ -416,7 +446,6 @@ private:
 	void clearTabPins( void );
 	void releaseVirtualReader( void );
 	void doPicturePopup( PTEID_Card& card );
-	void setWidgetsPointSize(QList<QWidget *> &allWidgets);
 	void setCorrespondingTrayIcon( PopupEvent* callbackEvent );
 	void clearGuiContent( void );
 	QString getSpecialOrganizationText( QString const& code);
@@ -425,6 +454,7 @@ private:
 	void createTrayMenu();
 	QString getFinalLinkTarget(QString baseName);	
 	void cleanupCallbackData();
+	QTreeCertItem* buildTree(PTEID_Certificate &cert, bool &bEx);
 
 	eZOOMSTATUS				m_Zoom;
 	QPrinter*				m_pPrinter;				//!< the 'Selected' Printer
@@ -452,39 +482,8 @@ private:
 public:
 	static tCertPerReader			m_certContexts;			//!< certificate contexts of each reader
 
+friend void CardDataLoader::Load();
 };
-
-
-/* Helper Class for Threaded Data Loading */
-class CardDataLoader
-{
-private:
-	CardInformation& information;
-	PTEID_EIDCard &card;
-	QString &readerName;
-
-	
-	public:
-	CardDataLoader(CardInformation& info, PTEID_EIDCard& Card, QString& ReaderName): 
-		information(info), card(Card), readerName(ReaderName)
-	{ }
-
-	void Load()
-	{
-		this->information.LoadData(card, readerName);
-	}
-
-	void LoadPersoData()
-	{
-		this->information.LoadDataPersoData(card, readerName);
-	}
-
-	void LoadCertificateData()
-	{
-		this->information.LoadDataCertificates(card, readerName);
-	}
-};
-
 
 #endif
 

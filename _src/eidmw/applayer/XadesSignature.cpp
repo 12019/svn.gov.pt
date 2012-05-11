@@ -1,10 +1,16 @@
 /**
- *
- * XAdES and XAdES-T signature generation for PT-Eid Middleware
- *
- * Author: André Guerreiro <andre.guerreiro@caixamagica.pt>
- *
- */
+******************************************************************************
+*
+**  PTeID Middleware Project.
+**  Copyright (C) 2011-2012
+**  Andre Guerreiro <andre.guerreiro@caixamagica.pt>
+**
+**  XAdES and XAdES-T signature generator and validator 
+**
+**
+**
+*/
+
 
 #include <iostream>
 #include <fstream>
@@ -17,13 +23,11 @@
 #include "XadesSignature.h"
 #include "MWException.h"
 #include "eidErrors.h"
+#include "Util.h"
+#include "static_pteid_certs.h"
 
 #include "MiscUtil.h"
 
-// Timestamp.cc contains the implementation for local
-// timestamp validation using OpenSSL 1.0. ATM its disabled because
-// it complicates the deployment
-//#include "Timestamp.h"
 
 #include "Log.h"
 #include "ByteArray.h"
@@ -63,7 +67,9 @@
 //OpenSSL
 #include <openssl/sha.h>
 #include <openssl/evp.h>
+#include <openssl/pem.h>
 #include <openssl/bio.h>
+#include <openssl/err.h>
 
 //stat
 #include <sys/types.h>
@@ -92,6 +98,7 @@ namespace eIDMW
 	CByteArray XadesSignature::mp_timestamp_data = CByteArray();
 
 	CByteArray XadesSignature::mp_validate_data = CByteArray();
+	CByteArray XadesSignature::mp_subject_name = CByteArray();
 
 	CByteArray XadesSignature::HashFile(const char *file_path)
 	{
@@ -306,13 +313,13 @@ namespace eIDMW
 		BIO_free_all(bio);
 	}
 
-	char *strip_backslashes(const char *str)
+	char *strip_newlines(const char *str)
 	{
 		char *cleaned = new char[strlen(str)];
 		int j = 0;
 		for (unsigned int i=0; i < strlen(str); i++)
 		{
-			if (str[i] != '\n') //Skips all backslash sequences, it works for base64 strings
+			if (str[i] != '\n')
 				cleaned[j++] = str[i]; 
 		}
 		cleaned[j] = 0;
@@ -330,6 +337,10 @@ namespace eIDMW
 		CURL *curl;
 		CURLcode res;
 		char error_buf[CURL_ERROR_SIZE];
+
+		//Make sure the static array receiving the network reply 
+		// is zero'd out before each request
+		mp_validate_data.Chop(mp_validate_data.Size());
 
 		//Get Timestamping server URL from config
 		APL_Config tsa_url(CConfig::EIDMW_CONFIG_PARAM_XSIGN_TSAURL);
@@ -392,8 +403,8 @@ namespace eIDMW
 
 			if (res != 0)
 			{
-				MWLOG(LEV_ERROR, MOD_APL, L"Timestamp Validation error in HTTP POST request. LibcURL returned %S\n", 
-						(char *)error_buf);
+				MWLOG(LEV_ERROR, MOD_APL, L"Timestamp Validation error in HTTP POST request. LibcURL returned %ls\n", 
+					utilStringWiden(string(error_buf)).c_str());
 			}
 
 			/* always cleanup */ 
@@ -402,7 +413,7 @@ namespace eIDMW
 			curl_slist_free_all(headers);
 			curl_formfree(formpost);
 
-
+			curl_global_cleanup();
 		}
 
 
@@ -415,6 +426,10 @@ namespace eIDMW
 		CURL *curl;
 		CURLcode res;
 		char error_buf[CURL_ERROR_SIZE];
+
+		//Make sure the static array receiving the network reply 
+		// is zero'd out before each request
+		mp_timestamp_data.Chop(mp_timestamp_data.Size());
 
 		//Get Timestamping server URL from config
 		APL_Config tsa_url(CConfig::EIDMW_CONFIG_PARAM_XSIGN_TSAURL);
@@ -454,14 +469,15 @@ namespace eIDMW
 
 			if (res != 0)
 			{
-				MWLOG(LEV_ERROR, MOD_APL, L"Timestamping error in HTTP POST request. LibcURL returned %S\n", 
-						(char *)error_buf);
+				MWLOG(LEV_ERROR, MOD_APL, L"Timestamping error in HTTP POST request. LibcURL returned %ls\n", 
+						utilStringWiden(string(error_buf)).c_str());
 			}
 
 			curl_slist_free_all(headers);
 
 			/* always cleanup */ 
 			curl_easy_cleanup(curl);
+			curl_global_cleanup();
 
 		}
 
@@ -532,9 +548,10 @@ bool XadesSignature::checkExternalRefs(DSIGReferenceList *refs, tHashedFile **ha
         XMLByte arr[SHA1_LEN*sizeof(unsigned char)];
 
 	bool res;
+	int j;
 	tHashedFile *hashed_file=NULL;
 
-	for (int j = 0; hashes[j] != NULL; j++)
+	for ( j = 0 ; hashes[j] != NULL; j++)
 	{	
 		res = false;	
 		hashed_file = hashes[j];
@@ -555,10 +572,17 @@ bool XadesSignature::checkExternalRefs(DSIGReferenceList *refs, tHashedFile **ha
 		if (res == false)
 		{
 			MWLOG (LEV_ERROR, MOD_APL,
-					L" checkExternalRefs(): SHA-1 Hash Value for file %s doesn't match.",
-				       	hashed_file->URI->c_str());
+					L" checkExternalRefs(): SHA-1 Hash Value for file %ls doesn't match.",
+				       	utilStringWiden(*(hashed_file->URI)).c_str());
 			return false;
 		}
+	}
+	
+	//If container has no signed files this test is automatically false
+	if (j == 0)
+	{
+		MWLOG (LEV_DEBUG, MOD_APL, L"checkExternalRefs(): Container has no signed files!");
+		return false;
 	}
 
 	MWLOG (LEV_DEBUG, MOD_APL, L" checkExternalRefs(): All External References matched.");
@@ -566,7 +590,7 @@ bool XadesSignature::checkExternalRefs(DSIGReferenceList *refs, tHashedFile **ha
 }
 
 /*
- * A little HTML-scraping to get the validation result
+ * A little HTML-scraping to get the validation result and timestamp value
  */
 bool XadesSignature::grep_validation_result (char *time_and_date)
 {
@@ -575,6 +599,7 @@ bool XadesSignature::grep_validation_result (char *time_and_date)
 	const char * valid_timestamp_pattern = "Selo Temporal V\xE1lido.";
 	const char * invalid_timestamp_pattern = "Selo Temporal n\xE3o corresponde ao ficheiro seleccionado";
 	const char * general_error_pattern = "Ocorreu um erro";
+	const char * signed_by = getString(16);
 	unsigned char *haystack = mp_validate_data.GetBytes();
 
 	if (mp_validate_data.Size() == 0)
@@ -585,11 +610,14 @@ bool XadesSignature::grep_validation_result (char *time_and_date)
 	
 	const char *ts_str = strstr((const char *)haystack, valid_timestamp_pattern);
 
+	//Warning: magic offsets ahead...
 	if (ts_str != NULL)
 	{
 		//Grab the TimeDate string
-		strncpy(time_and_date, ts_str+36, 27);
-		time_and_date[27] = 0;
+		strcat(time_and_date, signed_by);
+		strncpy(time_and_date+strlen(signed_by), ts_str+36, 27);
+		time_and_date[27+strlen(signed_by)] = '\n';
+		time_and_date[28+strlen(signed_by)] = 0;
 
 		return true; 
 	}
@@ -630,7 +658,7 @@ bool XadesSignature::ValidateTimestamp (CByteArray signature, CByteArray ts_resp
 
 	if (signature.Size() == 0)
 	{
-		int err_len = _snprintf(errors, *error_length, getString(0));
+		int err_len = _snprintf(errors, *error_length, "%s", getString(0));
 		*error_length = err_len;
 		MWLOG(LEV_ERROR, MOD_APL, L"ValidateTimestamp() received empty Signature. This most likely means a corrupt zipfile");
 		return false;
@@ -685,13 +713,14 @@ bool XadesSignature::ValidateTimestamp (CByteArray signature, CByteArray ts_resp
 	unsigned char signature_hash[SHA1_LEN];
 	char time_and_date[100];
 	unsigned int sig_len = 0;
+	memset(time_and_date, 0, sizeof(time_and_date));
 	XERCES_NS DOMDocument * theDOM = dynamic_cast<XERCES_NS DOMDocument *>(doc);
 	DSIGSignature * sig = prov.newSignatureFromDOM(theDOM, sigNode);
 	
 	sig->load();
 
 	const char* tmp = XMLString::transcode(sig->getSignatureValue());
-	char *tmp2 = strip_backslashes(tmp);
+	char *tmp2 = strip_newlines(tmp);
 	base64Decode(tmp2, strlen(tmp2), signature_bin, sig_len);
 	SHA1(signature_bin, sig_len, signature_hash);
 
@@ -703,7 +732,7 @@ bool XadesSignature::ValidateTimestamp (CByteArray signature, CByteArray ts_resp
 
 	if (mp_validate_data.Size() == 0)
 	{
-		*error_length = _snprintf(errors, *error_length, getString(8));
+		*error_length = _snprintf(errors, *error_length, "%s", getString(8));
 		return false;
 	}
 	
@@ -712,9 +741,236 @@ bool XadesSignature::ValidateTimestamp (CByteArray signature, CByteArray ts_resp
 	if (result)
 		*error_length = _snprintf(errors, *error_length, "%s", time_and_date);
 	else
-		*error_length = _snprintf(errors, *error_length, getString(2));
+		*error_length = _snprintf(errors, *error_length, "%s", getString(2));
 
 	return result;
+
+}
+
+
+X509 *loadCertFromPEM(const char *pem_buffer)
+{
+
+	char * final_pem = (char *)calloc(strlen(pem_buffer)+ 65, sizeof(char));
+	strcat(final_pem, "-----BEGIN CERTIFICATE-----\n");
+	strcat(final_pem, pem_buffer);
+	strcat(final_pem, "-----END CERTIFICATE-----\n");
+
+	BIO *pem_bio = BIO_new_mem_buf((void *)final_pem, -1);
+	X509 *cert = NULL;
+
+	if (pem_bio != NULL)
+	{
+		cert = PEM_read_bio_X509(pem_bio, NULL, NULL, NULL);
+		if (cert == NULL)
+			MWLOG(LEV_ERROR, MOD_APL, L"Error parsing certificate from PEM string!");
+
+	}
+	
+	BIO_free_all(pem_bio);	
+	return cert;
+
+}
+
+X509 * loadCertFromB64Der(const char *base64_string)
+{
+	X509 *cert = NULL;
+	unsigned int bufsize = strlen(base64_string);
+
+	unsigned char *der_buffer = (unsigned char *)malloc(bufsize);
+
+	base64Decode(base64_string, bufsize, der_buffer, bufsize);
+
+	if (der_buffer != NULL)
+	{
+		cert = d2i_X509(NULL, (const unsigned char**)(&der_buffer), bufsize);
+		
+		if (cert == NULL)
+			MWLOG(LEV_ERROR, MOD_APL, L"Error parsing certificate from DER buffer!\n");
+
+	}
+	return cert;
+
+}
+/*
+* This method validates the supplied PEM certificate.
+* To be used by ValidateXades()
+*
+*/
+bool XadesSignature::ValidateCert(const char *pem_certificate)
+{
+	if (pem_certificate == NULL || strlen(pem_certificate) == 0)
+		return false;
+
+	bool bStopRequest = false;
+	bool res = false;
+
+	OpenSSL_add_all_algorithms();
+
+	X509_STORE *store = X509_STORE_new();
+	
+	X509 *pCert = NULL;
+	unsigned char * cert_data = NULL;
+	char *parsing_error = NULL;
+
+	/*
+	APL_Config certs_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_CERTS_DIR);
+	const char * str_certs_dir = certs_dir.getString();
+	CPathUtil::scanDir(str_certs_dir, "", "der", bStopRequest, store, &XadesSignature::foundCertificate);
+	*/
+
+	for (unsigned int i = 0; i != CERTS_N;
+		i++)
+	{
+		pCert = NULL;
+		cert_data = PTEID_CERTS[i].cert_data;
+	    pCert = d2i_X509(&pCert, (const unsigned char **)&cert_data, 
+			PTEID_CERTS[i].cert_len);
+
+		if (pCert == NULL)
+		{
+			parsing_error = ERR_error_string(ERR_get_error(), NULL);
+		MWLOG(LEV_ERROR, MOD_APL, L"XadesSignature::ValidateCert: Error parsing certificate #%d. Details: %s",
+				i, parsing_error);
+		}
+		else
+		{
+			if(X509_STORE_add_cert(store, pCert) == 0)
+				printf("XadesSignature::ValidateCert: error adding certificate #%d\n",  i);
+		}
+	
+	}
+	
+	X509_STORE_CTX *ctx;
+	X509 *cert = NULL;
+
+	ctx = X509_STORE_CTX_new();
+
+	if (ctx == NULL)
+	{
+		/* Bad error */
+		return false;
+	}
+	
+	cert = loadCertFromPEM(pem_certificate);
+
+	if (cert == NULL)
+	{
+		MWLOG(LEV_ERROR, MOD_APL, L"ValidateCert(): Broken or corrupt certificate");
+		return false;
+	}
+
+	//Load cert chain into store
+
+	X509_STORE_CTX_init(ctx, store, cert, NULL);
+
+	X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_CB_ISSUER_CHECK);
+	
+	int validate_res = X509_verify_cert(ctx);
+
+	if (validate_res == 1)
+	{
+		MWLOG(LEV_DEBUG, MOD_APL, L"ValidateCert(): Valid certificate");
+		res = true;
+	}
+	else
+	{
+		res = false;
+		char subject_buf[1024];
+		std::string ssl_error = std::string(X509_verify_cert_error_string(ctx->error));
+		MWLOG(LEV_DEBUG, MOD_APL, L"ValidateCert(): Invalid certificate! OpenSSL Error: %ls", 
+			utilStringWiden(ssl_error).c_str());
+
+		X509* error_cert = X509_STORE_CTX_get_current_cert(ctx);
+		X509_NAME_oneline(X509_get_subject_name(ctx->current_cert), subject_buf, sizeof(subject_buf));
+		std::string subject_str = std::string(subject_buf);
+		MWLOG(LEV_DEBUG, MOD_APL, L"Certificate that caused the error: %ls",
+			utilStringWiden(subject_str).c_str());
+
+	}
+
+	X509_STORE_CTX_free(ctx);
+	return res;
+
+}
+
+void XadesSignature::foundCertificate (const char *SubDir, const char *File, void *param)
+{
+	X509_STORE *certificate_store =  (X509_STORE *)param;
+	APL_Config certs_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_CERTS_DIR);
+	string path = string(certs_dir.getString());
+	FILE *m_stream;
+	X509 *pCert = NULL;
+	long int bufsize;
+	unsigned char *buf;
+
+#ifdef WIN32
+	errno_t werr;
+	path += "\\";
+#endif
+	path+=SubDir;
+#ifdef WIN32
+	path += "\\";
+#else
+	path+= "/";
+#endif
+	path+=File;
+	
+#ifdef WIN32
+	if ((werr = fopen_s(&m_stream, path.c_str(), "rb")) != 0)
+		goto err;
+#else
+	if ((m_stream = fopen(path.c_str(), "rb")) == NULL)
+		goto err;
+#endif
+
+	if (fseek( m_stream, 0L, SEEK_END))
+		goto err;
+
+	bufsize = ftell(m_stream);
+	buf = (unsigned char *) malloc(bufsize*sizeof(unsigned char));
+
+	if (fseek(m_stream, 0L, SEEK_SET)){
+		free(buf);
+		goto err;
+	}
+
+	if (fread(buf, sizeof( unsigned char ), bufsize, m_stream) != bufsize)
+		goto err;
+
+	pCert = d2i_X509(&pCert, (const unsigned char **)&buf, bufsize);
+	if (pCert == NULL)
+	   goto err;
+	
+	if(X509_STORE_add_cert(certificate_store, pCert) == 0)
+	   goto err;
+	
+	MWLOG(LEV_DEBUG, MOD_APL, L"XadesSignature::foundCertificate: successfully added cert %ls", 
+			utilStringWiden(path).c_str());
+	return;
+
+
+	err:
+		MWLOG(LEV_DEBUG, MOD_APL, L"XadesSignature::foundCertificate: problem with file %ls ", 
+			utilStringWiden(path).c_str());
+
+}
+
+char * XadesSignature::parseSubjectFromCert(const char *cert_buffer)
+{
+
+	//Subject name
+	X509 *cert;
+	const int BUFSIZE = 500;
+
+	if ((cert = loadCertFromPEM(cert_buffer)) == NULL)
+		return NULL;
+
+	char *subject = (char *)malloc(BUFSIZE*sizeof(unsigned char));
+
+	X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName, subject, BUFSIZE);
+
+	return subject;
 
 }
 
@@ -772,7 +1028,7 @@ bool XadesSignature::ValidateXades(CByteArray signature, tHashedFile **hashes, c
 
 	if (errorsOccured) {
 		//Write to output report 
-		int err_len = _snprintf(errors, *error_length, getString(4));
+		int err_len = _snprintf(errors, *error_length, "%s", getString(4));
 		*error_length = err_len;
 		MWLOG(LEV_ERROR, MOD_APL, L"Errors parsing XML Signature, bailing out");
 		return false;
@@ -815,19 +1071,62 @@ bool XadesSignature::ValidateXades(CByteArray signature, tHashedFile **hashes, c
 	sig->setKeyInfoResolver(&theKeyInfoResolver);
 	sig->registerIdAttributeName(MAKE_UNICODE_STRING("ID"));
 
-
 	bool result = false;
 	bool extern_result = false; 
 	try {
-	
+
 		sig->load();
+				
+		// Validate signing certificate first
+		DSIGKeyInfo *keyinfo = sig->getKeyInfoList()->item(0);
+		// If keyinfo is NULL this most certainly means a broken signature
+		// just skip certificate checking
+		if (keyinfo != NULL)
+		{
+
+			//This should always be the case for signatures created by pteid-mw
+			if (keyinfo->getKeyInfoType() == DSIGKeyInfo::KEYINFO_X509)
+			{
+				DSIGKeyInfoX509 *cert_element = dynamic_cast<DSIGKeyInfoX509 *> (keyinfo);
+				const XMLCh *pem_cert = cert_element->getCertificateItem(0);
+				char * tmp_cert = XMLString::transcode(pem_cert);
+				
+				//Clear the static array
+				mp_subject_name.Chop(mp_subject_name.Size());
+				//Parse the signer's name from the certificate
+				char * subject_name = utf8_to_latin1(
+					   parseSubjectFromCert(tmp_cert));
+
+				if (subject_name != NULL)
+				{
+					mp_subject_name.Append(CONST_STR getString(14), strlen(getString(14)));
+					mp_subject_name.Append(CONST_STR " ", 1);
+					mp_subject_name.Append(CONST_STR subject_name, strlen(subject_name));
+				}
+				bool cert_result = ValidateCert(tmp_cert);
+
+				if (!cert_result)
+				{
+					int err_len = _snprintf(errors, *error_length, "%s",  getString(12));
+					*error_length = err_len;
+					return false;
+				}
+				
+					
+
+				
+				XMLString::release(&tmp_cert);
+			}
+		}
+		
 
 		DSIGReferenceList *refs = sig->getReferenceList();
+
 		if (refs != NULL)
 			extern_result = checkExternalRefs(refs, hashes);
 		if (!extern_result)
 		{
-			int err_len = _snprintf(errors, *error_length, getString(6));
+			int err_len = _snprintf(errors, *error_length, "%s",  getString(6));
 			*error_length = err_len;
 			return false;
 		}
@@ -836,22 +1135,19 @@ bool XadesSignature::ValidateXades(CByteArray signature, tHashedFile **hashes, c
 
 	}
 	catch (XSECException &e) {
-		char * msg = XMLString::transcode(e.getMsg());
-		cerr << "An error occured during signature verification\n  (1) XMLSec Error Message: "
-			<< msg << endl;
-		XSEC_RELEASE_XMLCH(msg);
+		MWLOG(LEV_ERROR, MOD_APL, L"ValidateXades(): XSECException thrown. Detail: %ls",
+			e.getMsg());
 		result = false;
-	 	
 	}
 	catch (XSECCryptoException &e) {
-		cerr << "An error occured during signature verification\n  (2) XMLSec Error Message: "
-			<< e.getMsg() << endl;
+		MWLOG(LEV_ERROR, MOD_APL, L"ValidateXades(): XSECCryptoException thrown. Detail: %ls",
+			e.getMsg());
 		return false;
 	}
 
 	if (result == false)
 	{
-		int err_len = _snprintf(errors, *error_length, "Validation error: RSA Signature of referenced content is invalid");
+		int err_len = _snprintf(errors, *error_length, "%s", getString(10));
 		*error_length = err_len;
 	}
 

@@ -34,6 +34,7 @@ namespace eIDMW
 #define XML_ROOT_ELEMENT_ATTR_TIMESTAMP		"timestamp"
 #define XML_ROOT_ELEMENT_ATTR_SERVERNAME	"servername"
 #define XML_ROOT_ELEMENT_ATTR_SERVERADDRESS	"serveraddress"
+#define XML_ROOT_ELEMENT_ATTR_TOKENID		"tokenid"
 #define XML_PHOTO_ELEMENT 					"photo"
 #define XML_BASIC_INFO_ELEMENT				"basicInformation"
 #define XML_NAME_ELEMENT					"name"
@@ -879,6 +880,17 @@ public:
 	     PTEIDSDK_API void SignXadesIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the XAdes signature in individual zip containers  */
 	     PTEIDSDK_API void SignXadesTIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the Xades-T signature in individual zip containers  */
 
+	     /* Change the OTP/EMV-CAP PIN through interaction with the appropriate HTTPS server
+	      * Note: This method SHOULD be always called before any change to the Authentication PIN
+	      * because the two PINs are the same from the user's perspective 
+	      * 
+	      */
+	     PTEIDSDK_API bool ChangeCapPin(const char *new_pin);
+
+	     /* helper method for the compatibility layer */
+	     PTEIDSDK_API bool ChangeCapPinCompLayer(const char *old_pin, const char *new_pin,unsigned long &ulRemaining);
+
+
 
 	/**
 	 * Return a raw data from the card.
@@ -942,6 +954,7 @@ class PTEID_XmlUserRequestedInfo : public PTEID_Object
 public:
     PTEIDSDK_API PTEID_XmlUserRequestedInfo();
     PTEIDSDK_API PTEID_XmlUserRequestedInfo(const char *timeStamp, const char *serverName, const char *serverAddress);
+    PTEIDSDK_API PTEID_XmlUserRequestedInfo(const char *timeStamp, const char *serverName, const char *serverAddress, const char *tokenID);
 	PTEIDSDK_API virtual ~PTEID_XmlUserRequestedInfo();			/**< Destructor */
 	PTEIDSDK_API void add(XMLUserData xmlUData);		/**< add string */
 
@@ -1542,6 +1555,12 @@ PTEIDSDK_API void PTEID_LOG(PTEID_LogLevel level, const char *module_name, const
 /******************************************************************************//**
   * Compatibility layer
   *********************************************************************************/
+#if defined(_WIN32) || defined (__WIN32__)
+	#define _USERENTRY __cdecl
+#else
+	#define _USERENTRY
+#endif
+
 #define COMP_LAYER_NATIONAL_ADDRESS "N"
 #define COMP_LAYER_FOREIGN_ADDRESS "I"
 
@@ -1802,6 +1821,26 @@ typedef struct
     unsigned char *exponent;
     unsigned char exponentLength; // number of bytes in exponent/length of the exponent
 } PTEID_RSAPublicKey;
+
+/* Used in ChangeAddress() and ChangeCAPPIN*/
+typedef struct {
+	const char *csProxy;
+	unsigned int uiPort;
+	const char *csUserName;
+	const char *csPassword;
+} tProxyInfo;
+
+/* Used in PTEID_GetCapPinChangeProgress */
+typedef enum {
+	CAP_INITIALISING = 0,	// Initialising
+	CAP_CONNECTING,			// Connecting to the Server (PIN is asked)
+	CAP_READING_INFO,		// Reading info from the card
+	CAP_SENDING_INFO,		// Sending info to the server
+	CAP_WRITE,				// Change the PIN in the card
+	CAP_FINISH,				// Finish the CAP PIN change(send responses to the server)
+	CAP_FINISHED,			// The CAP PIN Change flow has completed.
+	CAP_CANCELLED			// The CAP PIN Change flow was cancelled.
+} tCapPinChangeState;
 
 
 PTEIDSDK_API long PTEID_Init(
@@ -2066,6 +2105,36 @@ PTEIDSDK_API long PTEID_SendAPDU(
 	unsigned long ulRequestLen,     /**<in: command APDU length */
 	unsigned char *ucResponse,      /**<out: response APDU */
 	unsigned long *ulResponseLen);  /**<in/out: response APDU length */
+
+
+/**
+ * Do a CAP PIN change, this function will connect the CAP PIN Change Server
+ * and forward commands between the Card and the CAP PIN Server.
+ */
+PTEIDSDK_API long PTEID_CAP_ChangeCapPin(
+	const char *csServer,					/**<in: Address Change Server, format: <name>:<port>. */
+	const unsigned char *ucServerCaCert,	/**<in: CA cert of the Server (DER encoded). */
+	unsigned long ulServerCaCertLen,		/**<in: length of the Server CA cert. */
+	tProxyInfo *proxyInfo,					/**<in: proxy info, or NULL if no proxy is needed. */
+	const char *pszOldPin,					/**<in: the current CAP PIN. */
+	const char *pszNewPin,					/**<in: the new CAP PIN we want to change to. */
+	long *triesLeft);						/**<out: The tries left after an unsuccessful attempt. */
+
+/**
+ * Returns info on what the PTEID_ChangeCapPin() is currently doing.
+ */
+PTEIDSDK_API tCapPinChangeState PTEID_CAP_GetCapPinChangeProgress();
+
+/**
+ * Setup a callback function to be called during the change address operation when state changes.
+ */
+PTEIDSDK_API void PTEID_CAP_SetCapPinChangeCallback(void(_USERENTRY * callback)(tCapPinChangeState state));
+
+/**
+ * Allows the library user to cancel a running Change CAP PIN operation.
+ */
+PTEIDSDK_API void PTEID_CAP_CancelCapPinChange();
+
 
 #endif // !defined SWIGJAVA && !defined SWIGCSHARP
 }
