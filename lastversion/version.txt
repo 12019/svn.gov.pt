@@ -1,12 +1,10 @@
-2,0,0
+2,0,1
 
 #<b>* Release Notes</b>
 <p>
-- Correcção de várias traduções;<br/>
+- Implementação da alteração de PIN EMV-CAP.<br/>
 
-- Implementação de verificação de Xades-T;<br/>
-
-- Melhoramento gráfico da aplicação;<br/>
+- Melhorado o suporte em Windows.<br/>
 
 - Correcção de pequenos bugs.<br/>
 <p>
