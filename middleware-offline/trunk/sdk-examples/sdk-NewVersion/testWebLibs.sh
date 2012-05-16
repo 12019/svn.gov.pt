@@ -1,7 +1,9 @@
 #!/bin/bash
 
+# ARCH SHOULD HAVE THE VALUES "32" or "64"
+ARCH=64
 
-URL_LIBS_TO_TEST=http://projects.caixamagica.pt/projects/cartaocidadao/repository/middleware-offline/builds/2012-03-06/caixamagica-16-32/pteid-pkg-web.tar.gz
+URL_LIBS_TO_TEST=http://projects.caixamagica.pt/projects/cartaocidadao/repository/middleware-offline/builds/2012-05-09/caixamagica-16-32/pteid-pkg-web.tar.gz
 
 
 URL_TEST_SUITE=http://projects.caixamagica.pt/projects/cartaocidadao/repository/middleware-offline/tools/test-suite/sdk-NewVersion/java/src
@@ -16,6 +18,9 @@ cd $WORK_DIR
 svn export $URL_LIBS_TO_TEST pkg_to_test.tar.gz
 tar xzvf pkg_to_test.tar.gz
 
+## Export native libs
+svn export http://projects.caixamagica.pt/projects/cartaocidadao/repository/middleware-offline/builds/1_native-libs/linux-$ARCH
+mv linux-$ARCH/* pteid-pkg/lib
 
 ## Export suite-tests to run tests on SDK:
 svn export $URL_TEST_SUITE java-test

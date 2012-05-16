@@ -42,10 +42,10 @@ public class ExampleSDK {
 
 	private static final String FREE_IMAGE = "FreeImage";
 	private static final String X_SEC = "xsec_1_6";
-	private static final String PTEID_APPLAYER = "pteid35applayer";
-	private static final String PTEID_CARDLAYER = "pteid35cardlayer";
-	private static final String PTEID_DLGS = "pteid35DlgsWin32";
-	private static final String PTEID_COMMON = "pteid35common";
+	private static final String PTEID_APPLAYER = "pteidapplayer";
+	private static final String PTEID_CARDLAYER = "pteidcardlayer";
+	private static final String PTEID_DLGS = "pteidDlgsWin32";
+	private static final String PTEID_COMMON = "pteidcommon";
 	private static final String XERCES_C_3_1 = "xerces-c_3_1";
 	private static final String SSLEAY_32 = "ssleay32";
 	private static final String LIBEAY_32 = "libeay32";
@@ -103,6 +103,124 @@ public class ExampleSDK {
 	}
 
 
+
+
+
+	private void changeAuthenticationPIN(){
+
+		PTEID_Pins pins;
+		PTEID_Pin pin;
+		String oldPin="";
+		String newPin="";
+
+
+		// Verificar o pin actual
+		boolean PIN_validated=false;
+
+
+		try {
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			if (this.idCard.getPins().getPinByPinRef(PTEID_Pin.AUTH_PIN).verifyPin(oldPin, wrap,false)){
+				PIN_validated=true;
+				System.out.println("PIN OK!!!!\n");
+			} else{
+				System.out.println("Wrong Pin! Try again!");
+			}
+		} catch (PTEID_Exception e) {
+			e.printStackTrace();
+			return ;
+		}
+
+		
+		newPin=readInput("Insira o novo PIN de Autenticação:");
+		
+		// Alterar o EMV Cap - OTP
+		try{
+
+			boolean res = this.idCard.ChangeCapPin(newPin); //Novo PIN
+			System.out.println("O seu pin, foi alterado! Congratulations!");                     
+
+		}
+		catch(PTEID_Exception e)
+		{
+			//Erros específicos do OTP
+			if (e.GetError() == 0xe1d00d01)
+				System.out.println("Erro de ligacao - OTP");
+			else if (e.GetError() == 0xe1d00d2)
+				System.out.println("Erro de protocolo - OTP");
+                        else if (e.GetError() == 0xe1d00d3)
+			        System.out.println("Erro de Ligacao ao Servidor - Certificados Invalidos - OTP");
+                        else if (e.GetError() == 0xe1d00d4)
+		                System.out.println("Erro desconhecido - OTP");
+			else{
+				System.out.println("Error number:" + e.GetError() );
+				e.printStackTrace();
+			}
+			return ;
+
+		}
+
+		// OK - o PIN EMVCAP foi alterado correctamente, vamos agora alterar no cartao!
+		
+		try {
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			if (this.idCard.getPins().getPinByPinRef(PTEID_Pin.AUTH_PIN).changePin(oldPin, newPin, wrap,"",false)){
+				System.out.println("Auth PIN CHANGED!\n");
+			}
+		} catch (PTEID_Exception e) {
+			e.printStackTrace();
+			return ;
+		}		
+		
+		System.out.println("Pin de autenticaçao alterado com sucesso e sicronizado com OTP");
+
+	}
+
+
+
+	private void test_changeCAP(){
+
+		// To change PIN 
+
+		try{
+
+			boolean res = this.idCard.ChangeCapPin("1234"); //Novo PIN
+			System.out.println("O seu pin, foi alterado! Congratulations!");                     
+
+		}
+		catch(PTEID_Exception e)
+		{
+			//Erros específicos do OTP
+			if (e.GetError() == 0xe1d00d01)
+				System.out.println("Erro de ligacao");
+			else if (e.GetError() == 0xe1d00d2)
+				System.out.println("Erro de protocolo - OTP");
+
+		}
+	}
+
+
+	private void test_ChangePin(){
+
+		PTEID_Pins pins;
+		String oldPass;
+		String newPass;
+
+		try {
+			PTEID_Pin pin = this.idCard.getPins().getPinByPinRef(PTEID_Pin.AUTH_PIN);
+			oldPass=readInput("Insira o PIN de aut antigo:");
+			newPass=readInput("Insira o PIN de aut novo:");
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			if (pin.changePin(oldPass, newPass, wrap,"",false)) {
+				System.out.println("autg PIN CHANGED!\n");
+			}
+		} catch (PTEID_Exception e) {
+			e.printStackTrace();
+		}		
+	}
+
+
+
 	private void init() {
 		try {
 			PTEID_ReaderSet.initSDK();
@@ -111,7 +229,7 @@ public class ExampleSDK {
 			ex.printStackTrace();
 		}
 	}
-	
+
 	private void release() {
 		try {
 			PTEID_ReaderSet.releaseSDK();
@@ -119,7 +237,7 @@ public class ExampleSDK {
 			ex.printStackTrace();
 		}
 	}
-	
+
 	private void InitializeCard() {
 		try {
 			this.idCard = this.readerContext.getEIDCard();
@@ -127,8 +245,8 @@ public class ExampleSDK {
 			ex.printStackTrace();
 		}
 	}
-	
-	
+
+
 
 
 	private void findSmartCardReaderWithCard(String readerName) {
@@ -240,16 +358,11 @@ public class ExampleSDK {
 		PTEID_Pins pins;
 		String secret;
 		try {
-			pins = this.idCard.getPins();
-			for (int i = 0; i < pins.count(); i++) {
-				PTEID_Pin pin = pins.getPinByNumber(i);
-				if (pin.getLabel().equalsIgnoreCase("PIN da Morada")) {
-					secret=readInput("Insira o PIN de Morada:");
-					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
-					if (pin.verifyPin(secret, wrap,false)) {
-						System.out.println("PIN OK!!!!\n");
-					}
-				}
+			PTEID_Pin pin = this.idCard.getPins().getPinByPinRef(PTEID_Pin.ADDR_PIN);
+			secret=readInput("Insira o PIN da morada:");
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			if (pin.verifyPin(secret, wrap,false)) {
+				System.out.println("PIN OK!!!!\n");
 			}
 		} catch (PTEID_Exception e) {
 			e.printStackTrace();
@@ -275,16 +388,10 @@ public class ExampleSDK {
 	private void verifySignPIN(){
 		PTEID_Pins pins;
 		try {
-			pins = this.idCard.getPins();
-			for (int i = 0; i < pins.count(); i++) {
-				PTEID_Pin pin = pins.getPinByNumber(i);
-				if (pin.getLabel().equalsIgnoreCase("PIN da Assinatura")) {
-					System.out.println("Entrei aqui - assinatura");
-					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
-					if (pin.verifyPin("", wrap,false)) {
-						System.out.println("PIN OK!!!!\n");
-					}
-				}
+			PTEID_Pin pin = this.idCard.getPins().getPinByPinRef(PTEID_Pin.SIGN_PIN);
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			if (pin.verifyPin("", wrap,false)) {
+				System.out.println("PIN OK!!!!\n");
 			}
 		} catch (PTEID_Exception e) {
 			e.printStackTrace();
@@ -296,24 +403,17 @@ public class ExampleSDK {
 		System.out.println("verifySignPINNoWindow()");
 		boolean PIN_validated=false;
 		String secret;
-		PTEID_Pins pins;
 
 		try {
 			this.idCard = this.readerContext.getEIDCard();
-			pins = this.idCard.getPins();
-			System.out.println("this.idCard.getPins()");
-			for (int i = 0; i < pins.count(); i++) {
-				PTEID_Pin pin = pins.getPinByNumber(i);
-				if (pin.getLabel().equalsIgnoreCase("PIN da Assinatura")) {
-					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
-					while (!PIN_validated){
-						secret=readInput("Insira o PIN de assinatura:");
-						if (pin.verifyPin(secret, wrap,false)) {
-							PIN_validated=true;
-							System.out.println("PIN OK!!!!\n");
-						}	
-					}
-				}
+			PTEID_Pin pin = this.idCard.getPins().getPinByPinRef(PTEID_Pin.SIGN_PIN);
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			while (!PIN_validated){
+				secret=readInput("Insira o PIN de assinatura:");
+				if (pin.verifyPin(secret, wrap,false)) {
+					PIN_validated=true;
+					System.out.println("PIN OK!!!!\n");
+				}	
 			}
 		} catch (PTEID_Exception e) {
 			e.printStackTrace();
@@ -325,19 +425,14 @@ public class ExampleSDK {
 		String secret;
 		PTEID_Pins pins;
 		try {
-			pins = this.idCard.getPins();
-			for (int i = 0; i < pins.count(); i++) {
-				PTEID_Pin pin = pins.getPinByNumber(i);
-				if (pin.getLabel().substring(0, 11).equalsIgnoreCase("PIN da Aute")) {
-					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
-					while (!PIN_validated){
-						secret=readInput("Insira o PIN de Autenticação:");
-						if (pin.verifyPin(secret, wrap,false)) {
-							PIN_validated=true;
-							System.out.println("PIN OK!!!!\n");
-						}	
-					}
-				}
+			PTEID_Pin pin = this.idCard.getPins().getPinByPinRef(PTEID_Pin.AUTH_PIN);
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			while (!PIN_validated){
+				secret=readInput("Insira o PIN de Autenticação:");
+				if (pin.verifyPin(secret, wrap,false)) {
+					PIN_validated=true;
+					System.out.println("PIN OK!!!!\n");
+				}		
 			}
 		} catch (PTEID_Exception e) {
 			e.printStackTrace();
@@ -347,22 +442,11 @@ public class ExampleSDK {
 	private void verifyAutenticationPin(){
 		PTEID_Pins pins;
 		try {
-			pins = this.idCard.getPins();
-			for (int i = 0; i < pins.count(); i++) {
-				PTEID_Pin pin = pins.getPinByNumber(i);
-
-				//String i = pin.getLabel();
-
-				System.out.println();
-
-
-				if (pin.getLabel().substring(0, 11).equalsIgnoreCase("PIN da Aute")) {
-					System.out.println("Entrei aqui - autenticacao");
-					PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
-					if (pin.verifyPin("", wrap,false)) {
-						System.out.println("PIN OK!!!!\n");
-					}
-				}
+			PTEID_Pin pin = this.idCard.getPins().getPinByPinRef(PTEID_Pin.AUTH_PIN);
+			System.out.println("Entrei aqui - autenticacao");
+			PTEID_ulwrapper wrap = new PTEID_ulwrapper(-1);
+			if (pin.verifyPin("", wrap,false)) {
+				System.out.println("PIN OK!!!!\n");
 			}
 		} catch (PTEID_Exception e) {
 			e.printStackTrace();
@@ -382,7 +466,7 @@ public class ExampleSDK {
 
 	private void signXades(){
 		try{
-			System.out.println("Here");
+			System.out.println("Method signXades()");
 			String[] file_list={"teste.txt","teste2.txt"};
 			idCard.SignXades(file_list,file_list.length,"signature3.zip");
 			System.out.println("ASSINEI!!");
@@ -394,6 +478,7 @@ public class ExampleSDK {
 
 	private void signXadesT(){
 		try{
+			System.out.println("Method signXadesT()");
 			String[] file_list={"teste.txt","teste2.txt"};
 			idCard.SignXadesT(file_list,file_list.length,"signature-xadest-2.zip");
 		}catch (Exception e){
@@ -403,8 +488,14 @@ public class ExampleSDK {
 
 	private void verifySignature()
 	{
-		String errors = new String();  
-		PTEID_ulwrapper error_size = new PTEID_ulwrapper(0);
+		// TO REMOVE - temporary workaround
+		String aux_error="";			
+		for (int i=0; i<1000;i++){
+			aux_error+="i";
+		} 
+
+		String errors = new String("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111");  
+		PTEID_ulwrapper error_size = new PTEID_ulwrapper(200);
 		boolean result = PTEID_SigVerifier.VerifySignature("signature3.zip", errors, error_size);
 		if (!result)
 			System.out.println("Validation failed!");
@@ -414,8 +505,17 @@ public class ExampleSDK {
 
 	private void verifySignatureXadesT()
 	{
-		String errors = new String();  
-		PTEID_ulwrapper error_size = new PTEID_ulwrapper(0);
+		System.out.println("Method verifySignatureXadesT()");
+
+		// TO REMOVE - temporary workaround
+		String aux_error="";			
+		for (int i=0; i<1000;i++){
+			aux_error+="i";
+		} 
+
+
+		String errors = new String(aux_error);  
+		PTEID_ulwrapper error_size = new PTEID_ulwrapper(aux_error.length());
 		boolean result = PTEID_SigVerifier.VerifySignature("signature-xadest-2.zip", errors, error_size);
 		if (!result)
 			System.out.println("Validation failed!");
@@ -550,25 +650,29 @@ public class ExampleSDK {
 	private void generateXML(){
 
 		try{	
-
-			
-			
 			verifyAddressPIN();
-			
+
 			System.out.println("A gerar XML Vazio:");
 			PTEID_XmlUserRequestedInfo req = new PTEID_XmlUserRequestedInfo();
 			//req1.add(XMLUserData.XML_PHOTO);
 			PTEID_CCXML_Doc result = this.idCard.getXmlCCDoc(req);
 			System.out.println("Documento XML: \n"+ result.getCCXML());
-			
-			System.out.println("A gerar XML com campo District:");
-			PTEID_XmlUserRequestedInfo req1 = new PTEID_XmlUserRequestedInfo();
+
+
+			System.out.println("A gerar XML com timestamp, servername e serverAdress:");
+			PTEID_XmlUserRequestedInfo req_1 = new PTEID_XmlUserRequestedInfo("12345678","localhost","127.0.0.1");
+			//req1.add(XMLUserData.XML_PHOTO);
+			PTEID_CCXML_Doc result_1 = this.idCard.getXmlCCDoc(req_1);
+			System.out.println("Documento XML: \n"+ result_1.getCCXML());
+
+			System.out.println("A gerar XML com campo District e timestamp, servername, serverAdress e Token:");
+			PTEID_XmlUserRequestedInfo req1 = new PTEID_XmlUserRequestedInfo("1234599","localhost-me","127.0.0.1","jhsadqW1a");
 			req1.add(XMLUserData.XML_DISTRICT);
 			//req1.add(XMLUserData.XML_PHOTO);
 			PTEID_CCXML_Doc result1 = this.idCard.getXmlCCDoc(req1);
 			System.out.println("Documento XML: \n"+ result1.getCCXML());
-			
-			
+
+
 			System.out.println("A gerar XML com campo NIC:");
 			PTEID_XmlUserRequestedInfo req2 = new PTEID_XmlUserRequestedInfo();
 			req2.add(XMLUserData.XML_NIC);
@@ -578,7 +682,7 @@ public class ExampleSDK {
 
 			System.out.println("A gerar XML com todos os campos existentes:");
 			PTEID_XmlUserRequestedInfo req3 = new PTEID_XmlUserRequestedInfo();
-			
+
 			req3.add(XMLUserData.XML_ABBR_BUILDING_TYPE);
 			req3.add(XMLUserData.XML_ABBR_STREET_TYPE);
 			req3.add(XMLUserData.XML_ACCIDENTAL_INDICATIONS);
@@ -630,7 +734,7 @@ public class ExampleSDK {
 			req3.add(XMLUserData.XML_VERSION);
 			req3.add(XMLUserData.XML_ZIP3);
 			req3.add(XMLUserData.XML_ZIP4);
-			
+
 			req3.add(XMLUserData.XML_NIC);
 			req3.add(XMLUserData.XML_PHOTO);
 			req3.add(XMLUserData.XML_SOCIAL_SECURITY_NO);
@@ -639,13 +743,13 @@ public class ExampleSDK {
 			PTEID_CCXML_Doc result3 = this.idCard.getXmlCCDoc(req3);
 			System.out.println("Documento XML: \n"+ result2.getCCXML());
 
-		
+
 		} catch (Exception e){
 			e.printStackTrace();
 		}
 	}
 
-	
+
 	public static void main(String args[]){
 		System.out.println("Testing Java SDK");
 
@@ -654,18 +758,25 @@ public class ExampleSDK {
 		eSDK.init();
 		eSDK.getSmartCardReaders();
 		eSDK.InitializeCard();
-		
+
+		eSDK.changeAuthenticationPIN();
+
+		System.out.println("Ja sai do metodo k mexe com o OTP");
+
+
+		eSDK.test_ChangePin();
+
 		eSDK.generateXML();
-		
-		
+
+
 		eSDK.dumpID();
 
-		
+
 
 		eSDK.verifyAddressPIN();
 		eSDK.dumpAddress();
 		//eSDK.listPins();
-		
+
 		// Pins Operations
 		//eSDK.verifyPins();
 		//eSDK.verifySignPIN();
@@ -674,8 +785,8 @@ public class ExampleSDK {
 		//eSDK.verifySignPIN();
 		eSDK.verifySignPINNoWindow();
 		eSDK.signXades();		
-		
-		
+		eSDK.verifySignature();	
+
 		eSDK.verifySignPINNoWindow();
 		eSDK.signXadesT();
 		eSDK.verifySignatureXadesT();
@@ -707,9 +818,9 @@ public class ExampleSDK {
 
 		Utils.writeToFile();
 		 */
-		
+
 		eSDK.release();
-		
+
 	}
 
 
