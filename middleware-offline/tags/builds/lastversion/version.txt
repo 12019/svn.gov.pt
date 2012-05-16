@@ -1,4 +1,4 @@
-3,6,9
+4,6,9
 
 #<b>* Release Notes</b>
 <p>
