@@ -89,6 +89,17 @@ void dlgSignature::ShowErrorMsgBox()
   	msgBoxp.exec();
 }
 
+void dlgSignature::ShowSuccessMsgBox()
+{
+
+		QString caption  = tr("File Signature (XAdES)");
+        QString msg = tr("Signature(s) succesfully generated");
+		QMessageBox msgBoxp(QMessageBox::Information, caption, msg, 0, this);
+  		msgBoxp.exec();
+
+
+}
+
 void dlgSignature::on_pbCancel_clicked( void )
 {
 	done(0);
@@ -129,33 +140,6 @@ void dlgSignature::SignListView (QStringList list)
 	//connect (ui.listView, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(ShowContextMenu(const QPoint&)));
 }
 
-/* Replaced the broken right-click menu by removing on delete keypress
-void dlgSignature::ShowContextMenu(const QPoint& pos)
-{
-	QPoint globalPos = ui.listView->mapToGlobal(pos);
-
-	QMenu *myMenu = new QMenu(ui.listView);
-	//myMenu->addAction("Remove Item");
-	QAction *_remove = new QAction("Remove", this);
-	myMenu->addAction(_remove);
-	connect( _remove, SIGNAL( triggered() ), this, SLOT( RemoveFromView() ) );
-	QAction* selectedItem = myMenu->exec(globalPos);
-
-	if (selectedItem)
-	{
-		std::cout << "remove item" << std::endl;
-		//remove item;
-		QModelIndex index = ui.listView->currentIndex();
-		int row = index.row();
-		int count = 1;
-
-		ui.listView->model()->removeRows( row, count, index );
-		ui.listView->update();
-	}
-}
-*/
-
-
 
 void dlgSignature::on_pbSign_clicked ( void )
 {
@@ -192,20 +176,19 @@ void dlgSignature::on_pbSign_clicked ( void )
 		files_to_sign[n_files] = cpychar;
 		PTEID_LOG(PTEID_LOG_LEVEL_DEBUG, "eidgui", "File to Sign: %s", files_to_sign[n_files]);
 	}
-
-	QString defaultsavefilepath;
+	
+	//Default save filepath should be helpful and try to save in the same directory as the file(s)
+	QString defaultsavefilepath = QFileInfo(strlist.last()).dir().absolutePath();
 	QString savefilepath;
 	QString nativedafaultpath;
-
-	defaultsavefilepath = QDir::homePath();
-	defaultsavefilepath.append("/xadessign.zip");
+	if (!individual_sigs)
+		defaultsavefilepath.append("/xadessign.zip");
 	nativedafaultpath = QDir::toNativeSeparators(defaultsavefilepath);
 	if (individual_sigs)
 	{
 		savefilepath = QFileDialog::getExistingDirectory(this, tr("Open Directory"),
-				QDir::homePath(),
+				nativedafaultpath,
 				QFileDialog::ShowDirsOnly);
-		//std::cout << "Savefilepath: " << savefilepath.toStdString() << std::endl;
 
 	}
 	else
@@ -251,12 +234,18 @@ void dlgSignature::on_pbSign_clicked ( void )
 
 	pdialog->exec();
 
+	if (this->success)
+		ShowSuccessMsgBox();
+	else
+		ShowErrorMsgBox();
+
 	delete []files_to_sign;
 	delete cpychar;
 	delete []output_file;
 
 	this->close();
 }
+
 
 void dlgSignature::runsign(const char ** paths, unsigned int n_paths, const char *output_path, bool timestamp)
 {
@@ -270,11 +259,13 @@ void dlgSignature::runsign(const char ** paths, unsigned int n_paths, const char
 		    SignXades = Card->SignXadesT(paths, n_paths, output_path);
 	    else
 		    SignXades = Card->SignXades(paths, n_paths, output_path);
+		this->success = true;
 
     }
 
     catch (PTEID_Exception &e)
     	{
+			this->success = false;
     		switch(e.GetError()){
     		case EIDMW_ERR_PIN_CANCEL:
     			PTEID_LOG(PTEID_LOG_LEVEL_DEBUG, "eidgui", "PIN introduction - CANCELED!");
@@ -301,9 +292,11 @@ void dlgSignature::run_multiple_sign(const char ** paths, unsigned int n_paths, 
 		    Card->SignXadesTIndividual(paths, n_paths, output_path);
 	    else
 		    Card->SignXadesIndividual(paths, n_paths, output_path);
+		this->success = true;
     }
     catch (PTEID_Exception &e)
         	{
+				this->success = false;
         		switch(e.GetError()){
         		case EIDMW_ERR_PIN_CANCEL:
         			PTEID_LOG(PTEID_LOG_LEVEL_DEBUG, "eidgui", "PIN introduction - CANCELED!");

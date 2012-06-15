@@ -24,6 +24,9 @@
 #include <vector>
 #include <map>
 #include <set>
+#ifndef _WIN32
+#include <stdint.h>
+#endif
 #include "eidlibdefines.h"
 
 namespace eIDMW
@@ -921,6 +924,8 @@ private:
 friend PTEID_Card &PTEID_ReaderContext::getCard();				/**< For internal use : This method must access protected constructor */
 };
 
+class SignatureVerifier;
+
 class PTEID_SigVerifier
 {
 	
@@ -932,16 +937,21 @@ class PTEID_SigVerifier
  	*  Implementation note: External references in the <SignedInfo> element are not checked
  	*
  	*  @param IN signature is a byte array containing the UTF-8 representation of an XML document
- 	*  @param OUT error_buffer if not NULL should point to a preallocated char buffer that will be filled with 
- 	*  a description of eventual validation problems
-	*  @param IN/OUT error_size on input it should point to the size of error_buffer while on API return 
-	*  it points to the length of the string written into error_buffer
-	*  @param IN/OUT error_size on input it should point to the size of error_buffer while on API return it points to the length of the string written into error_buffer
  	*/
 
 	public:
-	PTEIDSDK_API static bool VerifySignature(const char *container, char * error_buffer, unsigned long *error_size);
-	PTEIDSDK_API static bool VerifySignature(const char *container, char * error_buffer, unsigned long &error_size);
+	
+	PTEIDSDK_API PTEID_SigVerifier(const char * container_path);
+	PTEIDSDK_API ~PTEID_SigVerifier();
+
+	PTEIDSDK_API int Verify();
+	PTEIDSDK_API char * GetSigner();
+	PTEIDSDK_API char *GetTimestampString();
+	PTEIDSDK_API long long GetUnixTimestamp();
+      	//PTEIDSDK_API getTimestamp() //TODO: Create a custom class struct that expresses the timestamp in all its glorious detail
+	
+	private:
+	SignatureVerifier *m_impl;
 
 };
 
