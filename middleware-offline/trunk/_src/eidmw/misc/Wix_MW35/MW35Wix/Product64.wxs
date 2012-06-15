@@ -12,7 +12,7 @@
   <?define var.ProductGuid ={824563DE-75AD-4166-9DC0-B6482F20$(var.RevisionNumber)}?>
   <?define var.ProductGuidGeneric ={824563DE-75AD-4166-9DC0-B6482F2?????}?>
   <!--<?define var.ProductGuid ={824563DE-75AD-4166-9DC0-B6482F2DED5A})?>-->
-  <?define var.ProductName =Portugal e-ID middleware $(var.OfficialProductVersion) (build $(var.RevisionNumber))?>
+  <?define var.ProductName =Cartão de Cidadão Português $(var.OfficialProductVersion) (build $(var.RevisionNumber))?>
 
   <?define var.PackageCode="*"?>
 
@@ -515,8 +515,6 @@
 		</Component>
       
     </DirectoryRef>
-	  
-	  <Binary Id="PTeIDWin32CertificateImport" SourceFile="..\..\..\_Binaries35\x64\Release\PTeIDWin32CertificateImport.exe" />
    
     
     <DirectoryRef Id="TARGETDIR">
@@ -887,12 +885,6 @@
 					
 					/>
 	 
-	<CustomAction Id="CertificateRegistration"
-					BinaryKey="PTeIDWin32CertificateImport"
-				    ExeCommand=""
-					Impersonate="no"
-					Return="check"
-					Execute="deferred" />
     <InstallUISequence>
       <Custom Action="PreventDowngrading" After="FindRelatedProducts">NEWPRODUCTFOUND</Custom>
     </InstallUISequence>

@@ -91,9 +91,13 @@
         <translation>PIN da autenticação bloqueado. Não foi possível guardar as notas pessoais</translation>
     </message>
     <message>
-        <source>Portuguese ID Card Management</source>
-        <translation>Aplicação Oficial do Cartão de Cidadão</translation>
+        <source>Portuguese Citizen Card</source>
+        <translation>Cartão de Cidadão</translation>
     </message>
+	<message>
+	    <source>Portuguese Citizen Card Management</source>
+		<translation>Cartão de Cidadão</translation>
+	</message>
     <message>
         <source>Additional Data</source>
         <translation>Outros Dados</translation>
@@ -1091,28 +1095,28 @@ Please specify .xml, .csv or .eid</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Notas Pessais</source>
-        <translation type="unfinished"></translation>
+        <source>Personal Notes</source>
+        <translation>Notas Pessoais</translation>
     </message>
     <message>
-        <source>Notas pessoais escritas com sucesso!</source>
-        <translation type="unfinished"></translation>
+        <source>Personal notes successfully written!</source>
+        <translation>Notas pessoais escritas com sucesso!</translation>
     </message>
     <message>
-        <source>Erro ao escrever notas pessoais!</source>
-        <translation type="unfinished"></translation>
+        <source>Error writing personal notes!</source>
+        <translation>Erro ao escrever notas pessoais!</translation>
     </message>
     <message>
         <source>&amp;Portuguese</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Leitor de cartoes: </source>
-        <translation type="unfinished"></translation>
+        <source>Card Reader: </source>
+        <translation>Leitor de Cartões: </translation>
     </message>
     <message>
-        <source>Cartão Inserido:</source>
-        <translation type="unfinished"></translation>
+        <source>Card Inserted</source>
+        <translation>Cartão Inserido</translation>
     </message>
     <message>
         <source>setEventCallbacks</source>
@@ -1168,7 +1172,7 @@ Please specify .xml, .csv or .eid</source>
 <context>
     <name>dlgAbout</name>
     <message>
-        <source>Portuguese ID Card Management.</source>
+        <source>Portuguese Identification Card Management Software</source>
         <translation>Aplicação Oficial do Cartão de Cidadão Português.</translation>
     </message>
     <message>
@@ -1176,8 +1180,8 @@ Please specify .xml, .csv or .eid</source>
         <translation>Versão 2.0</translation>
     </message>
     <message>
-        <source>If you have any troubles during the use of this software,</source>
-        <translation>Caso tenha dificuldades na utilização desta aplicação,</translation>
+        <source>For information or support about this software please visit</source>
+        <translation>Caso tenha dificuldades na utilização desta aplicação consulte</translation>
     </message>
     <message>
         <source>please check the user manuals and FAQ section in this</source>
@@ -1188,16 +1192,12 @@ Please specify .xml, .csv or .eid</source>
         <translation>Frequentes" (FAQ), no site do cartão de cidadão:</translation>
     </message>
     <message utf8="true">
-        <source>Developed by Portuguese Government (Agência para a</source>
-        <translation>Desenvolvido pelo Estado Português (Agência para a</translation>
+        <source>Developed by the Portuguese State</source>
+        <translation>Desenvolvido pelo Estado Português</translation>
     </message>
-    <message>
-        <source>Modernização Administrativa IP e Instituto de Registos</source>
-        <translation>Modernização Administrativa IP e Instituto de Registos</translation>
-    </message>
-    <message>
-        <source>e Notariado IP).</source>
-        <translation>e Notariado IP).</translation>
+    <message utf8="true">
+        <source>(Agência para a Modernização Administrativa, IP and Instituto dos Registos</source>
+        <translation>(Agência para a Modernização Administrativa, IP e Instituto dos Registos</translation>
     </message>
     <message utf8="true">
         <source>Copyright © 2009-2010</source>
@@ -1493,6 +1493,10 @@ Please specify .xml, .csv or .eid</source>
         <source>Sign</source>
         <translation>Assinar</translation>
     </message>
+	<message>
+	<source>Signature(s) succesfully generated</source>
+	<translation>Ficheiro(s) assinado(s) com sucesso</translation>
+	</message>
     <message>
         <source>Signing data...</source>
         <translation>A assinar dados...</translation>
@@ -1537,10 +1541,37 @@ Please specify .xml, .csv or .eid</source>
         <translation>Assinatura verificada com sucesso.</translation>
     </message>
     <message>
-        <source>
-Timestamp: </source>
-	<translation>
-Selo Temporal: </translation>
+        <source>Timestamp: </source>
+	<translation>Selo Temporal: </translation>
     </message>
+    <message>
+        <source>Signed by: </source>
+	<translation>Assinado por: </translation>
+    </message>
+    <message>
+        <source>Signature Validation error: </source>
+	<translation>Erro de validação da assinatura: </translation>
+    </message>
+    <message>
+        <source>Couldn't extract signature from zip container</source>
+	<translation>Não foi possível extrair a assinatura</translation>
+    </message>
+    <message>
+        <source>RSA Signature of referenced content is invalid</source>
+	<translation>A assinatura criptográfica do conteúdo está inválida</translation>
+    </message>
+    <message>
+        <source>At least one of the signed file(s) was modified or is missing</source>
+	<translation>Pelo menos um dos ficheiros assinados foi alterado ou está em falta</translation>
+    </message>
+    <message>
+        <source>The certificate used to sign this data is not trusted</source>
+	<translation>O certificado contido na assinatura não provém de uma fonte confiável</translation>
+    </message>
+    <message>
+        <source>The timestamp appended to the signature is invalid</source>
+	<translation>Não foi possível validar o selo temporal</translation>
+    </message>
+
 </context>
 </TS>
