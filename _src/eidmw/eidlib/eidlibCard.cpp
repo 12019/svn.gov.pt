@@ -31,6 +31,7 @@
 #include "PhotoPteid.h"
 #include "ByteArray.h"
 #include "CardPteid.h"
+#include "PDFSignature.h"
 #include "dialogs.h"
 #include "Util.h"
 #include <sstream>
@@ -105,7 +106,7 @@ PTEID_ByteArray PTEID_Card::sendAPDU(const PTEID_ByteArray& cmd)
 	return out;
 }
 
-PTEID_ByteArray PTEID_Card::Sign(const PTEID_ByteArray& data)
+PTEID_ByteArray PTEID_Card::Sign(const PTEID_ByteArray& data, bool signatureKey)
 {
 	PTEID_ByteArray out;
 
@@ -114,7 +115,7 @@ PTEID_ByteArray PTEID_Card::Sign(const PTEID_ByteArray& data)
 		APL_Card *pcard=static_cast<APL_Card *>(m_impl);
 
 	CByteArray cData(data.GetBytes(),data.Size());
-	CByteArray result=pcard->Sign(cData);
+	CByteArray result=pcard->Sign(cData, signatureKey);
 	out.Append(result.GetBytes(),result.Size());
 
 	END_TRY_CATCH
@@ -235,6 +236,22 @@ long PTEID_SmartCard::readFile(const char *fileID, PTEID_ByteArray &in,PTEID_Pin
 	END_TRY_CATCH
 
 	return out;
+}
+
+
+void PTEID_EIDCard::SignPDF(const char *input_path, const char *name, const char *location, const char *reason,
+			const char *outfile_path)
+{
+
+
+	BEGIN_TRY_CATCH
+
+	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
+	PDFSignature pdf_sig(*pcard, input_path);
+	pdf_sig.signFile(name, location, reason, outfile_path);
+	
+	END_TRY_CATCH
+
 }
 
 bool PTEID_SmartCard::writeFile(const char *fileID,const PTEID_ByteArray &baOut,PTEID_Pin *pin,const char *csPinCode)

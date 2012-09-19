@@ -132,7 +132,7 @@
     </message>
     <message>
         <source>Export / Print</source>
-        <translation>Exportar/Imprimir</translation>
+        <translation>Exportar PDF</translation>
     </message>
     <message>
         <source>Exit</source>
@@ -1155,19 +1155,35 @@ Please specify .xml, .csv or .eid</source>
     </message>
 </context>
 <context>
-    <name>AutoUpdates</name>
-    <message>
-        <source>Auto-update</source>
-        <translation>Actualizações Automáticas</translation>
-    </message>
-    <message>
-        <source>Yes</source>
-        <translation>Sim</translation>
-    </message>
-    <message>
-        <source>Do you want to check for updates?</source>
-        <translation>Deseja verificar se existem actualizações disponíveis?</translation>
-    </message>
+	<name>AutoUpdates</name>
+	<message>
+		<source>Auto-update</source>
+		<translation>Actualizações Automáticas</translation>
+	</message>
+	<message>
+		<source>Yes</source>
+		<translation>Sim</translation>
+	</message>
+	<message>
+		<source>Cancel</source>
+		<translation>Cancelar</translation>
+	</message>
+	<message>
+		<source>Warning</source>
+		<translation>Aviso</translation>
+	</message>
+	<message>
+		<source>Your Linux distribution is not supported by Auto-updates</source>
+		<source>A sua distribuição não é suportada pelas Actualizações Automáticas</source>
+	</message>
+	<message>
+		<source>Do you want to check for updates?</source>
+		<translation>Deseja verificar se existem actualizações disponíveis?</translation>
+	</message>
+<message>
+	<source>No updates available at the moment</source>
+	<translation>Não existem Actualizações de momento</translation>
+</message>
 </context>
 <context>
     <name>dlgAbout</name>
@@ -1196,8 +1212,8 @@ Please specify .xml, .csv or .eid</source>
         <translation>Desenvolvido pelo Estado Português</translation>
     </message>
     <message utf8="true">
-        <source>(Agência para a Modernização Administrativa, IP and Instituto dos Registos</source>
-        <translation>(Agência para a Modernização Administrativa, IP e Instituto dos Registos</translation>
+        <source>(Agência para a Modernização Administrativa, IP and</source>
+        <translation>(Agência para a Modernização Administrativa, IP e</translation>
     </message>
     <message utf8="true">
         <source>Copyright © 2009-2010</source>
@@ -1426,6 +1442,20 @@ Please specify .xml, .csv or .eid</source>
         <source>PIN verification failed</source>
         <translation>O PIN introduzido está errado!</translation>
     </message>
+	   <message>
+        <source>Export / Print</source>
+		<translation>Exportar/Imprimir</translation>
+
+    </message>
+	<message>
+	<source>PDF file successfully generated</source>
+		<translation>Ficheiro PDF gerado com sucesso</translation>
+	</message>
+	<message>
+	<source>Error Generating PDF File!</source>
+		<translation>Erro ao gerar ficheiro PDF!</translation>
+	</message>
+	
     <message>
         <source>No card present</source>
         <translation>Cartão não encontrado</translation>

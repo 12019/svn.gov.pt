@@ -26,7 +26,11 @@
 #include <QEvent>
 #include <QPixmap>
 #include <QImage>
-#include <stdlib.h>	
+#include <stdlib.h>
+#ifndef _WIN32
+//This has to be explicitly included in gcc4.7
+#include <unistd.h>
+#endif
 #include <time.h>
 
 #ifdef WIN32
@@ -224,10 +228,7 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	m_ui.setupUi(this);
 
 	setFixedSize(830, 630);
-	m_ui.menubar->setVisible(false);
 	m_ui.wdg_submenu_card->setVisible(false);
-
-	InitLanguageMenu();
 
 	Qt::WindowFlags flags = windowFlags();
 	flags ^= Qt::WindowMaximizeButtonHint;
@@ -256,8 +257,6 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	this->setWindowIcon( Ico );
 
 	m_pPrinter	= new QPrinter();
-
-	setLanguageMenu(m_Language);		// check the language in the language menu
 
 	Show_Splash();
 	//------------------------------------
@@ -343,6 +342,7 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 
 bool MainWnd::eventFilter(QObject *object, QEvent *event)
 {
+
 	if (event->type() == QEvent::MouseButtonRelease)
 	{
 
@@ -406,7 +406,7 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 			show_window_about();
 		}
 	}
-
+	
 	if (event->type() == QEvent::Leave)
 	{
 		if (object == m_ui.wdg_submenu_card || object == m_ui.wdg_submenu_tools || object == m_ui.wdg_submenu_language || object == m_ui.wdg_submenu_help )
@@ -414,6 +414,7 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 			hide_submenus();
 		}
 	}
+
 	return false;
 }
 
@@ -558,9 +559,11 @@ void MainWnd::restoreWindow( void )
 		{
 			loadCardData();
 		}
-		this->activateWindow();
+
 	}
 	this->showNormal();
+	this->raise();
+	this->setFocus();
 }
 //*****************************************************
 // update the readerlist. In case a reader is added to the machine
@@ -757,8 +760,11 @@ void MainWnd::resizeEvent( QResizeEvent * event )
 	event->accept();
 }
 
+
 void MainWnd::closeEvent( QCloseEvent *event)
 {
+	printf("closeEvent() called");
+#ifndef __APPLE__
     if ( m_pTrayIcon->isVisible() )
 	{
 		if (m_msgBox)
@@ -782,7 +788,9 @@ void MainWnd::closeEvent( QCloseEvent *event)
         //To avoid problem when restoring the eidgui and clears data
         //loadCardData();
 	}
+#endif
 }
+
 
 //*****************************************************
 // Tray icon activation detection
@@ -3876,88 +3884,9 @@ void MainWnd::setLanguage(GenPur::UI_LANGUAGE language)
 	{
 		m_Language = lngLoaded;					// keep what language we are in
 	}
-	setLanguageMenu(lngLoaded);					// set the language menu according to the loaded language
-	//showTabs();
+	m_Settings.setGuiLanguage(language);
 }
 
-//**************************************************
-// change the language of the interface to the given language
-//**************************************************
-void MainWnd::setLanguageMenu(QString const& strLang)
-{
-	setLanguageMenu(GenPur::getLanguage(strLang));		// set the correct menu item checked
-}
-//**************************************************
-// Set the language menu item 
-//**************************************************
-void MainWnd::setLanguageMenu( GenPur::UI_LANGUAGE language)
-{
-	//----------------------------------------------
-	// remove the check marks on the menu
-	//----------------------------------------------
-
-	for (QMap<GenPur::UI_LANGUAGE,QAction*>::iterator it = m_LanguageActions.begin()
-			; it != m_LanguageActions.end()
-			; it++
-	)
-	{
-		(*it)->setChecked(false);
-	}
-
-	//----------------------------------------------
-	// set the language check mark and write the setting
-	//----------------------------------------------
-	if (m_LanguageActions.end() != m_LanguageActions.find(language))
-	{
-		m_LanguageActions[language]->setChecked(true);
-		m_Settings.setGuiLanguage(language);
-	}
-}
-
-//**************************************************
-// Initialize the language menu.
-// Depending on the .qm files found we add menu items.
-// It is assumed the .qm files are located with the exe.
-// The translation files have the format:
-// <prefix><language>.qm
-// with the language a 2-character language string
-//**************************************************
-void MainWnd::InitLanguageMenu( void )
-{
-	QDir directory(m_Settings.getExePath());
-
-	QString filePrefix(TRANSLATION_FILE_PREFIX);
-
-	QStringList FileFilters;
-	FileFilters << filePrefix + "*.qm";
-	QStringList fileList = directory.entryList(FileFilters,QDir::Files);
-
-	for (int x=0;x<fileList.size();x++)
-	{
-
-		QString language = fileList[x].mid(filePrefix.length(),2);
-		QString filename = filePrefix + language + ".qm";
-
-		if ( "eidmw_nl.qm" == fileList[x])
-		{
-			QString LanguageName = tr("&Portuguese");
-			QAction *action1 = new QAction(LanguageName,this);
-			m_LanguageActions[GenPur::LANG_NL]=action1;
-			action1->setCheckable(true);
-			m_ui.menuLanguage->addAction(action1);
-			connect(action1, SIGNAL( triggered() ), this, SLOT(setLanguageNl()) );
-		}
-		else if( "eidmw_en.qm" == fileList[x])
-		{
-			QString LanguageName = tr("&English");
-			QAction *action1 = new QAction(LanguageName,this);
-			m_LanguageActions[GenPur::LANG_EN]=action1;
-			action1->setCheckable(true);
-			m_ui.menuLanguage->addAction(action1);
-			connect(action1, SIGNAL( triggered() ), this, SLOT(setLanguageEn()) );
-		}
-	}
-}
 
 //**************************************************
 // set tray icon corresponding to card(s) in the reader(s)
@@ -4331,10 +4260,17 @@ void MainWnd::changeEvent(QEvent *event)
 		QWindowStateChangeEvent* ev = (QWindowStateChangeEvent*)event;	
 		if (ev->oldState()== Qt::WindowNoState)
 		{
-			QApplication::postEvent(this, new QCloseEvent());
+
+			m_pMinimizeAction->setEnabled(false);
+			m_pRestoreAction->setEnabled(true);
+			event->ignore();
+			//QApplication::postEvent(this, new QCloseEvent());
 		}
 		else if (ev->oldState()==Qt::WindowMinimized)
 		{
+			m_pMinimizeAction->setEnabled(true);
+			m_pRestoreAction->setEnabled(false);
+			event->ignore();
 		}
 	}
 	else

@@ -654,7 +654,7 @@ public:
 	 */
     PTEIDSDK_API virtual PTEID_ByteArray sendAPDU(const PTEID_ByteArray& cmd);
 
-    PTEIDSDK_API virtual PTEID_ByteArray Sign(const PTEID_ByteArray& oData);
+    PTEIDSDK_API virtual PTEID_ByteArray Sign(const PTEID_ByteArray& data, bool signatureKey=false);
 
  	/**
 	 * Read a File from the card.
@@ -882,6 +882,15 @@ public:
 	     PTEIDSDK_API PTEID_ByteArray SignXadesT(PTEID_ByteArray to_be_signed, const char *URL); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
 	     PTEIDSDK_API void SignXadesIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the XAdes signature in individual zip containers  */
 	     PTEIDSDK_API void SignXadesTIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the Xades-T signature in individual zip containers  */
+
+		 /**
+		 * Produce PDF ISO 32000-1 Compliant Signatures of the supplied input path
+		 */
+
+		 PTEIDSDK_API void SignPDF(const char *input_path, const char *name, const char *location, const char *reason,
+			const char *outfile_path);
+
+
 
 	     /* Change the OTP/EMV-CAP PIN through interaction with the appropriate HTTPS server
 	      * Note: This method SHOULD be always called before any change to the Authentication PIN
