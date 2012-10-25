@@ -4,5 +4,5 @@
 <p>
 - Implementação da Assinatura nativa de ficheiros PDF.<br/>
 
-- Desenvolvimentos correctivos: Correcção do método de assinatura PKCS11 em Java<br/>
+- Desenvolvimentos correctivos: Correccao do metodo de assinatura PKCS11 em Java<br/>
 <p>
