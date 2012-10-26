@@ -56,6 +56,8 @@ dlgSignature::dlgSignature( QWidget* parent, CardInformation& CI_Data)
 		int screenNr = desktop->screenNumber();
 		QRect rect = desktop->availableGeometry(screenNr);
 		int height = rect.height();
+		list_model = new QStringListModel();
+		ui.listView->setModel(list_model);
 
 		int thiswidth = this->width();
 		int thisheight = this->height();
@@ -117,17 +119,17 @@ void dlgSignature::on_pbAddFiles_clicked( void )
 void dlgSignature::SignListView (QStringList list)
 {
 	view = ui.listView;
-	QStringListModel* localModel = new QStringListModel();
 
-	alist.append(list);
+	for(int i=0; i != list.size(); i++)
+	{
 
-	alist.removeDuplicates();
+		list_model->insertRows(list_model->rowCount(), 1);
+		list_model->setData(list_model->index(list_model->rowCount()-1, 0), list.at(i));
 
-	localModel->setStringList(alist);
-	view->setModel(localModel);
+	}
 
 	//Enable sign button now that we have data
-	if (!alist.isEmpty())
+	if (!list.isEmpty())
 		ui.pbSign->setEnabled(true);
 
 	//signal right click
@@ -156,32 +158,6 @@ void dlgSignature::on_pbSign_clicked ( void )
 
 	QCheckBox *signatures_checkbox = ui.checkbox_singlefiles;
 	bool individual_sigs = signatures_checkbox->checkState() == Qt::Checked;
-	bool pdf_signature = ui.checkbox_sign_pdf->checkState() == Qt::Checked;
-
-	if (pdf_signature)
-	{
-		QString default_savepath = QFileInfo(strlist.first()).dir().absolutePath(); 
-		QString pdf_savefilepath = QFileDialog::getSaveFileName(this, tr("Save File"), 
-				default_savepath, tr("PDF Files (*.pdf)"));
-
-		PTEID_EIDCard*	Card = dynamic_cast<PTEID_EIDCard*>(m_CI_Data.m_pCard);
-
-		try
-		{
-
-		Card->SignPDF(QDir::toNativeSeparators(strlist.at(0)).toUtf8(),
-					"Gervásio Palha", "Lisboa, Portugal", "Assino por concordar com o conteudo do documento", pdf_savefilepath.toUtf8());
-		}
-		catch (PTEID_Exception &e)
-		{
-			QString caption  = tr("Error");
-			QString msg = tr("Error Signing PDF: Unsupported File.");
-			QMessageBox msgBoxp(QMessageBox::Warning, caption, msg, 0, this);
-			msgBoxp.exec();
-		}
-		this->close();
-		return;
-	}
 
 	for (n_files = 0; n_files < listsize; n_files++)
 	{

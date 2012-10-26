@@ -126,20 +126,21 @@ HEADERS += CardInformation.h \
            dlgAbout.h \
            dlgOptions.h \
            httpwindow.h \
-           AutoUpdates.h \
-           mainwnd.h \
-           Settings.h \
-           genpur.h \
-           picturepopup.h \
-           qtsingleapplication.h \
-           dlgprint.h \
-           dlgverifysignature.h \
-	   mylistview.h \
-           dlgsignature.h \
-	   ../_Builds/pteidversions.h \
-           ../dialogs/dialogs.h 
+					 AutoUpdates.h \
+					 mainwnd.h \
+					 Settings.h \
+					 genpur.h \
+					 picturepopup.h \
+					 qtsingleapplication.h \
+					 dlgprint.h \
+					 dlgverifysignature.h \
+					 mylistview.h \
+					 dlgsignature.h \
+					 PDFSignWindow.h \
+					 ../_Builds/pteidversions.h \
+					 ../dialogs/dialogs.h 
            
-FORMS += dlgAbout.ui dlgOptions.ui mainwnd.ui picturepopup.ui dlgPrint.ui dlgSignature.ui dlgVerifySignature.ui
+FORMS += dlgAbout.ui dlgOptions.ui mainwnd.ui picturepopup.ui dlgPrint.ui dlgSignature.ui dlgVerifySignature.ui PDFSignWindow.ui
 
 SOURCES += CardInformation.cpp \
            dlgAbout.cpp \
@@ -148,13 +149,14 @@ SOURCES += CardInformation.cpp \
            AutoUpdates.cpp \
            main.cpp \
            mainwnd.cpp \
-           dlgprint.cpp \
-           dlgverifysignature.cpp \
-           dlgsignature.cpp \
-           picturepopup.cpp \
-           qtsingleapplication.cpp \
-	   mylistview.cpp \
-           genpur.cpp
+					 dlgprint.cpp \
+					 dlgverifysignature.cpp \
+					 dlgsignature.cpp \
+					 picturepopup.cpp \
+					 qtsingleapplication.cpp \
+					 PDFSignWindow.cpp \
+					 mylistview.cpp \
+					 genpur.cpp
 unix:!macx: SOURCES += qtsingleapplication_x11.cpp
 macx: SOURCES += qtsingleapplication_mac.cpp	
 
