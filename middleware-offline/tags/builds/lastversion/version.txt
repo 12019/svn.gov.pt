@@ -1,8 +1,8 @@
-3,2,2
+2,1,2
 
 #<b>* Release Notes</b>
 <p>
-- Implementação da Assinatura nativa de ficheiros PDF.<br/>
+- Possibilidade de assinatura com localizacao exata no documento<br/>
 
 - Desenvolvimentos correctivos: Correccao do metodo de assinatura PKCS11 em Java<br/>
 <p>
