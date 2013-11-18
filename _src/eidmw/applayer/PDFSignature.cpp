@@ -1,6 +1,7 @@
 #include "poppler/Error.h"
 #include "poppler/PDFDoc.h"
 #include "poppler/Page.h"
+#include "poppler/ErrorCodes.h"
 
 #include "sign-pkcs7.h"
 #include "goo/GooString.h"
@@ -22,12 +23,18 @@
 namespace eIDMW
 {
 
+	const double PDFSignature::sig_height = 90;
+	const double PDFSignature::tb_margin = 40.0;
+
 	PDFSignature::PDFSignature()
 	{
 
 		m_visible = false;
 		m_page = 1;
 		m_sector = 0;
+		//Illegal values to start with
+		location_x = -1;
+		location_y = -1;
 		m_civil_number = NULL;
 		m_citizen_fullname = NULL;
 		m_batch_mode = true;
@@ -36,27 +43,40 @@ namespace eIDMW
 
 	PDFSignature::PDFSignature(const char *pdf_file_path): m_pdf_file_path(pdf_file_path)
 	{
-		// Initialize this Poppler global object 
-		// is mandatory I think
-		//globalParams = new GlobalParams();
+	
 		m_visible = false;
 		m_page = 1;
 		m_sector = 0;
+		//Illegal values to start with
+		location_x = -1;
+		location_y = -1;
 		m_civil_number = NULL;
 		m_citizen_fullname = NULL;
 		m_batch_mode = false;
+		m_timestamp = false;
 		m_doc = new PDFDoc(new GooString(pdf_file_path));
 	
 	}
 
 	PDFSignature::~PDFSignature()
 	{
+		free(m_citizen_fullname);
+		free(m_civil_number);
+
+		//Free the strdup'ed strings from batchAddFile
+		for (int i = 0; i != m_files_to_sign.size(); i++)
+			free(m_files_to_sign.at(i));
 	}
 
 	void PDFSignature::batchAddFile(char *file_path)
 	{
-		m_files_to_sign.push_back(file_path);	
+		m_files_to_sign.push_back(strdup(file_path));
 
+	}
+
+	void PDFSignature::enableTimestamp()
+	{
+		m_timestamp = true;
 	}
 
 	void PDFSignature::setVisible(unsigned int page_number, int sector_number)
@@ -66,41 +86,42 @@ namespace eIDMW
 		m_sector = sector_number;
 
 	}
+	
+	void PDFSignature::setVisibleCoordinates(unsigned int page, double coord_x, double coord_y)
+	{
+	   m_visible = true;
+	   m_page = page;
+	   location_x = coord_x;
+	   location_y = coord_y;
+
+	}
+
 	PDFRectangle PDFSignature::getSignatureRectangle(double page_height, double page_width)
 	{
 		// Add padding, adjust to subtly tweak the location 
 		// The units for x_pad, y_pad, sig_height and sig_width are postscript
 		// points (1 px == 0.75 points)
 		PDFRectangle sig_rect;
-	 	int lr_margin = 30;	
-		double sig_height = 85; 
+		double vert_align = 16; //Add this to vertically center inside each cell
 
 		double sig_width = (page_width - lr_margin*2) / 3.0;
-		//double x_pad = 0, y_pad = (page_height/3.0-sig_height)/2.0; //Vertically Center the Signature on each sector
-		double x_pad = 0, y_pad = 30.0; //Vertically Center the Signature on each sector
 		
 		//Add left margin
 		sig_rect.x1 = lr_margin;
 		sig_rect.x2 = lr_margin;
 
-
-		if (m_sector < 1 || m_sector > 9)
-			fprintf (stderr, "Illegal value for signature page sector: %d Valid values [1-6]\n", 
+		if (m_sector < 1 || m_sector > 18)
+			fprintf (stderr, "Illegal value for signature page sector: %d Valid values [1-18]\n", 
 					m_sector);
-
 		
-		if (m_sector < 7)
+		if (m_sector < 16)
 		{
-			if (m_sector >= 4) // Sectors 4 - 6
-			{
-				sig_rect.y1 += page_height / 3.0;
-				sig_rect.y2 += page_height / 3.0;
-			}
-			else if (m_sector >= 1) // Sectors 1 - 3
-			{
-				sig_rect.y1 += page_height * 2.0 / 3.0;
-				sig_rect.y2 += page_height * 2.0 / 3.0;
-			}
+			int line = m_sector / 3 + 1;
+			if (m_sector % 3 == 0)
+			   line = m_sector / 3;
+
+			sig_rect.y1 += (page_height - 2*tb_margin) * (6-line) / 6.0;
+			sig_rect.y2 += (page_height - 2*tb_margin) * (6-line) / 6.0;
 		}
 
 		if (m_sector % 3 == 2 )
@@ -115,11 +136,11 @@ namespace eIDMW
 			sig_rect.x2 += sig_width * 2.0;
 		}
 		
-		sig_rect.y1 += y_pad;
+		sig_rect.y1 += tb_margin + vert_align;
 
-	//Define height and width of the rectangle
+		//Define height and width of the rectangle
 		sig_rect.x2 += sig_width;
-		sig_rect.y2 += sig_height + y_pad;
+		sig_rect.y2 += sig_height + tb_margin + vert_align;
 		
 
 		return sig_rect;
@@ -153,6 +174,15 @@ namespace eIDMW
 
 	int PDFSignature::getPageCount()
 	{
+		if (!m_doc->isOk()) {
+				throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
+		}
+		if (m_doc->isEncrypted())
+		{
+			fprintf(stderr,
+				"Error in getPageCount(): Encrypted PDFs are unsupported At the moment\n");
+			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
+		}
 		return m_doc->getNumPages();
 
 	}
@@ -165,52 +195,55 @@ namespace eIDMW
 			return "";
 	}
 
-#ifdef WIN32
-#define PATH_SEP "\\"
-#else
-#define PATH_SEP "/"
-#endif
+	#ifdef WIN32
+	#define PATH_SEP "\\"
+	#else
+	#define PATH_SEP "/"
+	#endif
 	std::string PDFSignature::generateFinalPath(const char *output_dir, const char *path)
 	{
-
 		char * pdf_filename = Basename((char*)path);
-		//sprintf(final_path, "%s" PATH_SEP "%s.pdf", output_dir, tmp_path);
-
-		std::string final_path = string(output_dir) + PATH_SEP +pdf_filename+ "_signed.pdf";
-
+		std::string clean_filename = CPathUtil::remove_ext_from_basename(pdf_filename);
+		
+		std::string final_path = string(output_dir) + PATH_SEP + clean_filename + "_signed.pdf";
+		
 		return final_path;
 	}
 
-	void PDFSignature::signFiles(const char *location,
+	int PDFSignature::signFiles(const char *location,
 		const char *reason, const char *outfile_path)
 	{
+		int rc = 0;
 
 		if (!m_batch_mode)
 		{
-			signSingleFile(location, reason, outfile_path);
+			rc = signSingleFile(location, reason, outfile_path);
 
 		}
 		//PIN-Caching is ON after the first signature
 		else
 		{
-			 for (int i = 0; i < m_files_to_sign.size(); i++)
+			 for (unsigned int i = 0; i < m_files_to_sign.size(); i++)
 			 {
 				 char *current_file = m_files_to_sign.at(i);
-				 std::string f = generateFinalPath(outfile_path, current_file);
+				 std::string f = generateFinalPath(outfile_path,
+						 current_file);
 				 m_doc = new PDFDoc(new GooString(current_file));
 
-				 signSingleFile(location, reason, f.c_str());
-				 if (i == 0)
+				rc += signSingleFile(location, reason, f.c_str());
+				if (i == 0)
 					 m_card->getCalReader()->setSSO(true);
 
 			 }
 			 m_card->getCalReader()->setSSO(false);
 		}
 
+		return rc;
+
 	}
 
 
-	void PDFSignature::signSingleFile(const char *location,
+	int PDFSignature::signSingleFile(const char *location,
 		const char *reason, const char *outfile_path)
 	{
 		
@@ -218,6 +251,7 @@ namespace eIDMW
 		//The class ctor initializes it to (0,0,0,0)
 		//so we can use this for invisible sig
 		PDFRectangle sig_location;
+		const char * signature_contents = NULL;
 
 		GooString *outputName;
 		outputName = new GooString(outfile_path);
@@ -227,7 +261,7 @@ namespace eIDMW
 		if (!doc->isOk()) {
 			delete doc;
 			fprintf(stderr, "Poppler returned error loading PDF document %s\n", 
-					m_pdf_file_path);
+					doc->getFileName()->getCString());
 			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
 		}
 
@@ -238,15 +272,15 @@ namespace eIDMW
 			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
 		}
 
-		if (m_page > doc->getNumPages())
+		if (m_page > (unsigned int)doc->getNumPages())
 		{
 			fprintf(stderr, "Error: Signature Page %d is out of bounds for document %s",
-				m_page, m_pdf_file_path);
+				m_page, doc->getFileName()->getCString());
 			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
 		}
 
 		// A little ugly hack:
-		//Force the parsing of the Page Tree structure to get the pagerefs loaded in Catalog class
+		//Force the parsing of the Page Tree structure to get the pagerefs loaded in Catalog object
 		Page *p = doc->getPage(m_page);
 
 		//By the spec, the visible/writable area can be cropped by the CropBox, BleedBox, etc...
@@ -256,10 +290,26 @@ namespace eIDMW
 		double height = p_media->y2, width = p_media->x2;
 
 		if (m_visible)
-			sig_location = getSignatureRectangle(height, width);
+		{
+			//Sig Location by sector
+			if (location_x == -1)
+				sig_location = getSignatureRectangle(height, width);
+			else
+			{
+			    double sig_width = (width - lr_margin*2) / 3.0;
+			    sig_location.x1 = lr_margin+ (width-lr_margin*2)*location_x;
+			    
+			    //Coordinates from the GUI are inverted => (1- location_y)
+			    sig_location.y1 = tb_margin + (height-tb_margin*2) *(1.0-location_y)-sig_height;  
+			    sig_location.x2 = sig_location.x1 + sig_width;
+			    sig_location.y2 = sig_location.y1 + sig_height;
+
+			}
+
+		}
 
 		if (p == NULL)
-			fprintf(stderr, "Pteid Oops...\n");
+			fprintf(stderr, "Failed to read page MediaBox\n");
 
 		unsigned char *to_sign;
 		
@@ -267,23 +317,30 @@ namespace eIDMW
 		if (m_civil_number == NULL)
 		   getCitizenData();
 
-		bool incremental = doc->isSigned();
+		bool incremental = doc->isSigned() || doc->isReaderEnabled();
 
 		doc->prepareSignature(incremental, &sig_location, m_citizen_fullname, m_civil_number,
 				location, reason, m_page, m_sector);
 		unsigned long len = doc->getSigByteArray(&to_sign, incremental);
-
-                const char * signature_contents = pteid_sign_pkcs7(m_card, to_sign, len);
+		
+                int rc = pteid_sign_pkcs7(m_card, to_sign, len, m_timestamp, &signature_contents);
 
 		doc->closeSignature(signature_contents);
 
+		int final_ret = 0;
+
 		if (incremental)
-			doc->saveAs(outputName, writeForceIncremental);
+			final_ret = doc->saveAs(outputName, writeForceIncremental);
 		else
-			doc->saveAs(outputName, writeForceRewrite);
+			final_ret = doc->saveAs(outputName, writeForceRewrite);
+
+		if (final_ret != errNone)
+			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
 
 		delete doc;
 		delete outputName;
+
+		return rc;
 
 	}
 

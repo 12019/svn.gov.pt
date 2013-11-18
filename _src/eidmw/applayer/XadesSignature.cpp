@@ -28,6 +28,8 @@
 
 #include "MiscUtil.h"
 
+//for Timestamping
+#include "TsaClient.h"
 
 #include "Log.h"
 #include "ByteArray.h"
@@ -61,8 +63,6 @@
 #include <xsec/transformers/TXFMBase.hpp>
 #include <xsec/transformers/TXFMChain.hpp>
 
-//cURL for Timestamping
-#include <curl/curl.h>
 
 //OpenSSL
 #include <openssl/sha.h>
@@ -95,8 +95,14 @@ XERCES_CPP_NAMESPACE_USE
 namespace eIDMW
 {
 
-	CByteArray XadesSignature::mp_timestamp_data = CByteArray();
+	static unsigned char timestamp_asn1_request[ASN1_LEN] =
+	{
+	0x30, 0x29, 0x02, 0x01, 0x01, 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a,
+	0x05, 0x00, 0x04, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0xff
+	};
 
+	
 	CByteArray XadesSignature::HashFile(const char *file_path)
 	{
 
@@ -163,32 +169,6 @@ namespace eIDMW
 		memcpy(toFill, oid, oidLen);
 		return oidLen;
 
-	}
-
-	/** Timestamping stuff */
-	size_t XadesSignature::curl_write_data(char *ptr, size_t size, size_t nmemb, void * stream)
-	{
-		size_t realsize = size * nmemb;
-		mp_timestamp_data.Append((const unsigned char*)ptr, realsize);
-
-		return realsize;
-
-	}
-	
-
-
-	void XadesSignature::generate_asn1_request_struct(unsigned char *sha_1)
-	{
-
-		for (unsigned int i=0; i != SHA1_LEN; i++)
-		    timestamp_asn1_request[SHA1_OFFSET +i] = sha_1[i];
-	}
-
-	std::string XadesSignature::getTS_CAPath()
-	{
-		APL_Config certs_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_CERTS_DIR);
-		std::string m_certs_dir = certs_dir.getString();
-		return m_certs_dir + "tsa_chain.pem";
 	}
 
 	static XMLCh s_Id[] = {
@@ -303,72 +283,6 @@ namespace eIDMW
 		BIO_free_all(bio);
 	}
 
-
-
-
-	void XadesSignature::timestamp_data(const unsigned char *input, unsigned int data_len)
-	{
-
-		CURL *curl;
-		CURLcode res;
-		char error_buf[CURL_ERROR_SIZE];
-
-		//Make sure the static array receiving the network reply 
-		// is zero'd out before each request
-		mp_timestamp_data.Chop(mp_timestamp_data.Size());
-
-		//Get Timestamping server URL from config
-		APL_Config tsa_url(CConfig::EIDMW_CONFIG_PARAM_XSIGN_TSAURL);
-		const char * TSA_URL = tsa_url.getString();
-
-		curl_global_init(CURL_GLOBAL_ALL);
-
-		curl = curl_easy_init();
-
-		if (curl) 
-		{
-
-			struct curl_slist *headers= NULL;
-
-			headers = curl_slist_append(headers, "Content-Type: application/timestamp-request");
-			headers = curl_slist_append(headers, "Content-Transfer-Encoding: binary");
-			headers = curl_slist_append(headers, "User-Agent: PTeID Middleware v2");
-
-			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, data_len);
-
-			curl_easy_setopt(curl, CURLOPT_URL, TSA_URL);
-
-			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
-
-			/* Now specify the POST data */ 
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, input);
-
-			curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buf);
-
-			//curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp_out);
-			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &XadesSignature::curl_write_data);
-
-			/* Perform the request, res will get the return code */ 
-			res = curl_easy_perform(curl);
-
-			if (res != 0)
-			{
-				MWLOG(LEV_ERROR, MOD_APL, L"Timestamping error in HTTP POST request. LibcURL returned %ls\n", 
-						utilStringWiden(string(error_buf)).c_str());
-			}
-
-			curl_slist_free_all(headers);
-
-			/* always cleanup */ 
-			curl_easy_cleanup(curl);
-			curl_global_cleanup();
-
-		}
-
-	}
-
 	CByteArray *XadesSignature::WriteToByteArray(XERCES_NS DOMDocument * doc)
 	{
 		CByteArray * ba_out = new CByteArray();
@@ -411,7 +325,7 @@ void XadesSignature::loadCert(CByteArray &data, EVP_PKEY *pub_key)
 	}
 
 }
-void XadesSignature::initXerces()
+void XadesSignature::initXMLUtils()
 {
 	try {
 
@@ -427,109 +341,10 @@ void XadesSignature::initXerces()
 	}
 }
 
-
-X509 * loadCertFromB64Der(const char *base64_string)
+void XadesSignature::terminateXMLUtils()
 {
-	X509 *cert = NULL;
-	unsigned int bufsize = strlen(base64_string);
-
-	unsigned char *der_buffer = (unsigned char *)malloc(bufsize);
-
-	base64Decode(base64_string, bufsize, der_buffer, bufsize);
-
-	if (der_buffer != NULL)
-	{
-		cert = d2i_X509(NULL, (const unsigned char**)(&der_buffer), bufsize);
-		
-		if (cert == NULL)
-			MWLOG(LEV_ERROR, MOD_APL, L"Error parsing certificate from DER buffer!\n");
-
-	}
-	return cert;
-
-}
-
-void XadesSignature::foundCertificate (const char *SubDir, const char *File, void *param)
-{
-	X509_STORE *certificate_store =  (X509_STORE *)param;
-	APL_Config certs_dir(CConfig::EIDMW_CONFIG_PARAM_GENERAL_CERTS_DIR);
-	string path = string(certs_dir.getString());
-	FILE *m_stream;
-	X509 *pCert = NULL;
-	long int bufsize;
-	unsigned char *buf;
-
-#ifdef WIN32
-	errno_t werr;
-	path += "\\";
-#endif
-	path+=SubDir;
-#ifdef WIN32
-	path += "\\";
-#else
-	path+= "/";
-#endif
-	path+=File;
-	
-#ifdef WIN32
-	if ((werr = fopen_s(&m_stream, path.c_str(), "rb")) != 0)
-		goto err;
-#else
-	if ((m_stream = fopen(path.c_str(), "rb")) == NULL)
-		goto err;
-#endif
-
-	if (fseek( m_stream, 0L, SEEK_END))
-		goto err;
-
-	bufsize = ftell(m_stream);
-	buf = (unsigned char *) malloc(bufsize*sizeof(unsigned char));
-
-	if (fseek(m_stream, 0L, SEEK_SET)){
-		free(buf);
-		goto err;
-	}
-
-	if (fread(buf, sizeof( unsigned char ), bufsize, m_stream) != bufsize)
-		goto err;
-
-	pCert = d2i_X509(&pCert, (const unsigned char **)&buf, bufsize);
-	if (pCert == NULL)
-	   goto err;
-	
-	if(X509_STORE_add_cert(certificate_store, pCert) == 0)
-	   goto err;
-	
-	MWLOG(LEV_DEBUG, MOD_APL, L"XadesSignature::foundCertificate: successfully added cert %ls", 
-			utilStringWiden(path).c_str());
-	return;
-
-
-	err:
-		MWLOG(LEV_DEBUG, MOD_APL, L"XadesSignature::foundCertificate: problem with file %ls ", 
-			utilStringWiden(path).c_str());
-
-}
-
-
-const XMLCh * locateTimestamp(XERCES_NS DOMDocument *doc)
-{
-	safeBuffer str;
-	//Qualified Tag Name
-	makeQName(str, XMLString::transcode("etsi") ,"EncapsulatedTimeStamp");
-	DOMNodeList *list = doc->getElementsByTagNameNS(XMLString::transcode("*"),
-		       	XMLString::transcode("EncapsulatedTimeStamp"));
-
-	if (list->getLength() == 0)
-	{
-	   return NULL;
-	}
-
-
-	DOMNode * timestamp = list->item(0);
-
-	return timestamp->getFirstChild()->getNodeValue();
-	
+	XSECPlatformUtils::Terminate();
+	XMLPlatformUtils::Terminate();
 }
 
 XMLCh* XadesSignature::createURI(const char *path)
@@ -546,11 +361,8 @@ XMLCh* XadesSignature::createURI(const char *path)
 
 }
 
-CByteArray &XadesSignature::SignXades(const char ** paths, unsigned int n_paths, bool do_timestamping)
+CByteArray &XadesSignature::Sign(const char ** paths, unsigned int n_paths, bool do_timestamping)
 {
-
-	initXerces();
-
 	XSECProvider prov;
 	DSIGSignature *sig;
 	DOMElement *sigNode;
@@ -644,23 +456,22 @@ CByteArray &XadesSignature::SignXades(const char ** paths, unsigned int n_paths,
 
 		if (do_timestamping)
 		{
+			TSAClient tsa;
 
 			//Hash the signature value, generate the ASN.1 encoded request 
 			//and then send it to the timestamp server
 			SHA1 (rsa_signature.GetBytes(), PTEID_SIGNATURE_LENGTH, signature_hash);
 
-			generate_asn1_request_struct(signature_hash);
+			tsa.timestamp_data(signature_hash, SHA1_LEN);
 
-			timestamp_data(timestamp_asn1_request, ASN1_LEN);
+			mp_timestamp_data = tsa.getResponse();
 
-			CByteArray *timestamp_blob = &XadesSignature::mp_timestamp_data;
-
-			if (timestamp_blob->Size() == 0)
+			if (mp_timestamp_data.Size() == 0)
 				MWLOG(LEV_ERROR, MOD_APL,
 			    L"An error occurred in timestamp_data. It's possible that the timestamp service is down ");
 			else
 			{
-				unsigned char * base64str = base64Encode(timestamp_blob->GetBytes(), timestamp_blob->Size());
+				unsigned char * base64str = base64Encode(mp_timestamp_data.GetBytes(), mp_timestamp_data.Size());
 				addTimestampNode(timestamp_node, base64str);
 			}
 		}
@@ -678,9 +489,16 @@ CByteArray &XadesSignature::SignXades(const char ** paths, unsigned int n_paths,
 		
 	}
 
-	return *WriteToByteArray(doc);
-
+	return *WriteToByteArray(doc); 
 }
 
+CByteArray &XadesSignature::SignXades(const char ** paths, unsigned int n_paths, bool do_timestamping)
+{
+	initXMLUtils();
+	CByteArray &result = Sign(paths, n_paths, do_timestamping);
+	terminateXMLUtils();
+
+	return result;
+}
 
 }

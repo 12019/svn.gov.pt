@@ -53,13 +53,16 @@
 #include "dialogs.h"
 #include "Util.h"
 #include <wchar.h>
+#include <QDesktopServices>
+#include <QUrl>
+
 #ifdef WIN32
 #include <windows.h>
 #include <stdio.h>
-#include "verinfo.h"
-#else
-#include "pteidversions.h"
 #endif
+
+#include "pteidversions.h"
+
 
 static bool	g_cleaningCallback=false;
 static int	g_runningCallback=0;
@@ -69,13 +72,13 @@ static unsigned int pinactivate = 1, certdatastatus = 1, addressdatastatus = 1, 
 static unsigned int pinNotes = 1 ;
 
 #ifdef WIN32
-void ImportECRaizCert()
+void ImportCertFromDisk(void *cert_path)
 {
 	PCCERT_CONTEXT pCertCtx = NULL;
 
 	if (CryptQueryObject (
 		CERT_QUERY_OBJECT_FILE,
-		L"C:\\Program Files\\Portugal Identity Card\\eidstore\\certs\\ECRaizEstado_novo_assinado_GTE.der",
+		cert_path,
 		CERT_QUERY_CONTENT_FLAG_ALL,
 		CERT_QUERY_FORMAT_FLAG_ALL,
 		0,
@@ -115,50 +118,6 @@ void ImportECRaizCert()
 	}
 }
 
-void ImportCCCert()
-{
-	PCCERT_CONTEXT pCertCtx = NULL;
-
-	if (CryptQueryObject (
-		CERT_QUERY_OBJECT_FILE,
-		L"C:\\Program Files\\Portugal Identity Card\\eidstore\\certs\\CartaodeCidadao001.der",
-		CERT_QUERY_CONTENT_FLAG_ALL,
-		CERT_QUERY_FORMAT_FLAG_ALL,
-		0,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		(const void **)&pCertCtx) != 0)
-	   {
-		HCERTSTORE hCertStore = CertOpenSystemStoreA (NULL, "CA");
-
-		if (hCertStore != NULL)
-		{
-			CertAddEnhancedKeyUsageIdentifier (pCertCtx, szOID_PKIX_KP_EMAIL_PROTECTION);
-			CertAddEnhancedKeyUsageIdentifier (pCertCtx, szOID_PKIX_KP_SERVER_AUTH);
-			if (CertAddCertificateContextToStore (
-				hCertStore,
-				pCertCtx,
-				CERT_STORE_ADD_ALWAYS,
-				NULL))
-			{
-				std::cout << "Added certificate to store." << std::endl;
-			}
-
-			if (CertCloseStore (hCertStore, 0))
-			{
-				std::cout << "Cert. store handle closed." << std::endl;
-			}
-		}
-
-		if (pCertCtx)
-		{
-			CertFreeCertificateContext (pCertCtx);
-		}
-	}
-}
 
 #endif
 
@@ -210,6 +169,7 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 , m_UseKeyPad(false)
 , m_Settings(settings)
 , m_timerReaderList(NULL)
+, m_pdf_signature_dialog(NULL)
 , m_STATUS_MSG_TIME(5000)
 , m_ShowBalloon(false)
 , m_msgBox(NULL)
@@ -227,6 +187,12 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	m_Language = LoadedLng;
 
 	m_ui.setupUi(this);
+
+
+	if (m_Settings.getGuiLanguageCode() == GenPur::LANG_NL)
+		setLanguageNl();
+	else
+		setLanguageEn();
 
 	setFixedSize(830, 630);
 	m_ui.wdg_submenu_card->setVisible(false);
@@ -326,18 +292,21 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 	m_ui.lbl_menuCard_Read->installEventFilter(this);
 	m_ui.lbl_menuCard_Pdf->installEventFilter(this);
 	m_ui.lbl_menuCard_Quit->installEventFilter(this);
-	m_ui.lbl_menuTools_Parameters->installEventFilter(this);
+	
 	m_ui.lbl_menuTools_Signature->installEventFilter(this);
 	m_ui.lbl_menuTools_PDFSignature->installEventFilter(this);
 	m_ui.lbl_menuTools_VerifySignature->installEventFilter(this);
-	m_ui.lbl_menuLanguage_Portuguese->installEventFilter(this);
-	m_ui.lbl_menuLanguage_English->installEventFilter(this);
+	
+	m_ui.lbl_menuSettings_Parameters->installEventFilter(this);
+	
 	m_ui.lbl_menuHelp_about->installEventFilter(this);
 	m_ui.lbl_menuHelp_updates->installEventFilter(this);
+	m_ui.lbl_menuHelp_documentation->installEventFilter(this);
+	
 	m_ui.wdg_submenu_card->installEventFilter(this);
 	m_ui.wdg_submenu_tools->installEventFilter(this);
+	m_ui.wdg_submenu_settings->installEventFilter(this);;
 	m_ui.wdg_submenu_help->installEventFilter(this);
-	m_ui.wdg_submenu_language->installEventFilter(this);
 
 }
 
@@ -369,17 +338,12 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 			quit_application();
 		}
 
-		if (object == m_ui.lbl_menuTools_Parameters )
-		{
-			hide_submenus();
-			show_window_parameters();
-		}
-
 		if (object == m_ui.lbl_menuTools_Signature )
 		{
 			hide_submenus();
 			actionSignature_eID_triggered();
 		}
+
 		if (object == m_ui.lbl_menuTools_PDFSignature)
 		{
 			hide_submenus();
@@ -392,16 +356,12 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 			actionVerifySignature_eID_triggered();
 		}
 
-		if (object == m_ui.lbl_menuLanguage_Portuguese )
+		if (object == m_ui.lbl_menuSettings_Parameters )
 		{
 			hide_submenus();
-			setLanguageNl();
+			show_window_parameters();
 		}
-		if (object == m_ui.lbl_menuLanguage_English )
-		{
-			hide_submenus();
-			setLanguageEn();
-		}
+		
 		if (object == m_ui.lbl_menuHelp_updates )
 		{
 			hide_submenus();
@@ -412,11 +372,16 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 			hide_submenus();
 			show_window_about();
 		}
+		if (object == m_ui.lbl_menuHelp_documentation )
+		{
+			hide_submenus();
+			QDesktopServices::openUrl(QUrl("http://svn.gov.pt/projects/ccidadao/export/244/middleware-offline/trunk/docs/Manual_de_Utilizacao.pdf"));		
+		}
 	}
 	
 	if (event->type() == QEvent::Leave)
 	{
-		if (object == m_ui.wdg_submenu_card || object == m_ui.wdg_submenu_tools || object == m_ui.wdg_submenu_language || object == m_ui.wdg_submenu_help )
+		if (object == m_ui.wdg_submenu_card || object == m_ui.wdg_submenu_tools || object == m_ui.wdg_submenu_settings || object == m_ui.wdg_submenu_help )
 		{
 			hide_submenus();
 		}
@@ -429,9 +394,31 @@ void MainWnd::hide_submenus()
 {
 	m_ui.wdg_submenu_card->setVisible(false);
 	m_ui.wdg_submenu_tools->setVisible(false);
-	m_ui.wdg_submenu_language->setVisible(false);
+	m_ui.wdg_submenu_settings->setVisible(false);
 	m_ui.wdg_submenu_help->setVisible(false);
 }
+
+
+
+//******************************************************^M
+// Buttons to control Shortcuts 
+//******************************************************^M
+
+void MainWnd::on_btnShortcut_UnivSign_clicked()
+{
+	actionSignature_eID_triggered();
+}
+
+void MainWnd::on_btnShortcut_PdfSign_clicked()
+{
+	actionPDFSignature_triggered();
+}
+
+void MainWnd::on_btnShortcut_VerifSign_clicked()
+{
+	actionVerifySignature_eID_triggered();
+}
+
 
 //******************************************************
 // Buttons to control tabs
@@ -472,6 +459,8 @@ void MainWnd::on_btnSelectTab_Notes_clicked()
 		refreshTabPersoData();
 }
 
+
+
 void MainWnd::on_btn_menu_card_clicked()
 {
 	m_ui.wdg_submenu_card->setVisible(true);
@@ -487,22 +476,31 @@ void MainWnd::on_btn_menu_tools_clicked()
 	m_ui.wdg_submenu_tools->setVisible(true);
 	//If defined language is portuguese, then the dialog needs to be larger
 	if (m_Settings.getGuiLanguageCode() == GenPur::LANG_NL)
-		m_ui.wdg_submenu_tools->setGeometry(128,4,155,130);
+		m_ui.wdg_submenu_tools->setGeometry(127,4,155,110);
 	else
-		m_ui.wdg_submenu_tools->setGeometry(128,4,145,130);
+		m_ui.wdg_submenu_tools->setGeometry(127,4,145,110);
 
+}
+
+void MainWnd::on_btn_menu_settings_clicked()
+{
+	m_ui.wdg_submenu_settings->setVisible(true);
+	m_ui.wdg_submenu_settings->setGeometry(254,4,126,75);
 }
 
 void MainWnd::on_btn_menu_language_clicked()
 {
-	m_ui.wdg_submenu_language->setVisible(true);
-	m_ui.wdg_submenu_language->setGeometry(254,4,126,90);
+	//If defined language is portuguese, language should change to EN
+	if (m_Settings.getGuiLanguageCode() == GenPur::LANG_NL)
+		setLanguageEn();
+	else
+		setLanguageNl();
 }
 
 void MainWnd::on_btn_menu_help_clicked()
 {
 	m_ui.wdg_submenu_help->setVisible(true);
-	m_ui.wdg_submenu_help->setGeometry(380,4,126,90);
+	m_ui.wdg_submenu_help->setGeometry(381,4,165,110);
 }
 
 
@@ -912,8 +910,9 @@ bool MainWnd::ImportCertificates( const char* readerName )
 
 	#ifdef WIN32
 	//Register the 2 higher-level CA Certs from disk files
-	ImportCCCert();
-	ImportECRaizCert();
+	ImportCertFromDisk(L"C:\\Program Files\\Portugal Identity Card\\eidstore\\certs\\ECRaizEstado_novo_assinado_GTE.der");
+	ImportCertFromDisk(L"C:\\Program Files\\Portugal Identity Card\\eidstore\\certs\\CartaodeCidadao001.der");
+	ImportCertFromDisk(L"C:\\Program Files\\Portugal Identity Card\\eidstore\\certs\\CartaodeCidadao002.der");
 	#endif
 
 	try
@@ -2293,22 +2292,9 @@ void MainWnd::on_actionUpdates_triggered( void )
 // About clicked
 //*****************************************************
 void MainWnd::show_window_about(){
-#ifdef WIN32 //version info for Windows
-	QFileInfo	fileInfo(m_Settings.getExePath()) ;
-
-	QString filename = QCoreApplication::arguments().at(0);
-	CFileVersionInfo VerInfo;
-	if(VerInfo.Open(filename.toLatin1()))
-	{
-		char version[256];
-		VerInfo.QueryStringValue(VI_STR_FILEVERSION, version);
-		m_Settings.setGuiVersion(version);
-	}
-
-#else //linux, apple
-	QString strVersion (WIN_GUI_VERSION_STRING);
+	QString strVersion (PTEID_PRODUCT_VERSION);
 	m_Settings.setGuiVersion(strVersion);
-#endif
+
 	dlgAbout * dlg = new dlgAbout( m_Settings.getGuiVersion() , this);
 	dlg->exec();
 	delete dlg;
@@ -2366,8 +2352,7 @@ void MainWnd::actionSignature_eID_triggered()
 		delete dlgsig;
 	} else {
 		QString caption  = tr("Warning");
-	  	QString msg = tr("A problem has occurred while trying to read card. Please, try again.");
-	  	//std::string Pmsgbody
+	  	QString msg = tr("Please insert your card on the smart card reader");
 	  	QMessageBox msgBoxp(QMessageBox::Warning, caption, msg, 0, this);
 	  	msgBoxp.exec();
 	}
@@ -2375,20 +2360,25 @@ void MainWnd::actionSignature_eID_triggered()
 
 void MainWnd::actionPDFSignature_triggered()
 {
+	tFieldMap& CardFields = m_CI_Data.m_CardInfo.getFields();
+	QString cardTypeText = GetCardTypeText(CardFields[CARD_TYPE]);
 
-//	if(m_CI_Data.isDataLoaded())
-//	{
-		PDFSignWindow* dlgPDFSig = new PDFSignWindow(this, m_CI_Data);
-		dlgPDFSig->exec();
-//	}
-       /*	else {
+	if(m_CI_Data.isDataLoaded())
+	{
+
+ 		m_pdf_signature_dialog = new PDFSignWindow(this, m_CI_Data);
+ 		m_pdf_signature_dialog->exec();
+ 		delete m_pdf_signature_dialog;
+		m_pdf_signature_dialog = NULL;
+	}
+	else
+	{
 		QString caption  = tr("Warning");
-	  	QString msg = tr("A problem has occurred while trying to read card. Please, try again.");
-	  	//std::string Pmsgbody
+	  	QString msg = tr("Please insert your card on the smart card reader");
 	  	QMessageBox msgBoxp(QMessageBox::Warning, caption, msg, 0, this);
 	  	msgBoxp.exec();
+
 	}
-*/
 
 }
 
@@ -2416,7 +2406,7 @@ void MainWnd::on_actionPrint_eID_triggered()
 		delete dlg;
 	} else {
 		QString caption  = tr("Warning");
-		QString msg = tr("A problem has occurred while trying to read card. Please, try again.");
+		QString msg = tr("Please insert your card on the smart card reader");
 		QMessageBox msgBoxp(QMessageBox::Warning, caption, msg, 0, this);
 		msgBoxp.exec();
 	}
@@ -3881,6 +3871,12 @@ void MainWnd::refreshTabInfo( void )
 void MainWnd::setLanguageEn( void )
 {
 	setLanguage(GenPur::LANG_EN);
+	
+	QPixmap pixmap(":/images/Images/flags/pt32.png");
+	QIcon ButtonIcon(pixmap);
+	m_ui.btn_menu_language->setIcon(ButtonIcon);
+	m_ui.btn_menu_language->setIconSize(pixmap.rect().size());
+	m_ui.btn_menu_language->setToolTip(tr("Change language", "to english"));
 }
 
 //**************************************************
@@ -3889,6 +3885,12 @@ void MainWnd::setLanguageEn( void )
 void MainWnd::setLanguageNl( void )
 {
 	setLanguage(GenPur::LANG_NL);
+	
+	QPixmap pixmap(":/images/Images/flags/uk32.png");
+	QIcon ButtonIcon(pixmap);
+	m_ui.btn_menu_language->setIcon(ButtonIcon);
+	m_ui.btn_menu_language->setIconSize(pixmap.rect().size());
+	m_ui.btn_menu_language->setToolTip(tr("Change language", "to portuguese"));
 }
 
 //**************************************************
@@ -4090,6 +4092,9 @@ void MainWnd::customEvent( QEvent* pEvent )
 					clearAddressData();
 					m_ui.btnSelectTab_Identity->setFocus();
 
+				if (m_pdf_signature_dialog)
+                    			m_pdf_signature_dialog->disableSignButton();
+
 				}
 				//----------------------------------------------------------
 				// card has been changed in a reader
@@ -4180,6 +4185,12 @@ void MainWnd::customEvent( QEvent* pEvent )
 							m_CI_Data.Reset(); 
 							loadCardData();
 						}
+
+
+						if (m_pdf_signature_dialog)
+						{
+							m_pdf_signature_dialog->enableSignButton();
+						}
 					}
 					break;
 					case PTEID_CARDTYPE_UNKNOWN:
@@ -4193,6 +4204,7 @@ void MainWnd::customEvent( QEvent* pEvent )
 					}
 				}
 				pEvent->accept();
+
 			}
 			catch (PTEID_Exception& e)
 			{
@@ -4456,6 +4468,7 @@ bool MainWnd::ProviderNameCorrect (PCCERT_CONTEXT pCertContext )
 	return true;
 }
 #endif
+
 
 void CardDataLoader::Load()
 {

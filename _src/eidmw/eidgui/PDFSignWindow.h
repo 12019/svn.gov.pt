@@ -26,6 +26,17 @@
 #include "ui_PDFSignWindow.h"
 #include "CardInformation.h"
 
+enum ErrorCode
+{
+	SIG_SUCCESS
+	,SIG_ERROR
+	,TS_WARNING
+
+};
+
+/* FW declaration */
+class FreeSelectionDialog;
+
 class PDFSignWindow : public QDialog
 {
 	Q_OBJECT
@@ -33,6 +44,7 @@ class PDFSignWindow : public QDialog
 	    void on_button_addfile_clicked();
 	    void on_button_sign_clicked();
 	    void on_button_cancel_clicked();
+	    void on_pushButton_freeselection_clicked();
 	    void on_checkBox_location_toggled(bool);
 	    void on_checkBox_reason_toggled(bool);
 	    void on_visible_checkBox_toggled(bool);
@@ -45,24 +57,41 @@ class PDFSignWindow : public QDialog
 
 	public:
 	    void customEvent(QEvent *ev);
+	    /*Event Handlers for card inserted/removed events
+	    that come from Main Window
+	    */
+	    void enableSignButton();
+	    void disableSignButton();
 	    PDFSignWindow(QWidget * parent, CardInformation &ci);
 	    ~PDFSignWindow();
 
 
 	private:
 	    void update_sector(int row, int column);
+	    void update_sector(double x_pos, double y_pos);
+	    bool validateSelectedSector();
 	    void highlightSectors(QString &csv_sectors);
 	    void clearAllSectors();
 	    void addFileToListView(QStringList &str);
 	    void run_sign(int page, QString& savefile, char *location, char *reason);
 	    void ShowSuccessMsgBox();
-	    void ShowErrorMsgBox();
+	    void ShowSectorErrorMessage();
+	    void ShowErrorMsgBox(QString message);
 
 
 	    Ui_PDFSignWindow ui;
+	    static const int table_lines = 6;
+	    static const int table_columns = 3;
+	    double sig_coord_x;
+	    double sig_coord_y;
+
+	    bool card_present;
+
     	    CardInformation const& m_CI_Data;
 	    QAbstractItemModel *list_model;
 	    QProgressDialog *pdialog;
+	    FreeSelectionDialog *m_selection_dialog;
+
 	    QFutureWatcher<void> FutureWatcher;
 	    PTEID_PDFSignature *m_pdf_sig;
 	
@@ -75,7 +104,7 @@ class PDFSignWindow : public QDialog
 	    int m_selected_sector;
 
 	    //Success flag for the error messages
-	    bool success;
+	    ErrorCode success;
 
 };
 

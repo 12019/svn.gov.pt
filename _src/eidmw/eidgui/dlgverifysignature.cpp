@@ -74,7 +74,7 @@ switch (return_code)
 		msg += tr("RSA Signature of referenced content is invalid");
 		break;
 	case 3:
-		msg += tr("At least one of the signed file(s) was changed or is missing");
+		msg += tr("At least one of the signed file(s) was modified or is missing");
 		break;
 	case 4:
 		msg += tr("RSA Signature of referenced content is invalid");
@@ -96,6 +96,7 @@ void dlgVerifySignature::on_pbOpenSign_clicked()
     QString getSignFile;
     QString nativedafaultpath;
     char *sig_path_native;
+    int return_code = 0;
 	
 
     getSignFile = QFileDialog::getOpenFileName(this, tr("Open Signature files"), QDir::homePath(), tr("Zip files 'XAdES' (*.zip)"), NULL);
@@ -107,15 +108,12 @@ void dlgVerifySignature::on_pbOpenSign_clicked()
 	
 		sig_path_native = new char[nativedafaultpath.size()*2];
 		strcpy(sig_path_native, nativedafaultpath.toStdString().c_str());
-		PTEID_SigVerifier vsign(sig_path_native);
 
-	        int return_code = vsign.Verify();
+		PTEID_SigVerifier vsign(sig_path_native);
+	        return_code = vsign.Verify();
 
 		PTEID_LOG(PTEID_LOG_LEVEL_DEBUG, "eidgui", 
 				"Return code from VerifySignature(): %d", return_code);
-
-		QString signer = QString("\n")+tr("Signed by: ");
-		signer += QString::fromUtf8(vsign.GetSigner());
 
 		if (return_code == 0)
 		{
@@ -126,19 +124,19 @@ void dlgVerifySignature::on_pbOpenSign_clicked()
 				QString timestamp = QString("\n") + tr("Timestamp: ");
 				msg += timestamp;
 				msg += ts;
-			}
-			msg += signer;
+            }
+
+            //Get signer name to show
+            QString signer = QString("\n")+tr("Signed by: ");
+            msg += signer;
+            msg += QString::fromUtf8(vsign.GetSigner());
 
 			QMessageBox::information(this, tr("Signature Validation"), msg);
-
 			this->close();
-
 		}
 		else
 		{
 			QString error = translateVerifyReturnCode(return_code);
-			error += signer;
-
 			QMessageBox::critical(this, tr("Signature Validation"), error);
 			this->close();
 		}

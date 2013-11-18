@@ -35,7 +35,7 @@
 
 #include "Object.h"
 
-#define ESTIMATED_LEN 18000
+#define ESTIMATED_LEN 23600
 #define PLACEHOLDER_LEN ESTIMATED_LEN
 #include <vector>
 
@@ -114,6 +114,8 @@ public:
 
   // Get number of pages.
   int getNumPages();
+
+  bool getUS3Dict();
 
   void setIncrementalSignature(bool);
 

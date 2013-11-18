@@ -544,7 +544,7 @@ cleanup:
 
 #define WHERE "PteidMSE"
 DWORD PteidMSE(PCARD_DATA   pCardData, 
-			     BYTE      key_id) 
+			     BYTE      key_id,  BYTE is_sha256) 
 {
   
    DWORD             dwReturn = 0;
@@ -575,7 +575,7 @@ DWORD PteidMSE(PCARD_DATA   pCardData,
 	   Cmd [4] = 0x06; //Length of data
 	   Cmd [5] = 0x80; //Tag (Algorithm ID)
 	   Cmd [6] = 0x01;
-	   Cmd [7] = 0x02; 
+	   Cmd [7] = is_sha256 ? 0x42 : 0x02;
 	   Cmd [8] = 0x84; //Tag (Key Reference) 
 	   Cmd [9] = 0x01;
 	   if(key_id == 0) 
@@ -936,14 +936,20 @@ DWORD PteidSignData(PCARD_DATA pCardData, BYTE pin_id, DWORD cbToBeSigned, PBYTE
    unsigned int            i          = 0;
    unsigned int            cbHdrHash  = 0;
    const unsigned char     *pbHdrHash = NULL;
+   unsigned char sha256OID[] = {
+	       	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09,
+		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+		0x05, 0x00, 0x04, 0x20 };
 	
    PteidSelectApplet(pCardData);
-   dwReturn = PteidMSE(pCardData, pin_id);
+   dwReturn = PteidMSE(pCardData, pin_id, 0);
 
    if (dwReturn != SCARD_S_SUCCESS)
    {
 	CLEANUP(dwReturn);
    }
+
+   
 
    /* Sign Command for IAS*/
    /* 00 88 02 00 24 EC 61 B0 5B 70 33 78 39 F0 C8 C5 EB 79 64 */
@@ -951,9 +957,24 @@ DWORD PteidSignData(PCARD_DATA pCardData, BYTE pin_id, DWORD cbToBeSigned, PBYTE
    Cmd [1] = 0x88;   /* PSO: Compute Digital Signature COMMAND */
    Cmd [2] = 0x02;
    Cmd [3] = 0x00; 
-   Cmd [4] = (BYTE)(cbToBeSigned);
-   memcpy(Cmd + 5, pbToBeSigned, cbToBeSigned);
-   uiCmdLg = 5 + cbToBeSigned;
+   
+   //Workaround for SHA-256 with PKCS1 padding
+   //Adobe Reader 10 is using this combination
+   if (cbToBeSigned == 32)
+   {
+	    Cmd [4] = (BYTE)(sizeof(sha256OID) + cbToBeSigned);
+		uiCmdLg = sizeof(sha256OID) + 5 + cbToBeSigned;
+		memcpy(Cmd + 5, sha256OID, sizeof(sha256OID));
+		memcpy(Cmd + 5 + sizeof(sha256OID) , pbToBeSigned, cbToBeSigned);
+   }
+   else
+   {
+	    Cmd [4] = (BYTE)(cbToBeSigned);
+		uiCmdLg = 5 + cbToBeSigned;
+		memcpy(Cmd + 5, pbToBeSigned, cbToBeSigned);
+   }
+   
+   
    
 #ifdef _DEBUG
    LogDumpBin("C:\\SmartCardMinidriverTest\\signdata.bin", cbHdrHash + cbToBeSigned, (char *)&Cmd[5]);
@@ -1067,8 +1088,9 @@ DWORD PteidSignDataGemsafe(PCARD_DATA pCardData, BYTE pin_id, DWORD cbToBeSigned
    unsigned int            i          = 0;
    unsigned int            cbHdrHash  = 0;
    const unsigned char     *pbHdrHash = NULL;
-	
-   dwReturn = PteidMSE(pCardData, pin_id);
+   BYTE is_sha256 = cbToBeSigned == 32;
+
+   dwReturn = PteidMSE(pCardData, pin_id, is_sha256);
 
    if (dwReturn != SCARD_S_SUCCESS)
    {

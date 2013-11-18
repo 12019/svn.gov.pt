@@ -16,22 +16,24 @@
  * License along with this software; if not, see
  * http://www.gnu.org/licenses/.
  *
- * Authors: André Guerreiro <andre.guerreiro@caixamagica.pt>	
+ * Author: André Guerreiro <andre.guerreiro@caixamagica.pt>	
  *
  **************************************************************************** */
 #include <QListView>
 #include <QComboBox>
 #include <QFileDialog>
 #include <QProgressDialog>
+#include <QTextStream>
 
 #include <eidlib.h>
 #include "PDFSignWindow.h"
+#include "FreeSelectionDialog.h"
 #include "mylistview.h"
 
 using namespace eIDMW;
 
 PDFSignWindow::PDFSignWindow( QWidget* parent, CardInformation& CI_Data)
-	: m_CI_Data(CI_Data), m_selected_sector(0)
+	: m_CI_Data(CI_Data), m_selected_sector(0), card_present(true)
 {
 
 	ui.setupUi(this);
@@ -44,21 +46,30 @@ PDFSignWindow::PDFSignWindow( QWidget* parent, CardInformation& CI_Data)
 	"<html>Choose the page sector where you <br> want your signature to appear."
 	"<br>The grey sectors are already filled<br>with other signatures."
 	"</html>"));
+
+	//DEBUG
+	ui.label_selectedsector->setWordWrap(true);	
+
 	m_pdf_sig = NULL;
-	success = false;
+	m_selection_dialog = NULL;
+	sig_coord_x = -1, sig_coord_y = -1;
+	success = SIG_ERROR;
 	ui.spinBox_page->setValue(1);
 	list_model = new QStringListModel();
 	ui.pdf_listview->setModel(list_model);
 	ui.pdf_listview->enableNotify();
 	
-	char conteudo = 0x31;
+	int cell_number = 1;	
 
-	for ( i = 0; i < 3; i++ ) 
+	for (i = 0; i < table_lines; i++) 
 	{
-		for ( j = 0; j < 3; j++)
+		for (j = 0; j < table_columns; j++)
 		{
-			QTableWidgetItem * it = new QTableWidgetItem(QString(conteudo++));
-			ui.tableWidget->setItem(i, j, it); 
+			QTableWidgetItem * it = new QTableWidgetItem(
+					QString::number(cell_number++));
+			//Set flags because the default values allow editing
+			it->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+			ui.tableWidget->setItem(i, j, it);
 		}
 	}
 
@@ -73,6 +84,8 @@ PDFSignWindow::PDFSignWindow( QWidget* parent, CardInformation& CI_Data)
 PDFSignWindow::~PDFSignWindow()
 {
 
+	delete list_model;
+	delete m_selection_dialog;
 
 }
 
@@ -80,9 +93,26 @@ void PDFSignWindow::on_tableWidget_currentCellChanged(int row, int column,
 		int prev_row, int prev_column)
 {
 
-	update_sector(row,column);
+	update_sector(row, column);
+
+	/* Reset to default values to flag we're not using precise position */
+	sig_coord_x = -1;
+	sig_coord_y = -1;
 
 }
+
+//Launch the Free Selection Dialog
+void PDFSignWindow::on_pushButton_freeselection_clicked()
+{
+	if (!m_selection_dialog)
+		m_selection_dialog = new FreeSelectionDialog(this);
+	m_selection_dialog->exec();
+	m_selection_dialog->getValues(&sig_coord_x, &sig_coord_y);
+
+	update_sector(sig_coord_x, sig_coord_y);
+
+}
+
 //Event received from myListView
 void PDFSignWindow::customEvent(QEvent *ev)
 {
@@ -90,19 +120,40 @@ void PDFSignWindow::customEvent(QEvent *ev)
 		ui.button_sign->setEnabled(false);
 }
 
+void PDFSignWindow::enableSignButton()
+{
+	this->card_present = true;
+}
+
+void PDFSignWindow::disableSignButton()
+{
+
+	ui.button_sign->setEnabled(false);
+	this->card_present = false;
+}
+
+
 void PDFSignWindow::update_sector(int row, int column)
 {
-	if (row == 0)
-		m_selected_sector = 1+column;
-	else if (row == 1)
-		m_selected_sector = 4+column;
-
-	else if (row == 2)
-		m_selected_sector = 7+column;
+	m_selected_sector = 1 + table_columns*row + column;
 
 	ui.label_selectedsector->setText(tr("Selected sector: ")+
 			QString::number(m_selected_sector));
 
+}
+
+void PDFSignWindow::update_sector(double x_pos, double y_pos)
+{
+	QString result;
+
+	//Convert coordinates to millimeters
+	QTextStream stream(&result);
+	//Dont show fraction digits
+	stream.setRealNumberPrecision(1);
+	stream.setRealNumberNotation(QTextStream::FixedNotation);
+	stream << tr("Signature Position: ") << x_pos*209.916 <<
+		" mm Horizontal, " << y_pos*297.0576 << " mm Vertical";
+	ui.label_selectedsector->setText(result);
 }
 
 void PDFSignWindow::on_button_cancel_clicked()
@@ -148,20 +199,29 @@ void PDFSignWindow::on_visible_checkBox_toggled(bool checked)
 
 	bool choose_b = ui.radioButton_choosepage->isChecked();
 
-	if(checked)
+	if (checked) {
 		ui.spinBox_page->setEnabled(choose_b);
-	else
+	} else {
 		ui.spinBox_page->setEnabled(false);
+	}
 
 	ui.label_page->setEnabled(checked);
 	ui.label_choose_sector->setEnabled(checked);
 	ui.label_selectedsector->setEnabled(checked);
+	ui.pushButton_freeselection->setEnabled(checked);
 
 	ui.tableWidget->setEnabled(checked);
-	//Set sensible defaults for sector
-	ui.tableWidget->setCurrentCell (0, 0);
-	m_selected_sector = 1;
 
+	if (checked) {
+		//Set sensible defaults for sector
+		ui.tableWidget->setCurrentCell (0, 0);
+		m_selected_sector = 1;
+	} else {
+		// force default values for "invisible mode" signature
+		sig_coord_x = -1;
+		sig_coord_y = -1;
+		m_selected_sector = 0;    
+	}
 }
 
 void PDFSignWindow::ShowSuccessMsgBox()
@@ -174,35 +234,59 @@ void PDFSignWindow::ShowSuccessMsgBox()
 
 }
 
-void PDFSignWindow::ShowErrorMsgBox()
+void PDFSignWindow::ShowErrorMsgBox(QString msg)
 {
 
 	QString caption  = tr("Error");
-        QString msg = tr("Error Generating Signature!");
   	QMessageBox msgBoxp(QMessageBox::Warning, caption, msg, 0, this);
   	msgBoxp.exec();
 }
 
+void PDFSignWindow::ShowSectorErrorMessage()
+{
+
+	QString caption  = tr("Error");
+        QString msg = tr("The selected sector is already filled!\nPlease choose another one.");
+  	QMessageBox msgBoxp(QMessageBox::Warning, caption, msg, 0, this);
+  	msgBoxp.exec();
+
+}
 
 void PDFSignWindow::run_sign(int selected_page, QString &savefilepath,
 	       	char *location, char *reason)
 {
 
 	PTEID_EIDCard* card = dynamic_cast<PTEID_EIDCard*>(m_CI_Data.m_pCard);
+	int sign_rc = 0;
+	char * save_path = strdup(getPlatformNativeString(savefilepath));
 	try
 	{
-		card->SignPDF(*m_pdf_sig, selected_page,
-				m_selected_sector, location, reason, strdup(getPlatformNativeString(savefilepath)));
-		this->success = true;
+		//printf("@PDFSignWindow::run_sign:\n");
+		//printf("x=%f, y=%f\n", sig_coord_x, sig_coord_y);
+		//printf("selected_page=%d, selected_sector=%d\n", selected_page, m_selected_sector);
+
+		if (sig_coord_x != -1 && sig_coord_y != -1)
+			sign_rc = card->SignPDF(*m_pdf_sig, selected_page,
+			sig_coord_x, sig_coord_y, location, reason, save_path);
+		else
+			sign_rc = card->SignPDF(*m_pdf_sig, selected_page,
+				m_selected_sector, location, reason, save_path);
+
+		if (sign_rc == 0)
+			this->success = SIG_SUCCESS;
+		else
+			this->success = TS_WARNING;
 
 	}
 
 	catch (PTEID_Exception &e)
 	{
-		this->success = false;
-		fprintf(stderr, "Caught exception in some SDK method. Error code: 0x%08x\n", (unsigned int)e.GetError());
-		//TODO: Show error message box
+		this->success = SIG_ERROR;
+		fprintf(stderr, "Caught exception in some SDK method. Error code: 0x%08x\n", 
+			(unsigned int)e.GetError());
 	}
+
+	free(save_path);
 
 
 }
@@ -215,17 +299,39 @@ void PDFSignWindow::on_button_sign_clicked()
 	QString savefilepath;
 
 
+	//Read Page
+	if (ui.visible_checkBox->isChecked())
+	{
+		if (ui.radioButton_firstpage->isChecked())
+			selected_page = 1;
+		else if (ui.radioButton_lastpage->isChecked())
+			selected_page = ui.spinBox_page->maximum();
+		else
+			selected_page = ui.spinBox_page->value();
+
+		// only check if selectedSector is valid when not using free position
+		bool is_free_pos_mode = (sig_coord_x != -1 && sig_coord_y != -1);
+		if (!is_free_pos_mode && !validateSelectedSector())
+		{
+		   ShowSectorErrorMessage();
+		   return;
+		}
+
+	}
+
 	QStringListModel *model = dynamic_cast<QStringListModel *>(list_model);
 	if (model->rowCount() == 0)
 	{
 	   return;
 
 	}
+	QFileInfo my_file_info(current_input_path);
+	QString defaultsavefilepath = my_file_info.dir().absolutePath();
 
 	if (model->rowCount() > 1)
 	{
 		m_pdf_sig = new PTEID_PDFSignature();
-		for (int i=0; i < model->rowCount(); i++)
+		for (int i = 0; i < model->rowCount(); i++)
 		{
 			QString tmp = model->data(model->index(i, 0), 0).toString();
 			char *final = strdup(getPlatformNativeString(tmp));
@@ -234,13 +340,20 @@ void PDFSignWindow::on_button_sign_clicked()
 		}
 
 		savefilepath = QFileDialog::getExistingDirectory(this, tr("Open Directory"),
-				QDir::homePath(),
+				QDir::toNativeSeparators(defaultsavefilepath),
 				QFileDialog::ShowDirsOnly);
 
 	}
 	else
+	{
+		QString basename = my_file_info.completeBaseName();
 		savefilepath = QFileDialog::getSaveFileName(this, tr("Save File"), 
-			QDir::homePath()+"/signed.pdf", tr("PDF files (*.pdf)"));
+			QDir::toNativeSeparators(defaultsavefilepath+"/"+basename+"_signed.pdf"), tr("PDF files (*.pdf)"));
+
+	}
+
+	if (ui.timestamp_checkBox->isChecked())
+		m_pdf_sig->enableTimestamp();
 
 	if (savefilepath.isNull() || savefilepath.isEmpty())
 		return;
@@ -254,19 +367,6 @@ void PDFSignWindow::on_button_sign_clicked()
 		reason = strdup(ui.reason_textbox->text().toUtf8().data());
 	}
 
-	//Read Page
-	if (ui.visible_checkBox->isChecked())
-	{
-		if (ui.radioButton_firstpage->isChecked())
-			selected_page = 1;
-		else if (ui.radioButton_lastpage->isChecked())
-			selected_page = ui.spinBox_page->maximum();
-		else
-			selected_page = ui.spinBox_page->value();
-
-	}
-
-
 	//Single File Signature case
 	pdialog = new QProgressDialog();
 	pdialog->setWindowModality(Qt::WindowModal);
@@ -277,19 +377,22 @@ void PDFSignWindow::on_button_sign_clicked()
 	connect(&this->FutureWatcher, SIGNAL(finished()), pdialog, SLOT(cancel()));
 
 	QFuture<void> future = QtConcurrent::run(this,
-			&PDFSignWindow::run_sign, selected_page, savefilepath, location, reason );
+			&PDFSignWindow::run_sign, selected_page, savefilepath, location, reason);
 
 	this->FutureWatcher.setFuture(future);
 	pdialog->exec();
 
-	if (this->success)
+	if (this->success == SIG_SUCCESS)
 		ShowSuccessMsgBox();
-	else
-		ShowErrorMsgBox();
+	else if (this->success == TS_WARNING)
+	{
+		QString sig_detail = model->rowCount() > 1 ?  tr("some of the timestamps could not be applied") :
+				tr("the timestamp could not be applied");
+		ShowErrorMsgBox(tr("Signature(s) successfully generated but ")+ sig_detail);
+	}
+	else			
+		ShowErrorMsgBox(tr("Error Generating Signature!"));
 
-	//TODO: Fix this for Windows URLs or else just remove it
-	//if (model->rowCount() == 1)
-	//	QDesktopServices::openUrl(QString("file://")+ savefilepath);
 	this->close();
 
 }
@@ -348,52 +451,44 @@ void PDFSignWindow::on_spinBox_page_valueChanged(int new_value)
 
 void mapSectorToRC(int sector, int *row, int *column)
 {
-		switch(sector)
-		{
-			case 1:
-				*row = 0; *column = 0;
-				break;
-			case 2:
-				*row = 0; *column = 1;
-				break;
-			case 3:
-				*row = 0; *column = 2;
-				break;
-			case 4:
-				*row = 1; *column = 0;
-				break;
-			case 5:
-				*row = 1; *column = 1;
-				break;
-			case 6:
-				*row = 1; *column = 2;
-				break;
-			case 7:
-				*row = 2; *column = 0;
-				break;
-			case 8:
-				*row = 2; *column = 1;
-				break;
-			case 9:
-				*row = 2; *column = 2;
-				break;
-			default:
-				fprintf(stderr, "Invalid Sector: %d\n", sector);
-		}
+
+	if (sector < 1)
+		return;
+
+	int rem = sector % 3;
+
+	*row = (sector-1) / 3;
+
+	if (rem == 0)
+		*column = 2;
+	else if (rem == 1)
+		*column = 0;
+	else if (rem == 2)
+		*column = 1;
 
 }
 
 void PDFSignWindow::clearAllSectors()
 {
 
-	for(int i = 0 ;i < 3; i++ ) 
+	for(int i = 0 ;i < table_lines; i++ ) 
 	{
-		for (int j = 0; j < 3; j++)
+		for (int j = 0; j < table_columns; j++)
 		{
 		ui.tableWidget->item(i, j)->setBackground(m_default_background);
 		}
 	}
 
+}
+
+
+bool PDFSignWindow::validateSelectedSector()
+{
+	int row, col;
+	mapSectorToRC(m_selected_sector, &row, &col);
+
+	return ui.tableWidget->item(row, col)->background() !=
+			     QBrush(Qt::darkGray);
 }
 
 
@@ -430,6 +525,21 @@ void PDFSignWindow::addFileToListView(QStringList &str)
 	if (str.isEmpty())
 		return;
 
+	current_input_path = str.at(0);
+
+	m_pdf_sig = new PTEID_PDFSignature(strdup(getPlatformNativeString(current_input_path)));
+
+	try
+	{
+		m_current_page_number = m_pdf_sig->getPageCount();
+	}
+	catch (PTEID_Exception &e)
+	{
+		ShowErrorMsgBox(tr("Unsupported or corrupted file!"));
+		m_pdf_sig = NULL;
+		return;
+	}
+
 	for(int i=0; i != str.size(); i++)
 	{
 
@@ -437,12 +547,6 @@ void PDFSignWindow::addFileToListView(QStringList &str)
 		list_model->setData(list_model->index(list_model->rowCount()-1, 0), str.at(i));
 
 	}
-
-	current_input_path = str.at(0);
-
-	m_pdf_sig = new PTEID_PDFSignature(strdup(getPlatformNativeString(current_input_path)));
-
-	m_current_page_number = m_pdf_sig->getPageCount();
 
 	//Set the spinbox with the appropriate max value
 	ui.spinBox_page->setMaximum(m_current_page_number);
@@ -453,11 +557,10 @@ void PDFSignWindow::addFileToListView(QStringList &str)
 	if (list_model->rowCount() > 1)
 	{
 		clearAllSectors();
-		//TODO
 	}
 
-	//Enable sign button now that we have data
-	if (!str.isEmpty())
+	//Enable sign button now that we have data and a card inserted
+	if (!str.isEmpty() && this->card_present)
 		ui.button_sign->setEnabled(true);
 
 }
