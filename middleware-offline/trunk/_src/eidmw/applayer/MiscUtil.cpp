@@ -61,7 +61,7 @@ namespace eIDMW
 
 	int Truncate(const char *path)
 	{
-		int fh, result;
+		int fh = 0, result = 0;
 		unsigned int nbytes = BUFSIZ;
 
 		/* This replicates the use of truncate() on Unix */
@@ -548,6 +548,21 @@ std::string CPathUtil::getUri(const char *relativePath)
 	}
 
 	return uri;
+}
+
+std::string CPathUtil::remove_ext_from_basename(const char *base)
+{
+	std::string base_name = base; 
+	std::string::size_type ext_at = base_name.rfind('.', base_name.size());
+    
+	if (ext_at == std::string::npos)
+	{
+		return base_name; //no extension
+	}
+	else
+	{
+		return base_name.substr(0, ext_at);
+	}
 }
 
 /*****************************************************************************************

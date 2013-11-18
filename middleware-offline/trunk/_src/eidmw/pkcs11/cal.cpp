@@ -251,7 +251,7 @@ pInfo->ulMaxPinLen = 8;
 pInfo->ulMinPinLen = 4;
 strcpy_s((char*)pInfo->utcTime,sizeof(pInfo->utcTime), "20080101000000");
 
-pInfo->flags |= CKF_WRITE_PROTECTED | CKF_TOKEN_INITIALIZED | CKF_USER_PIN_INITIALIZED;// check for pin change capabilitypInfo->flags |= /*CKF_LOGIN_REQUIRED |  CKF_USER_PIN_INITIALIZED |*/; //CAL does logon, so no CKF_LOGIN_REQUIRED nor CKF_USER_PIN_INITIALIZED
+pInfo->flags |= CKF_PROTECTED_AUTHENTICATION_PATH | CKF_TOKEN_INITIALIZED | CKF_USER_PIN_INITIALIZED;// check for pin change capabilitypInfo->flags |= /*CKF_LOGIN_REQUIRED |  CKF_USER_PIN_INITIALIZED |*/; //CAL does logon, so no CKF_LOGIN_REQUIRED nor CKF_USER_PIN_INITIALIZED
 
 cleanup:
 
@@ -984,6 +984,15 @@ try
          ret = CKR_MECHANISM_INVALID;
          goto cleanup;            
       }
+
+   if (algo == SIGN_ALGO_RSA_PKCS && l_in == 51 
+		  && oReader.GetCardType() == CARD_PTEID_IAS07)
+   {
+	//Strip away the PKCS-1 padding (first 19 bytes)
+	oData = oData.GetBytes(19);
+	algo = SIGN_ALGO_SHA256_RSA_PKCS;
+
+   }
 
    oDataOut = oReader.Sign(key, algo, oData);
    }

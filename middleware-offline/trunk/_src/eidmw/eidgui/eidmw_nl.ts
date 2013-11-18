@@ -131,10 +131,6 @@
         <translation>Códigos PIN</translation>
     </message>
     <message>
-        <source>Help</source>
-        <translation>Ajuda</translation>
-    </message>
-    <message>
         <source>Read Card</source>
         <translation>Ler Cartão</translation>
     </message>
@@ -170,18 +166,50 @@
         <source>About</source>
         <translation>Acerca</translation>
     </message>
+     <message>
+        <source>Online Documentation</source>
+        <translation>Documentação on-line</translation>
+    </message>
+    
     <message>
-        <source>Tools</source>
-        <translation>Opções</translation>
+        <source>   Card</source>
+        <translation>      Cartão</translation>
     </message>
     <message>
         <source>Card</source>
         <translation>Cartão</translation>
     </message>
     <message>
-        <source>      Card</source>
-        <translation>      Cartão</translation>
+        <source>   Services</source>
+        <translation>   Serviços</translation>
     </message>
+    <message>
+        <source>Services</source>
+        <translation>Serviços</translation>
+    </message>
+    <message>
+        <source>   Settings</source>
+        <translation>      Definições</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>Definições</translation>
+    </message>
+    <message>
+        <source>  Help</source>
+        <translation>    Ajuda</translation>
+    </message>
+    <message>
+        <source>Help</source>
+        <translation>Ajuda</translation>
+    </message>
+    
+    <message>
+        <source>Change language</source>
+        <comment>to english</comment>
+        <translation>Change the interface language to english</translation>
+    </message>
+    
     <message>
         <source>Kaartnr. / &lt;i&gt;Card No&lt;/i&gt;</source>
         <translation>Num. Cartão / &lt;i&gt;Card No&lt;/i&gt;</translation>
@@ -366,10 +394,7 @@
         <source>Printer Settings</source>
         <translation>Definições de Impressão</translation>
     </message>
-    <message>
-        <source>&amp;Options</source>
-        <translation>Opções</translation>
-    </message>
+ 
     <message>
         <source>&amp;English</source>
         <translation type="unfinished">&amp;English</translation>
@@ -1123,6 +1148,10 @@ Please specify .xml, .csv or .eid</source>
         <translation>Cartão Inserido</translation>
     </message>
     <message>
+        <source>Please insert your card on the smart card reader</source>
+        <translation>Por favor introduza o Cartão de Cidadão no leitor</translation>
+    </message>
+    <message>
         <source>setEventCallbacks</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1196,8 +1225,8 @@ Please specify .xml, .csv or .eid</source>
         <translation>Aplicação Oficial do Cartão de Cidadão Português.</translation>
     </message>
     <message>
-        <source>Version 2.0</source>
-        <translation>Versão 2.0</translation>
+        <source>Version</source>
+        <translation>Versão</translation>
     </message>
     <message>
         <source>For information or support about this software please visit</source>
@@ -1617,14 +1646,44 @@ Please specify .xml, .csv or .eid</source>
      <message>
         <source>Selected sector: </source>
         <translation>Área Seleccionada: </translation>
+</message>
+<message>
+	<source>Signature Position: </source>
+	<translation>Posição da assinatura: </translation>
+</message>
+     <message>
+        <source>some of the timestamps could not be applied</source>
+        <translation>alguns dos selos temporais não foram aplicados</translation>
      </message>
+     <message>
+        <source>the timestamp could not be applied</source>
+        <translation>o selo temporal não foi aplicado</translation>
+</message>
+<message>
+	<source>Signature(s) successfully generated but </source>
+	<translation>Ficheiro(s) assinados com sucesso mas </translation>
+</message>
 <message>
 	<source>PDF Signature</source> 
 	<translation>Assinatura de ficheiros PDF</translation>
 </message>
+<message>
+	<source>Free Positioning</source> 
+	<translation>Posicionamento preciso</translation>
+</message>
+<message>
+	<source>Add Timestamp</source>
+	<translation>Adicionar selo temporal</translation>
+</message>
 <message>   
 	<source>Error</source> 
 	<translation>Erro</translation>
+</message>
+<message>   
+        <source>The selected sector is already filled!
+Please choose another one.</source>
+	<translation>A área que seleccionou para a assinatura já está ocupada!
+Escolha outra por favor.</translation>
 </message>
 <message>   
 	<source>Visible Signature?</source> 
@@ -1696,6 +1755,10 @@ Please specify .xml, .csv or .eid</source>
 	<translation>Seleccionar ficheiro(s)</translation>
 </message>
 <message>
+	<source>Page</source>
+	<translation>Página</translation>
+</message>
+<message>
 	<source>Signing PDF file(s)...</source>
 	<translation>A Assinar ficheiro(s)...</translation>
 </message>
@@ -1703,5 +1766,30 @@ Please specify .xml, .csv or .eid</source>
 	<source>Sign</source>
 	<translation>Assinar</translation>
 </message>
+</context>
+<context>
+	<name>FreeSelectionDialog</name>
+	<message>
+		<source>Horizontal position</source>
+		<translation>Na horizontal</translation>
+	</message>
+	<message>
+		<source>Vertical position</source>
+		<translation>Na vertical</translation>
+	</message>
+	<message>
+		<source>PDF Signature - Free Positioning</source>
+		<translation>Assinatura de PDF - Posicionamento preciso</translation>
+
+	</message>
+	<message>
+		<source>Reset</source>
+		<translation>Limpar</translation>
+	</message>
+	<message>
+		<source>A4 Page</source>
+		<translation>Página A4</translation>
+	</message>
+
 </context>
 </TS>

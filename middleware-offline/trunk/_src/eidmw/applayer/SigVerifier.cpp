@@ -156,9 +156,6 @@ namespace eIDMW
 
 		CByteArray *validate_data = new CByteArray();
 
-		//Get Timestamping server URL from config
-		APL_Config tsa_url(CConfig::EIDMW_CONFIG_PARAM_XSIGN_TSAURL);
-		const char * TSA_URL = tsa_url.getString();
 		static const char expect_header[] = "Expect:";
 
 		curl_global_init(CURL_GLOBAL_ALL);
@@ -373,6 +370,27 @@ bool SignatureVerifier::grep_validation_result (CByteArray validate_data)
 	}
 
 }
+void SignatureVerifier::initXMLUtils()
+{
+	try {
+
+		XMLPlatformUtils::Initialize();
+		XSECPlatformUtils::Initialise();
+
+	}
+	catch (const XMLException &e) {
+
+		MWLOG(LEV_ERROR, MOD_APL, L"Error during initialisation of Xerces. Error Message: %s",
+				e.getMessage()) ;
+		throw CMWEXCEPTION(EIDMW_XERCES_INIT_ERROR);
+	}
+}
+
+void SignatureVerifier::terminateXMLUtils()
+{
+	XSECPlatformUtils::Terminate();
+	XMLPlatformUtils::Terminate();
+}
 
 	SigVerifyErrorCode SignatureVerifier::Verify()
 	{
@@ -396,7 +414,9 @@ bool SignatureVerifier::grep_validation_result (CByteArray validate_data)
 
 		delete container;
 
+		initXMLUtils();
 		result = ValidateXades(sig_content, hashes);
+		terminateXMLUtils();
 		
 		//Dont check the Timestamp if the signature is invalid
 		if (result == eIDMW::XADES_ERROR_OK)
@@ -662,7 +682,7 @@ SigVerifyErrorCode SignatureVerifier::ValidateXades(CByteArray signature, tHashe
 		return XADES_ERROR_NOSIG;
 	}
 
-	initXerces();
+//	initXerces();
 
 	//Load XML from a MemoryBuffer
 	MemBufInputSource * source = new MemBufInputSource(signature.GetBytes(),
@@ -804,6 +824,9 @@ SigVerifyErrorCode SignatureVerifier::ValidateXades(CByteArray signature, tHashe
 			e.getMsg());
 		result = false;
 	}
+
+//	XSECPlatformUtils::Terminate();
+//	XMLPlatformUtils::Terminate();
 
 	if (result == false)
 	{

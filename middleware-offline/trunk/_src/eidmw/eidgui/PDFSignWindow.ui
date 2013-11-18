@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>411</width>
-    <height>650</height>
+    <width>421</width>
+    <height>671</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,10 +22,10 @@
   <widget class="QWidget" name="centralwidget" native="true">
    <property name="geometry">
     <rect>
-     <x>0</x>
+     <x>10</x>
      <y>0</y>
-     <width>411</width>
-     <height>630</height>
+     <width>410</width>
+     <height>671</height>
     </rect>
    </property>
    <property name="sizePolicy">
@@ -34,27 +34,20 @@
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
-   <widget class="QCheckBox" name="visible_checkBox">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>260</y>
-      <width>141</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Visible Signature?</string>
-    </property>
-   </widget>
    <widget class="QPushButton" name="button_addfile">
     <property name="geometry">
      <rect>
-      <x>219</x>
-      <y>150</y>
-      <width>151</width>
+      <x>220</x>
+      <y>120</y>
+      <width>156</width>
       <height>27</height>
      </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
     </property>
     <property name="text">
      <string>Add Files...</string>
@@ -63,17 +56,17 @@
    <widget class="MyListView" name="pdf_listview">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>10</x>
       <y>30</y>
-      <width>341</width>
-      <height>111</height>
+      <width>371</width>
+      <height>81</height>
      </rect>
     </property>
    </widget>
    <widget class="QLabel" name="label_3">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>10</x>
       <y>10</y>
       <width>341</width>
       <height>16</height>
@@ -83,58 +76,16 @@
      <string>PDF Files to sign</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="button_sign">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>190</x>
-      <y>600</y>
-      <width>91</width>
-      <height>27</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Sign</string>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="reason_textbox">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>200</y>
-      <width>241</width>
-      <height>26</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="location_textbox">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>140</x>
-      <y>230</y>
-      <width>241</width>
-      <height>26</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QWidget" name="verticalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>300</y>
-      <width>351</width>
-      <height>304</height>
+      <x>10</x>
+      <y>310</y>
+      <width>381</width>
+      <height>321</height>
      </rect>
     </property>
-    <layout class="QVBoxLayout" name="verticalLayout">
+    <layout class="QVBoxLayout" name="vertical_bottom">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -279,6 +230,9 @@
            <height>0</height>
           </size>
          </property>
+         <property name="styleSheet">
+          <string notr="true">font-size: 8pt</string>
+         </property>
          <property name="verticalScrollBarPolicy">
           <enum>Qt::ScrollBarAlwaysOff</enum>
          </property>
@@ -289,7 +243,7 @@
           <enum>Qt::DashLine</enum>
          </property>
          <property name="rowCount">
-          <number>3</number>
+          <number>6</number>
          </property>
          <property name="columnCount">
           <number>3</number>
@@ -310,11 +264,14 @@
           <bool>false</bool>
          </attribute>
          <attribute name="verticalHeaderDefaultSectionSize">
-          <number>40</number>
+          <number>20</number>
          </attribute>
          <attribute name="verticalHeaderMinimumSectionSize">
-          <number>15</number>
+          <number>10</number>
          </attribute>
+         <row/>
+         <row/>
+         <row/>
          <row/>
          <row/>
          <row/>
@@ -330,8 +287,39 @@
        <property name="enabled">
         <bool>false</bool>
        </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>40</height>
+        </size>
+       </property>
        <property name="text">
         <string>Selected sector : 1</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton_freeselection">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Free Positioning</string>
        </property>
       </widget>
      </item>
@@ -343,8 +331,8 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>290</x>
-      <y>600</y>
+      <x>300</x>
+      <y>625</y>
       <width>91</width>
       <height>27</height>
      </rect>
@@ -353,38 +341,12 @@
      <string>Cancel</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox_reason">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>200</y>
-      <width>101</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Reason:</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="checkBox_location">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>230</y>
-      <width>101</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Location:</string>
-    </property>
-   </widget>
    <widget class="Line" name="line">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>180</y>
-      <width>351</width>
+      <x>10</x>
+      <y>150</y>
+      <width>381</width>
       <height>20</height>
      </rect>
     </property>
@@ -392,18 +354,92 @@
      <enum>Qt::Horizontal</enum>
     </property>
    </widget>
-   <widget class="Line" name="line_2">
+   <widget class="QPushButton" name="button_sign">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>280</y>
-      <width>351</width>
-      <height>20</height>
+      <x>200</x>
+      <y>625</y>
+      <width>91</width>
+      <height>27</height>
      </rect>
     </property>
-    <property name="orientation">
-     <enum>Qt::Horizontal</enum>
+    <property name="text">
+     <string>Sign</string>
     </property>
+   </widget>
+   <widget class="QWidget" name="layoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>180</y>
+      <width>381</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="vertical_top">
+     <item>
+      <layout class="QFormLayout" name="formLayout">
+       <property name="fieldGrowthPolicy">
+        <enum>QFormLayout::ExpandingFieldsGrow</enum>
+       </property>
+       <property name="labelAlignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+       <property name="formAlignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="checkBox_reason">
+         <property name="text">
+          <string>Reason:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="reason_textbox">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="checkBox_location">
+         <property name="text">
+          <string>Location:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="location_textbox">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QCheckBox" name="timestamp_checkBox">
+         <property name="text">
+          <string>Add Timestamp</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="visible_checkBox">
+         <property name="text">
+          <string>Visible Signature?</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
    </widget>
   </widget>
  </widget>
