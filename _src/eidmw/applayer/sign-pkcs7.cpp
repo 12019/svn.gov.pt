@@ -14,6 +14,7 @@
 #include "tsp.h"
 #include "CardPteidDef.h"
 #include "static_pteid_certs.h"
+#include "cryptoFwkPteid.h"
 
 
 /* Conditionally check some features on the OpenSSL API  */
@@ -282,7 +283,7 @@ int pteid_sign_pkcs7 (APL_Card *card, unsigned char * data, unsigned long data_l
 	X509 *x509;
 	PKCS7 *p7;
 	PKCS7_SIGNER_INFO *signer_info;
-	CByteArray hash, attr_hash, signature, certData, certData2, tsresp;
+	CByteArray hash, attr_hash, signature, certData, certData2, cc01, cc02, tsresp;
 	char * signature_hex_string = NULL;
 	unsigned char *attr_buf = NULL;
 	unsigned char *timestamp_token = NULL;
@@ -290,6 +291,7 @@ int pteid_sign_pkcs7 (APL_Card *card, unsigned char * data, unsigned long data_l
 	int tsp_token_len = 0;
 	int auth_attr_len = 0;
 	unsigned int len = 0;
+	APL_CryptoFwkPteid *fwk = AppLayer.getCryptoFwk();
 	
 
 	/* Use stronger SHA-256 Hash with IAS 1.01 applet, SHA-1 otherwise */
@@ -340,19 +342,25 @@ int pteid_sign_pkcs7 (APL_Card *card, unsigned char * data, unsigned long data_l
 
 	add_certificate(p7, certData2);
 	
+	cc01 = CByteArray(PTEID_CERTS[18].cert_data, PTEID_CERTS[18].cert_len);
+	cc02 = CByteArray(PTEID_CERTS[19].cert_data, PTEID_CERTS[19].cert_len);
 
-	// Add the top 3 certificates to complete the chain
-	add_certificate(p7, PTEID_CERTS[0].cert_data, PTEID_CERTS[0].cert_len);
-	add_certificate(p7, PTEID_CERTS[13].cert_data, PTEID_CERTS[13].cert_len);
-	add_certificate(p7, PTEID_CERTS[14].cert_data, PTEID_CERTS[14].cert_len);
+
+	// Add issuer of Signature SubCA
+	if (fwk->isIssuer(certData2, cc01))
+		add_certificate(p7, cc01);
+	else if (fwk->isIssuer(certData2, cc02))
+		add_certificate(p7, cc02);
+	else 
+		MWLOG(LEV_ERROR, MOD_APL, L"Couldn't find issuer for certificate SIGNATURE_SUBCA.The validation will be broken!");
+
+	// Add ECRaizEstado certificate
+	add_certificate(p7, PTEID_CERTS[17].cert_data, PTEID_CERTS[17].cert_len);
 
 	PKCS7_set_detached(p7, 1);
 
-	//SHA1 (data, data_len, out);
 	my_hash(data, data_len, out);
 	
-	//ASN1_OCTET_STRING_set(p7->d.sign->contents->d.data, out, SHA1_LEN); 
-
 	/* Add the signing time and digest authenticated attributes */
 	//With authenticated attributes
 	
