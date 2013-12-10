@@ -1,8 +1,10 @@
-2,1,2
+2,2,0
 
 #<b>* Release Notes</b>
 <p>
-- Possibilidade de assinatura com localizacao exata no documento<br/>
+- Versao estavel 2.2.0<br/>
 
-- Desenvolvimentos correctivos: Correccao do metodo de assinatura PKCS11 em Java<br/>
+- Correccao da funcionalidade de alteracao de pin de autenticacao<br/>
+
+- Correccao do metodo de assinatura PKCS11 em Java<br/>
 <p>
