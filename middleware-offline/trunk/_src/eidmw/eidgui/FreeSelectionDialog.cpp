@@ -17,6 +17,9 @@
 #include "FreeSelectionDialog.h"
 
 
+double g_scene_height;
+double g_scene_width;
+
 class MyGraphicsScene : public QGraphicsScene
 {
 	
@@ -64,7 +67,7 @@ void MyGraphicsScene::drawBackground(QPainter * painter, const QRectF & rect )
 class Rectangle : public QGraphicsItem
 {
 	public:
-		Rectangle(MyGraphicsScene *parent ): my_scene(parent)
+		Rectangle(MyGraphicsScene *parent, double rect_h, double rect_w): my_scene(parent), m_rect_w(rect_w), m_rect_h(rect_h)
 	{
     		setFlag(QGraphicsItem::ItemIsMovable);
 		//setFlag(QGraphicsItem::ItemSendsGeometryChanges);
@@ -83,12 +86,9 @@ class Rectangle : public QGraphicsItem
 
 	private:
 		MyGraphicsScene * my_scene;
-		static const double rect_h, rect_w;
+		double m_rect_h, m_rect_w;
 
 };
-
-const double Rectangle::rect_h = scene_height *0.106888361045; //Proportional to current signature height
-const double Rectangle::rect_w = scene_width / 3.0;
 const int margin = 10;
 
 void Rectangle::paint(QPainter *painter,
@@ -96,12 +96,12 @@ void Rectangle::paint(QPainter *painter,
 {
 	painter->setPen(Qt::black);
 	painter->setBrush(Qt::lightGray);
-	painter->drawRect(0, 0, rect_w, rect_h);
+	painter->drawRect(0, 0, m_rect_w, m_rect_h);
 }
 
 QRectF Rectangle::boundingRect() const
 {
-	return QRectF(0, 0, rect_w+1, rect_h+1);
+	return QRectF(0, 0, m_rect_w+1, m_rect_h+1);
 }
 
 
@@ -138,10 +138,10 @@ void Rectangle::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
 		tmp.setX(margin);
 	if (tmp.ry() < margin)
 		tmp.setY(margin);
-	if (tmp.rx() >= scene_width+margin-rect_w) 
-		tmp.setX(scene_width+margin-rect_w);
-	if (tmp.ry() >= scene_height+margin-rect_h)
-		tmp.setY(scene_height+margin-rect_h);
+	if (tmp.rx() >= g_scene_width+margin - m_rect_w) 
+		tmp.setX(g_scene_width+margin-m_rect_w);
+	if (tmp.ry() >= g_scene_height+margin - m_rect_h)
+		tmp.setY(g_scene_height+margin - m_rect_h);
 
 	QApplication::setOverrideCursor(QCursor(Qt::OpenHandCursor));
 	setPos(tmp);
@@ -150,65 +150,61 @@ void Rectangle::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
 	QGraphicsItem::mouseReleaseEvent(event);
 }
 
+double FreeSelectionDialog::convertX()
+{
+	double full_width = m_landscape_mode ? 297.0576 : 209.916;
+	return this->rx/g_scene_width * full_width;
+}
+
+double FreeSelectionDialog::convertY()
+{
+	double full_height = m_landscape_mode ? 209.916 : 297.0576;
+	return this->ry/g_scene_height * full_height;
+}
+
+/* Coordinate conversion */
 void FreeSelectionDialog::setPosition(QPointF new_pos)
 {
 	this->rx = new_pos.rx()-margin;
 	this->ry = new_pos.ry()-margin;
-	//printf("Pos: rx=%f, ry=%f\n", this->rx, this->ry);
-	ui.text_edit_x->setText(
-			QString::number(this->rx/scene_width * 209.916, 'f', 1));
-	ui.text_edit_y->setText(
-			QString::number(this->ry/scene_height * 297.0576, 'f', 1));
+
+	ui.label_x->setText(tr("Horizontal position: %1")
+		.arg(QString::number(convertX(), 'f', 1)));
+	
+	ui.label_y->setText(tr("Vertical Position: %2")
+		.arg(QString::number(convertY(), 'f', 1)));
 
 }
 
 void FreeSelectionDialog::on_pushButton_reset_clicked()
 {
 
-	ui.text_edit_x->setText(QString("0"));
-	ui.text_edit_y->setText(QString("0"));
-	changeRectanglePos();
+	ui.label_x->setText(tr("Horizontal position: 0.0"));
+	ui.label_y->setText(tr("Vertical position: 0.0"));
+	resetRectanglePos();
 
 }
 
 void FreeSelectionDialog::on_pushButton_ok_clicked()
 {
-	this->accept();
+	this->done(QDialog::Accepted);
 
 }
-
-/*
-void FreeSelectionDialog::on_text_edit_x_editingFinished()
-{
-
-	changeRectanglePos();
-}
-
-void FreeSelectionDialog::on_text_edit_y_editingFinished()
-{
-
-
-	changeRectanglePos();
-
-}
-*/
 
 void FreeSelectionDialog::getValues(double *x, double *y)
 {
-       *x = this->rx / scene_width;
-       *y = this->ry / scene_height;
-
+       *x = convertX();
+       *y = convertY();
 }
 
-
-void FreeSelectionDialog::changeRectanglePos()
+void FreeSelectionDialog::resetRectanglePos()
 {
 
 	QList<QGraphicsItem *> scene_items = my_scene->items();
 
 	QPointF pos;
-	pos.setY(ui.text_edit_y->text().toInt());
-	pos.setX(ui.text_edit_x->text().toInt());
+	pos.setY(0.0);
+	pos.setX(0.0);
 
 	int i = 0;
 	while (i!= scene_items.size())
@@ -224,46 +220,80 @@ void FreeSelectionDialog::changeRectanglePos()
 
 }
 
-
-FreeSelectionDialog::FreeSelectionDialog(QWidget *parent): QDialog(parent)
+void FreeSelectionDialog::drawBackgroundGrid(QGraphicsScene *scene)
 {
-    
+
+    QPen dashed_pen(Qt::DashLine);
+
+    int v_lines = m_landscape_mode ? 6 : 3;
+    int h_lines = m_landscape_mode ? 3 : 6;
+	
+    //Draw the background dashed grid representing the 18 page sectors 
+    for (int i=0; i<= h_lines; i++)
+		scene->addLine(margin, i*g_scene_height/h_lines +margin, g_scene_width+margin, i*g_scene_height/h_lines +margin, 
+			    dashed_pen);
+
+    for (int i=0; i<= v_lines; i++)
+		scene->addLine(i*g_scene_width/v_lines +margin, margin, i*g_scene_width/v_lines +margin, g_scene_height+ margin,
+			    dashed_pen);
+}
+
+FreeSelectionDialog::FreeSelectionDialog(QWidget *parent, bool landscape_mode): QDialog(parent)
+{
+	g_scene_height = 421;
+	g_scene_width = 297;
+    double rect_h = g_scene_height *0.106888361045; //Proportional to current signature height
+	double rect_w = g_scene_width / 3.0;
     ui.setupUi(this);
 
     MyGraphicsScene *scene = new MyGraphicsScene(tr("A4 Page"));
+    m_landscape_mode = landscape_mode;
 
-    double real_scene_width = scene_width + 18;
-    double real_scene_height = scene_height + 24;
+    if (landscape_mode)
+    {
+    	double tmp = ui.widget->height();
+    	g_scene_width = ui.widget->height()-20;
+    	g_scene_height = ui.widget->width()-70;
+
+    	// fprintf(stderr, "H: %d W: %d\n", ui.widget->height(), ui.widget->width());
+    	ui.widget->setFixedSize(ui.widget->height(), ui.widget->width()-20);
+
+    	rect_w = g_scene_width / 6.0;
+    	rect_h = g_scene_height * 0.15;
+    	//ui.widget->setMinimumWidth(tmp);
+    }
+
+    double real_scene_width = g_scene_width + 18;
+    double real_scene_height = g_scene_height + 24;
     this->rx = 0;
     this->ry = 0;
 
     scene->setSceneRect(0, 0, real_scene_width, real_scene_height);
     scene->setItemIndexMethod(QGraphicsScene::NoIndex);
-    scene->addItem(new Rectangle(scene));
 
-    QPen dashed_pen(Qt::DashLine);
-	
-    //Draw the background dashed grid representing the 18 page sectors 
-    for (int i=0; i<=6; i++)
-	scene->addLine(margin, i*scene_height/6.0 +margin, scene_width+margin, i*scene_height/6.0+margin, 
-			    dashed_pen);
-    for (int i=0; i<=3; i++)
-	scene->addLine(i*scene_width/3.0 +margin, 0+10, i*scene_width/3.0+margin, scene_height+ margin,
-			    dashed_pen); 
+    // if (landscape_mode)
+    // 	scene->addItem(new Rectangle(scene, rect_w, rect_h));
+    // else
+    scene->addItem(new Rectangle(scene, rect_h, rect_w));
+
+    drawBackgroundGrid(scene);
 
     my_scene = scene;
     QGraphicsView *view = new QGraphicsView(ui.widget);
     view->setScene(scene);
     view->setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
-    QValidator *validator_x = new QIntValidator(0, (int)scene_width, this);
-    QValidator *validator_y = new QIntValidator(0, (int)scene_height, this);
-    ui.text_edit_x->setValidator(validator_x);
-    ui.text_edit_x->setValidator(validator_y);
-    ui.text_edit_x->setReadOnly(true);
-    ui.text_edit_y->setReadOnly(true);
-
+    
     scene->setParent(this);
-    this->setFixedSize(this->width(), this->height());
+    // fprintf(stderr, "FreeSelectionDialog Width: %d, Height: %d\n", ui.widget->width(), ui.widget->height());
 
+    //Add room for margins, the textboxes and buttons below the widget
+    // this->setFixedSize(ui.widget->width() + 50, ui.widget->height() + 70);
+    int items = ui.horizontalLayout->count();
+	for (int i = 0; i!= items; i++)
+	{
+		ui.horizontalLayout->itemAt(i)->setAlignment(Qt::AlignRight);
+	}
+
+    this->layout()->setSizeConstraint(QLayout::SetFixedSize);
 }
 

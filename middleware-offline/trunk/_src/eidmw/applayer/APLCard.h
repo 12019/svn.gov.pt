@@ -108,21 +108,26 @@ public:
         EIDMW_APL_API virtual CByteArray sendAPDU(const CByteArray& cmd);
 
         EIDMW_APL_API virtual CByteArray Sign(const CByteArray & oData, bool signatureKey=false);
+        EIDMW_APL_API CByteArray SignSHA256(const CByteArray & oData, bool signatureKey=false);
 
 	/* XADeS Signature Methods  */
-
-	EIDMW_APL_API CByteArray &SignXades(CByteArray ba, const char *URL);
-
-	EIDMW_APL_API CByteArray &SignXadesT(CByteArray ba, const char *URL);
 
 	EIDMW_APL_API CByteArray &SignXades(const char ** path, unsigned int n_paths, const char *output_path);
 
 	EIDMW_APL_API CByteArray &SignXadesT(const char ** path, unsigned int n_paths, const char *output_path);
 
+	EIDMW_APL_API CByteArray &SignXadesA(const char ** path, unsigned int n_paths, const char *output_path);
+
 	EIDMW_APL_API void SignXadesIndividual(const char**, unsigned int, const char*);
 	
 	EIDMW_APL_API void SignXadesTIndividual(const char**, unsigned int, const char*);
+
+	EIDMW_APL_API void SignXadesAIndividual(const char**, unsigned int, const char*);
 	
+	typedef void (* t_callback_addr) (void*, int);
+
+	EIDMW_APL_API bool ChangeAddress(char *secret_code, char *process, t_callback_addr, void *);
+
 	EIDMW_APL_API bool ChangeCapPin(const char * new_pin);
 
 	/* PDF Signature */
@@ -170,7 +175,7 @@ protected:
 
 	virtual bool isCardForbidden()=0;
 
-	void SignIndividual(const char**, unsigned int, const char*, bool);
+	void SignIndividual(const char**, unsigned int, const char*, bool, bool);
 
 	static APL_CryptoFwk *m_cryptoFwk;			/**< Pointer to the crypto framework */
 	APL_ReaderContext *m_reader;				/**< Pointer to CAL reader (came from constructor) */	
@@ -296,16 +301,6 @@ public:
 	EIDMW_APL_API virtual void setAllowTestCard(bool allow);
 
 	/**
-	  * Return true if bad date card are allowed
-	  */
-	EIDMW_APL_API virtual bool getAllowBadDate();
-
-	/**
-	  * Set the flag to allow the bad date cards
-	  */
-	EIDMW_APL_API virtual void setAllowBadDate(bool allow);
-
-	/**
 	  * Return the challenge
 	  *
 	  * @param bForceNewInit force a new initialization of the couple challenge/response
@@ -346,8 +341,6 @@ protected:
 	bool m_allowTestParam;			/**< Allow test card (from config) */
 	bool m_allowTestAnswer;			/**< User's answer to allow test card */
 	bool m_allowTestAsked;			/**< Already asked for allowing test card */
-
-	bool m_allowBadDate;			/**< Allow bad date card */
 
 	unsigned long m_certificateCount;
 	unsigned long m_pinCount;

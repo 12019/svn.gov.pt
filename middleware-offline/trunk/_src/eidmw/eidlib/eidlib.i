@@ -22,6 +22,14 @@
 	%module pteidlib_dotNet
 #elif SWIGJAVA
  	%module pteidlibJava_Wrapper
+#elif SWIGPYTHON
+    %module pteid
+#elif SWIGPERL
+    %module Pteid
+#elif SWIGPHP
+    %module pteid
+#elif SWIGJAVASCRIPT
+    %module pteid
 #else
 		TODO
 #endif
@@ -60,8 +68,17 @@
 
 // Here we tell SWIG to create the java class PTEID_Exception as: 'PTEID_Exception extends java.lang.Exception'
 %typemap(javabase)  eIDMW::PTEID_Exception "java.lang.Exception";
+
+#elif SWIGPYTHON
+
+#elif SWIGPERL  
+
+#elif SWIGPHP
+
+#elif SWIGJAVASCRIPT
+
 #else
-		TODO
+    TODO
 #endif
 
 %include "eidlibException.h"	//This file contains the exceptions and should not include try/catch
@@ -1482,6 +1499,14 @@ void SetEventCallback_WrapperCpp(long lRet, unsigned long ulState, void *pvRef)
 }
 
  
+#elif SWIGPYTHON
+
+#elif SWIGPERL
+
+#elif SWIGPHP
+
+#elif SWIGJAVASCRIPT
+
 #else
 		TODO
 #endif

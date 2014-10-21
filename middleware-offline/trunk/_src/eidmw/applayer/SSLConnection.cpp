@@ -1,10 +1,11 @@
 /* ****************************************************************************
  *
  *  PTeID Middleware Project.
- *  Copyright (C) 2011-2012
+ *  Copyright (C) 2011-2014
  *  Andre Guerreiro <andre.guerreiro@caixamagica.pt>
  *
  *  HTTPS Client with Client Certificate Authentication for PT-eID Middleware
+ *  It provides the communication protocol with the OTP and Address Change HTTPS WebServices
  *
 */
 #include "SSLConnection.h"
@@ -15,6 +16,7 @@
 #include "Log.h"
 #include "static_pteid_certs.h"
 #include "CardPteidDef.h"
+#include "cJSON.h"
 
 /* Standard headers */
 #include <stdlib.h>
@@ -125,7 +127,7 @@ void SSLConnection::loadCertChain(X509_STORE *store)
 		else
 		{
 			if(X509_STORE_add_cert(store, pCert) == 0)
-				MWLOG(LEV_ERROR, MOD_APL, L"XadesSignature::ValidateCert: error adding certificate #%d\n",  i);
+				MWLOG(LEV_ERROR, MOD_APL, L"SSLConnection::loadCertChain: error adding certificate #%d\n",  i);
 		}
 	
 	}
@@ -293,6 +295,20 @@ unsigned long parseContentLength(char * headers)
 	return content_length;
 }
 
+char *skipHTTPHeaders(char *http_reply)
+{
+	char *needle = strstr(http_reply, "\r\n\r\n");
+	if (needle)
+	{
+		return needle + 4;
+	}
+	else
+	{
+		fprintf(stderr, "Malformed HTTP reply!:\n%s\n", http_reply);
+		return NULL;
+	}
+}
+
 char *parseCookie(char *server_response)
 {
 
@@ -375,6 +391,281 @@ char * SSLConnection::do_OTP_1stpost()
 
 }
 
+
+char * SSLConnection::do_SAM_mutualAuthentication_IAS101(char *challenge)
+{
+	const char * endpoint = "/changeaddress101/mutualAuthentication";
+	const char *mutual_format = 
+	"{\"MutualAuthenticateInit\":{ \"challenge\" : \"%s\", \"ErrorStatus\": { \"code\":0, \"description\":\"OK\" } } }";
+	char *challenge_params = (char *) malloc(1024);
+
+	sprintf(challenge_params, mutual_format, challenge);
+
+	fprintf(stderr, "POSTing JSON %s\n", challenge_params);
+	char *server_response = Post(this->m_session_cookie, (char *)endpoint, challenge_params);
+
+	char *body = skipHTTPHeaders(server_response);
+
+	fprintf(stderr, "DEBUG: Server reply: \n%s\n", server_response);
+
+	cJSON *json = cJSON_Parse(body);
+	if (!json)
+	{
+		fprintf(stderr, "JSON parsing error before: [%s]\n", cJSON_GetErrorPtr());
+		return NULL;
+	}
+	else
+	{
+		cJSON *my_json = json->child;
+		cJSON *child = cJSON_GetObjectItem(my_json, "MutualAuthenticateCommand");	
+		return strdup(child->child->valuestring);
+	}
+
+	return NULL;
+}
+
+#define ENDPOINT_07 "/changeaddress/signChallenge"
+#define ENDPOINT_101 "/changeaddress101/signChallenge"
+
+//TODO: we need to make sure what MSE set commands we need to send before each GET RANDOM on IAS 0.7
+
+SignedChallengeResponse * SSLConnection::do_SAM_2ndpost(char *challenge, char *kicc)
+{
+	cJSON *json = NULL;
+	char *endpoint = NULL;
+
+	SignedChallengeResponse *result = new SignedChallengeResponse();
+	const char *challenge_format = "{\"Challenge\":{ \"challenge\" : \"%s\", \"kicc\" : \"%s\", \"ErrorStatus\": { \"code\":0, \"description\":\"OK\" } } } ";
+	const char *challenge_format2 = "{\"Challenge\":{ \"challenge\" : \"%s\", \"ErrorStatus\": { \"code\":0, \"description\":\"OK\" } } } ";
+
+	char *challenge_params = (char *) malloc(5*1024);
+
+	if (kicc != NULL)
+	{
+		sprintf(challenge_params, challenge_format, challenge, kicc);
+		endpoint = ENDPOINT_07;
+	}
+	else
+	{
+		sprintf(challenge_params, challenge_format2, challenge);
+		endpoint = ENDPOINT_101;
+	}
+
+	fprintf(stderr, "POSTing JSON %s\n", challenge_params);
+	char *server_response = Post(this->m_session_cookie, endpoint, challenge_params);
+
+	char *body = skipHTTPHeaders(server_response);
+	fprintf(stderr, "DEBUG: Server reply: \n%s\n", server_response);
+
+	json = cJSON_Parse(body);
+	if (!json)
+	{
+		fprintf(stderr, "JSON parsing error before: [%s]\n", cJSON_GetErrorPtr());
+		return NULL;
+	}
+	else
+	{
+		cJSON *my_json = json->child;
+		cJSON *child = cJSON_GetObjectItem(my_json, "signedChallenge");
+		if (!child)
+		{
+			fprintf(stderr, "DEBUG: JSON does not contain signedChallenge element!\n");
+			return NULL;
+		}
+		result->signed_challenge = strdup(child->valuestring);
+		cJSON *elem = cJSON_GetObjectItem(my_json, "InternalAuthenticateCommand");
+		if (!elem)
+		{
+			 if (strcmp(endpoint, ENDPOINT_07) == 0)
+				fprintf(stderr, "DEBUG: JSON does not contain InternalAuthenticateCommand element!\n");
+		}
+		else
+			result->internal_auth = strdup(elem->child->valuestring);
+		cJSON *elem2 = cJSON_GetObjectItem(my_json, "SetSECommand");
+		if (!elem2)
+		{
+			if (strcmp(endpoint, ENDPOINT_07) == 0)
+				fprintf(stderr, "DEBUG: JSON does not contain SetSECommand element!\n");
+		}
+		else
+			result->set_se_command = strdup(elem2->child->valuestring);
+
+		return result;
+	}
+
+	return NULL;
+}
+
+
+char *build_json_object_sam(StartWriteResponse &resp)
+{
+	cJSON *root, *real_root, *arr1, *arr2, *error_status;
+	root=cJSON_CreateObject();	
+	real_root=cJSON_CreateObject();
+	error_status = cJSON_CreateObject();
+
+	arr1=cJSON_CreateArray();
+	arr2=cJSON_CreateArray();
+	cJSON_AddNumberToObject(error_status, "code", 0);
+	cJSON_AddStringToObject(error_status, "description", "OK");
+
+	for (int i=0; i!= resp.apdu_write_address.size(); i++)
+		cJSON_AddItemToArray(arr1, cJSON_CreateString(resp.apdu_write_address.at(i)));
+
+	for (int i=0; i!= resp.apdu_write_sod.size(); i++)
+		cJSON_AddItemToArray(arr2, cJSON_CreateString(resp.apdu_write_sod.at(i)));
+
+	cJSON_AddItemToObject(root, "WriteAddressResponse", arr1);
+	cJSON_AddItemToObject(root, "WriteSODResponse", arr2);
+	cJSON_AddItemToObject(root, "ErrorStatus", error_status);
+
+	cJSON_AddItemToObject(real_root, "WriteResults", root);
+	return cJSON_Print(real_root);
+}
+
+
+bool SSLConnection::do_SAM_4thpost(StartWriteResponse &resp)
+{
+
+	char *json_request = build_json_object_sam(resp);
+
+	fprintf(stderr, "POSTing JSON %s\n", json_request);
+
+	char *server_response = Post(this->m_session_cookie,
+	  "/changeaddress/followUpWrite", json_request);
+
+	fprintf(stderr, "DEBUG: Server reply: \n%s\n", server_response);
+
+	return true;
+
+}
+
+
+StartWriteResponse *SSLConnection::do_SAM_3rdpost(char * mse_resp, char *internal_auth_resp)
+{
+	cJSON *json = NULL;
+	char post_body[1024];
+	StartWriteResponse * resp = new StartWriteResponse();
+	const char *start_write_format = "{\"StartWriteRequest\":{ \"SetSEResponse\" : [\"%s\"], \"InternalAuthenticateResponse\" : [\"%s\"], \"ErrorStatus\": { \"code\":0, \"description\":\"OK\" } } } ";
+
+	snprintf(post_body, sizeof(post_body), start_write_format, mse_resp, internal_auth_resp);
+	fprintf(stderr, "POSTing JSON %s\n", post_body);
+
+	char *server_response = Post(this->m_session_cookie,
+	  "/changeaddress/startWrite", post_body, true);
+
+	//fprintf(stderr, "DEBUG: Server reply: \n%s\n", server_response);
+
+	char *body = skipHTTPHeaders(server_response);
+
+	json=cJSON_Parse(body);
+	if (!json)
+	{
+		fprintf(stderr, "JSON parsing error before: [%s]\n", cJSON_GetErrorPtr()); 
+		return NULL;
+	}
+	else
+	{
+		cJSON *my_json = json->child;
+		int i;
+
+		cJSON *array_address = cJSON_GetObjectItem(my_json, "WriteAddressCommand");
+
+		if (!array_address)
+		{
+			fprintf(stderr, "No WriteAddressCommand was returned!");
+			return NULL;
+		}
+		int n_address = cJSON_GetArraySize(array_address);
+
+		for (i=0; i!= n_address; i++)
+			resp->apdu_write_address.push_back(strdup(cJSON_GetArrayItem(array_address, i)->valuestring));
+
+		cJSON *array_sod= cJSON_GetObjectItem(my_json, "WriteSODCommand");
+		int n_sod = cJSON_GetArraySize(array_sod);
+
+		for (i=0; i!= n_sod; i++)
+			resp->apdu_write_sod.push_back(strdup(cJSON_GetArrayItem(array_sod, i)->valuestring));
+
+		return resp;
+	}
+	return NULL;
+}
+
+DHParamsResponse *SSLConnection::do_SAM_1stpost(DHParams *p, char *secretCode, char *process, char *serialNumber)
+{
+	int ret_channel = 0;
+	cJSON *json = NULL;
+	char *endpoint = NULL;
+	DHParamsResponse *server_params = new DHParamsResponse();
+	char *dh_params_template = "{\"DHParams\":{ \"secretCode\" : \"%s\", \"process\" : \"%s\", \"P\": \"%s\", \"Q\": \"%s\", \"G\":\"%s\", \"cvc_ca_public_key\": \"%s\",\"card_auth_public_key\": \"%s\", \"certificateChain\": \"%s\", \"version\": %d, \"ErrorStatus\": { \"code\":0, \"description\":\"OK\" } } } ";
+
+	char *dh_params_template2 = "{\"DHParams\":{ \"secretCode\" : \"%s\", \"process\" : \"%s\", \"cvc_ca_public_key\": \"%s\",\"card_auth_public_key\": \"%s\", \"certificateChain\": \"%s\", \"serialNumber\": \"%s\", \"version\": %d, \"ErrorStatus\": { \"code\":0, \"description\":\"OK\" } } } ";
+	char * post_dhparams = (char *) malloc(5*1024);
+	char request_headers[1000];
+
+	if (serialNumber == NULL)
+	{
+		sprintf(post_dhparams, dh_params_template,
+			secretCode, process, p->dh_p, p->dh_q, p->dh_g, p->cvc_ca_public_key,
+			p->card_auth_public_key, p->certificateChain, p->version);
+
+		endpoint = "/changeaddress";
+	}
+	else
+	{
+		sprintf(post_dhparams, dh_params_template2,
+			secretCode, process, p->cvc_ca_public_key, p->card_auth_public_key, p->certificateChain, serialNumber, p->version);
+		endpoint = "/changeaddress101";
+	}
+
+	snprintf(request_headers, sizeof(request_headers),	
+    "POST %s/sendDHParams HTTP/1.1\r\nHost: %s\r\nKeep-Alive: 300\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Length: %lu\r\n\r\n",
+    	endpoint, m_otp_host, strlen(post_dhparams));
+
+	char * server_response = (char *) malloc(REPLY_BUFSIZE);
+
+	fprintf(stderr, "POSTing JSON %s\n", post_dhparams);
+
+	ret_channel = write_to_stream(m_ssl_connection, request_headers);
+	fprintf(stderr, "Wrote to channel: %d bytes\n", ret_channel);
+	ret_channel = write_to_stream(m_ssl_connection, post_dhparams);
+	fprintf(stderr, "Wrote to channel: %d bytes\n", ret_channel);
+
+	//Read response
+	unsigned int ret = read_from_stream(m_ssl_connection, server_response, REPLY_BUFSIZE);
+
+	fprintf(stderr, "DEBUG: Server reply: \n%s\n", server_response);
+
+	if (ret > 0)
+	{
+		m_session_cookie = parseCookie(server_response);
+		if (m_session_cookie == NULL)
+			//Catch renegotiation errors (e.g. using test cards)
+			throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+	}
+
+	char *body = skipHTTPHeaders(server_response);
+
+	json = cJSON_Parse(body);
+	cJSON *my_json = json->child;
+	if (my_json == NULL)
+	{
+		fprintf(stderr, "DEBUG: Server returned malformed JSON data: %s\n", body);
+		return server_params;
+	}
+
+	cJSON *child = cJSON_GetObjectItem(my_json, "kifd");
+	if (child)
+		server_params->kifd = child->valuestring;
+	child = cJSON_GetObjectItem(my_json, "c_cv_ifd_aut");
+	if (child)
+		server_params->cv_ifd_aut = child->valuestring;
+
+	return server_params;
+
+}
+
 char * SSLConnection::do_OTP_2ndpost(char *cookie, OTPParams *params)
 {
 	char * otp_params = FormatOtpParameters(params);
@@ -427,7 +718,7 @@ void SSLConnection::do_OTP_5thpost(char *cookie, const char *reset_scriptcounter
 
 }
 
-char * SSLConnection::Post(char *cookie, char *url_path, char *body)
+char * SSLConnection::Post(char *cookie, char *url_path, char *body, bool chunked_expected)
 {
 	int ret_channel = 0;
 
@@ -447,7 +738,10 @@ char * SSLConnection::Post(char *cookie, char *url_path, char *body)
 	ret_channel = write_to_stream(m_ssl_connection, body);
 
 	//Read response
-	unsigned int ret = read_from_stream(m_ssl_connection, server_response, REPLY_BUFSIZE);
+	if (chunked_expected)
+		read_chunked_reply(m_ssl_connection, server_response, REPLY_BUFSIZE);
+	else
+		read_from_stream(m_ssl_connection, server_response, REPLY_BUFSIZE);
 
 //	if (ret == 0)
 //	   ERR_print_errors_fp(stderr); //Connection aborted by server
@@ -530,6 +824,128 @@ SSL* SSLConnection::connect_encrypted(char* host_and_port)
     return ssl_handle;
 }
 
+int validate_hex_number(char *str)
+{
+        int i = 0;
+        while(str[i])
+        {
+                if (!isxdigit(str[i++]))
+                        return 0;    
+        }
+
+        return 1;
+}
+
+
+long parseLong(char *str)
+{
+	long val;
+	char *endptr = NULL;
+
+	errno = 0;
+	val = strtol(str, &endptr, 16);
+
+           /* Check for various possible errors */
+
+	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
+		|| (errno != 0 && val == 0)) {
+		perror("strtol");
+	return -1;
+
+	}
+
+	if (endptr == str) {
+	fprintf(stderr, "No digits were found\n");
+	return -1;
+	}
+
+	//Further characters after number
+	if (*endptr != '\0')
+		return -1; 
+
+	return val;
+}
+
+void SSLConnection::read_chunked_reply(SSL *ssl, char *buffer, unsigned int buffer_len)
+{
+	int r;
+	bool final_chunk_read = false;
+	unsigned int bytes_read = 0;
+	long chunk_length = 0;
+	do
+    {	
+    	chunk_length = 0;
+	    // We're using blocking IO so SSL_Write either succeeds completely or not...
+    	r = SSL_read(ssl, buffer+bytes_read, buffer_len-bytes_read);
+    	//Read the chunk length
+    	if (r > 0 && bytes_read > 0)
+    	{
+    		if (memcmp(buffer+bytes_read, "\x30\x0d\x0a\x0d\x0a", 5) == 0)
+    		{
+    			final_chunk_read = true;
+    			fprintf(stderr, "DEBUG: Final chunk read. Ending read_chunked_reply() loop!\n");
+    			//Discard the final chunk
+    			*(buffer+bytes_read) = 0;
+    		}
+    		else
+    		{
+
+    			char * buffer_tmp = (char*)calloc(r+1, 1);
+    			memcpy(buffer_tmp, buffer+bytes_read, r);
+    			buffer_tmp[r] = '\0';
+
+    			char * endline = strstr(buffer_tmp, "\r\n");
+    			if (endline)
+    				*endline = '\0';
+    			long val = parseLong(buffer_tmp);
+    			if (val != -1)
+    			{
+    				fprintf(stderr, "DEBUG: Parsed chunk length= %ld\n", val);
+    				*(buffer+bytes_read) = 0;
+    				chunk_length = val;
+    			}
+
+    		}
+    	}
+    	if (r > 0 && bytes_read == 0)
+    	{
+    		char * buffer_tmp = (char*)calloc(strlen(buffer)+1, 1);
+    		strcpy(buffer_tmp, buffer);
+    		if (!strstr(buffer, "Transfer-Encoding: chunked"))
+    			fprintf(stderr, "DEBUG: Unexpected server reply: HTTP response is not chunked!\n");
+
+    	}
+    	if (r == -1)
+    	{
+			int error_code = SSL_get_error(ssl, r);
+    		if (error_code == SSL_ERROR_WANT_READ)
+    		{
+    			fprintf(stderr, "SSL_ERROR_WANT_READ\n!");
+    			continue;
+    		}
+			else if (error_code == SSL_ERROR_SSL)
+			{
+				MWLOG(LEV_ERROR, MOD_APL, L"Aborted SSL Connection in read_chunked_reply() with error string %s", 
+					ERR_error_string(ERR_get_error(), NULL));
+
+				throw CMWEXCEPTION(EIDMW_SSL_PROTOCOL_ERROR);
+			}
+			else
+    			fprintf(stderr, "???\n");
+    	}
+    	else if (r == 0) {
+
+    		translate_ssl_error(ssl, r);
+
+    	}
+    	//Only include the data if this string is not a chunk-length token
+    	else if (chunk_length == 0)
+    		bytes_read += r;
+    }
+    while(bytes_read == 0 || !final_chunk_read);
+
+}
+
 /**
  * Read from a stream and handle restarts and buffering if necessary
  */
@@ -551,22 +967,31 @@ unsigned int SSLConnection::read_from_stream(SSL* ssl, char* buffer, unsigned in
 		    strcpy(buffer_tmp, buffer);
 		    content_length = parseContentLength(buffer_tmp);
 	    }
-	    if (r == -1)
-	    {
-		if (SSL_get_error(ssl, r) == SSL_ERROR_WANT_READ)
+		if (r == -1)
 		{
-			fprintf(stderr, "SSL_ERROR_WANT_READ\n!");
-			continue;
+			int error_code = SSL_get_error(ssl, r);
+
+			if (error_code == SSL_ERROR_WANT_READ)
+			{
+				fprintf(stderr, "SSL_ERROR_WANT_READ\n!");
+				continue;
+			}
+			else if (error_code == SSL_ERROR_SSL)
+			{
+				MWLOG(LEV_ERROR, MOD_APL, L"Aborted SSL Connection with error string %s", 
+					ERR_error_string(ERR_get_error(), NULL));
+
+				throw CMWEXCEPTION(EIDMW_SSL_PROTOCOL_ERROR);
+			}
+			else
+				fprintf(stderr, "???\n");
 		}
-		else
-			fprintf(stderr, "???\n");
-	    }
 
-	    else if (r == 0) {
+		else if (r == 0) {
 
-		    translate_ssl_error(ssl, r);
+			translate_ssl_error(ssl, r);
 
-	    }
+		}
 	    else
 		    bytes_read += r;
     }
@@ -598,12 +1023,16 @@ unsigned int SSLConnection::write_to_stream(SSL* ssl, char* request_string) {
 /**
  * Main SSL demonstration code entry point
  */
-bool SSLConnection::InitConnection()
+bool SSLConnection::InitConnection(SSLConnectionTarget target)
 {
 
     APL_Config otp_server(CConfig::EIDMW_CONFIG_PARAM_GENERAL_OTP_SERVER);
-    std::string otp_server_str = otp_server.getString();
-    char * host_and_port = (char *)otp_server_str.c_str();
+    APL_Config sam_server(CConfig::EIDMW_CONFIG_PARAM_GENERAL_SAM_SERVER);
+
+    std::string server_str = target == OTP_SERVER ? 
+    	otp_server.getString() : sam_server.getString();
+
+    char * host_and_port = (char *)server_str.c_str();
 
     //Split hostname and port
     m_otp_host = (char *)malloc(strlen(host_and_port)+1);
@@ -613,7 +1042,6 @@ bool SSLConnection::InitConnection()
 
     /* initialise the OpenSSL library */
     init_openssl();
-
 
     if ((m_ssl_connection = connect_encrypted(host_and_port)) == NULL)
             return false;

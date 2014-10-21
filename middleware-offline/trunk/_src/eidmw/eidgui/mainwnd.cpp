@@ -26,6 +26,7 @@
 #include <QEvent>
 #include <QPixmap>
 #include <QImage>
+#include <QProcess>
 #include <stdlib.h>
 #ifndef _WIN32
 //This has to be explicitly included in gcc4.7
@@ -40,6 +41,7 @@
 #include "dlgAbout.h"
 #include "dlgprint.h"
 #include "dlgverifysignature.h"
+#include "ChangeAddressDialog.h"
 #include "PDFSignWindow.h"
 #include "dlgsignature.h"
 #include "dlgOptions.h"
@@ -173,7 +175,6 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 , m_STATUS_MSG_TIME(5000)
 , m_ShowBalloon(false)
 , m_msgBox(NULL)
-, m_connectionStatus((PTEID_CertifStatus)-1)
 {
 	//------------------------------------
 	// install the translator object and load the .qm file for
@@ -216,11 +217,13 @@ MainWnd::MainWnd( GUISettings& settings, QWidget *parent )
 
 
 	connect(&this->FutureWatcher, SIGNAL(finished()), m_progress, SLOT(cancel()));
+
 	//------------------------------------
 	//
 	// set the window Icon (as it appears in the left corner of the window)
 	//------------------------------------
-	const QIcon Ico = QIcon( ":/images/Images/Icons/ICO_CARD_EID_PLAIN_16x16.png" );
+    const QIcon Ico = QIcon( ":/images/Images/Icons/ICO_CARD_EID_PLAIN_16x16.png" );
+    //const QIcon Ico = QIcon( ":/images/Images/Icons/pteid.ico" );
 	this->setWindowIcon( Ico );
 
 	m_pPrinter	= new QPrinter();
@@ -320,10 +323,11 @@ bool MainWnd::eventFilter(QObject *object, QEvent *event)
 		if (object == m_ui.lbl_menuCard_Read )
 		{
 			hide_submenus();
+
 			pinactivate = 1;
 			pinNotes = 1;
 			certdatastatus = 1;
-			m_connectionStatus = (PTEID_CertifStatus)-1;
+
 			m_CI_Data.Reset();
 			loadCardData();
 		}
@@ -419,6 +423,196 @@ void MainWnd::on_btnShortcut_VerifSign_clicked()
 	actionVerifySignature_eID_triggered();
 }
 
+/*
+void MainWnd::on_btnShortcut_LaunchJava_clicked()
+{
+	launchJavaProcess();
+}
+*/
+
+/*
+// Change Address functionality triggered by a button in the Address tab
+*/
+
+void MainWnd::address_change_callback(void *instance, int value)
+{
+	MainWnd * window = (MainWnd*) (instance);
+	window->addressProgressChanged(value);
+}
+
+void MainWnd::setAddressProgress(int value)
+{
+	if (m_progress_addr)
+		m_progress_addr->setValue(value);
+}
+
+void MainWnd::showChangeAddressDialog(long code)
+{
+	//It shouldn't be needed but, oh well...
+	m_progress_addr->hide();
+
+	QString error_msg;
+	QString caption  = tr("Address Change");
+	PTEID_LOG(PTEID_LOG_LEVEL_ERROR, "eidgui", "AddressChange op finished with error code %8x", code);
+	QMessageBox::Icon icon = QMessageBox::NoIcon;
+	switch(code)
+	{
+		case 0:
+			error_msg = tr("Address Changed successfully.");
+			icon = QMessageBox::Information;
+			break;
+		//The error code for connection error is common between SAM and OTP
+		case EIDMW_OTP_CONNECTION_ERROR:
+			icon = QMessageBox::Critical;
+			error_msg = tr("Error connecting to the Address Change server.\n"
+				"Please check if your Internet connection is functional");
+			break;
+		case EIDMW_SAM_PROTOCOL_ERROR:
+			error_msg = tr("Error in the Address Change operation. Please make sure you insert the correct process number and secret code.");
+			icon = QMessageBox::Critical;
+			break;
+		case EIDMW_SSL_PROTOCOL_ERROR:
+			error_msg = tr("Error in the Address Change operation. Please make sure you have a valid authentication certificate");
+			icon = QMessageBox::Critical;
+			break;
+		default:
+			error_msg = tr("Unexpected error in the Address Change operation");
+			icon = QMessageBox::Critical;
+			break;
+
+	}
+
+	QMessageBox msgBoxp(icon, caption, error_msg, 0, this);
+  	msgBoxp.exec();
+
+}
+
+void MainWnd::doChangeAddress(const char *process, const char *secret_code)
+{
+	PTEID_ReaderContext &ReaderContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
+
+    PTEID_EIDCard& Card = ReaderContext.getEIDCard();
+    try
+    {
+    Card.ChangeAddress((char *)secret_code, (char*)process, MainWnd::address_change_callback, (void*)this);
+
+	}
+	catch(PTEID_Exception & exception)
+	{
+		qDebug() << "Caught exception in eidlib ChangeAddress()... closing progressBar";
+		this->addressProgressChanged(100);
+		this->addressChangeFinished(exception.GetError());
+		return;
+	}
+
+	this->addressChangeFinished(0);
+
+}
+
+void MainWnd::on_btnAddress_Change_clicked()
+{
+	
+	PTEID_ReaderContext &ReaderContext = ReaderSet.getReaderByName(m_CurrReaderName.toLatin1().data());
+
+    PTEID_EIDCard& Card = ReaderContext.getEIDCard();
+	QString caption  = tr("Address Change");
+
+	if (Card.getType() == PTEID_CARDTYPE_IAS101)
+	{
+		QString error_msg = tr("Unfortunately the Address Change operation is unsupported for this card");
+		QMessageBox::Icon icon = QMessageBox::Critical;
+		QMessageBox msgBoxp(icon, caption, error_msg, 0, this);
+  		msgBoxp.exec();
+		return;
+	}
+	
+	
+	ChangeAddressDialog* dlgChangeAddr = new ChangeAddressDialog(this);
+    
+    if (dlgChangeAddr->exec() == QDialog::Rejected)
+    	return;
+
+    //Remove whitespace the start and the end that the user may have 
+    //typed by mistake
+    QString process = dlgChangeAddr->getProcess().trimmed();
+    QString secret_code = dlgChangeAddr->getSecretCode().trimmed();
+
+    setup_addressChange_progress_bar();
+   	connect(this, SIGNAL(addressProgressChanged(int)),
+   	 this, SLOT(setAddressProgress(int)), Qt::UniqueConnection);
+
+   	connect(this, SIGNAL(addressChangeFinished(long)),
+   	 this, SLOT(showChangeAddressDialog(long)), Qt::UniqueConnection);
+
+   	QtConcurrent::run(this, &MainWnd::doChangeAddress, strdup(process.toUtf8().constData()),
+    	strdup(secret_code.toUtf8().constData()));
+   	m_progress_addr->open();
+
+}
+
+void MainWnd::showJavaLaunchError(QProcess::ProcessError error)
+{
+
+	if (error == QProcess::FailedToStart)
+	{
+		QMessageBox *msgBox = new QMessageBox(QMessageBox::Warning,
+			"TITLE", "Error launching Java application! Make sure you have a working JRE installed.",
+			QMessageBox::Ok, this);
+		msgBox->setModal(true);
+		msgBox->show();
+	}
+
+}
+
+/*
+void MainWnd::launchJavaProcess(QString &application_jar, QString &classpath)
+{
+
+#ifdef __APPLE__
+//TODO
+//Call /usr/libexec/java_home to find JRE dir
+
+#elif WIN32
+	QString program = "javaw";
+	
+#else
+	 QString program = "java";
+	 QStringList arguments;
+	 arguments <<
+     arguments << "-jar" << "/home/agrr/Downloads/pdfvole_20110411_bin/pdfvole_20110411.jar";
+#endif
+	 QObject *parent = this;
+	 arguments << "-jar" << application_jar;
+
+	 if (classpath.length() > 0)
+		 arguments << "-cp" << classpath;
+
+	 QProcess *myProcess = new QProcess(parent);
+	 connect(myProcess, SIGNAL(error(QProcess::ProcessError)),
+			 this, SLOT(showJavaLaunchError(QProcess::ProcessError)));
+
+	 myProcess->start(program, arguments);
+	 
+}
+*/
+
+void MainWnd::setup_addressChange_progress_bar()
+{
+	m_progress_addr = new QProgressDialog(this);
+	m_progress_addr->setWindowModality(Qt::WindowModal);
+	m_progress_addr->setWindowTitle(QString::fromUtf8("Cart\xc3\xa3o de Cidad\xc3\xa3o"));
+	m_progress_addr->setLabelText(tr("Changing Address in card..."));
+	m_progress_addr->setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::CustomizeWindowHint);
+	//m_progress_addr->setFixedSize(m_progress_addr->size());
+	//Disable cancel button
+	m_progress_addr->setCancelButton(NULL);
+	m_progress_addr->setMinimum(0);
+	m_progress_addr->setMaximum(100);
+	//Hack to force centered display of the popup dialog when running on "peculiar" window managers
+	//m_progress_addr->move(geometry().center().x(), geometry().center().y());
+
+}
+
 
 //******************************************************
 // Buttons to control tabs
@@ -476,9 +670,9 @@ void MainWnd::on_btn_menu_tools_clicked()
 	m_ui.wdg_submenu_tools->setVisible(true);
 	//If defined language is portuguese, then the dialog needs to be larger
 	if (m_Settings.getGuiLanguageCode() == GenPur::LANG_NL)
-		m_ui.wdg_submenu_tools->setGeometry(127,4,155,110);
+		m_ui.wdg_submenu_tools->setGeometry(127,4,155,71);
 	else
-		m_ui.wdg_submenu_tools->setGeometry(127,4,145,110);
+		m_ui.wdg_submenu_tools->setGeometry(127,4,145,71);
 
 }
 
@@ -1383,24 +1577,21 @@ void MainWnd::on_btnCert_Details_clicked( void )
 }
 
 //*****************************************************
-// a certificate has been selected
+// current selected cert in the tree changed.
+// This event seems to be fired both with clicked event and on select.
 //*****************************************************
-void MainWnd::on_treeCert_itemSelectionChanged ( void )
+void MainWnd::on_treeCert_currentItemChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous)
 {
-	QList<QTreeWidgetItem *> selectedItems = m_ui.treeCert->selectedItems();
-	if (selectedItems.size()==1)
+	qDebug() << "\ntree_currentItemChanged() " << previous << "-> " << current;
+	if (current)
 	{
-		on_treeCert_itemClicked((QTreeCertItem*)selectedItems[0], 0);
+		syncTreeItemWithSideinfo(dynamic_cast<QTreeCertItem *>(current));
 	}
 
 }
-//*****************************************************
-// a certificate has been clicked
-//*****************************************************
-void MainWnd::on_treeCert_itemClicked(QTreeWidgetItem* baseItem, int column)
-{
 
-	QTreeCertItem* item=(QTreeCertItem*)baseItem;
+void MainWnd::syncTreeItemWithSideinfo(QTreeCertItem *item)
+{
 
 	if (!m_CI_Data.isDataLoaded())
 		return;
@@ -1421,6 +1612,13 @@ void MainWnd::on_treeCert_itemClicked(QTreeWidgetItem* baseItem, int column)
 	m_ui.txtCert_KeyLenght->setText(item->getKeyLen());
 	m_ui.txtCert_KeyLenght->setAccessibleName(item->getKeyLen());
 
+	// Put some text while loading the status
+	m_ui.txtCert_RevStatus->setText(QString(tr("Checking...")));
+	m_ui.txtCert_RevStatus->setAccessibleName(QString(tr("Checking...")));
+
+	// ask for the cert status
+	item->askCertStatus();
+
 	if(!ReaderContext.isCardPresent())
 	{
 		m_ui.btnCert_Register->setEnabled(false);
@@ -1438,6 +1636,44 @@ void MainWnd::on_treeCert_itemClicked(QTreeWidgetItem* baseItem, int column)
 	}
 }
 
+//*****************************************************
+// Received the reply with the status of the certificate
+//*****************************************************
+void MainWnd::showCertStatusSideinfo(PTEID_CertifStatus certStatus)
+{
+	qDebug() << "showCertStatusSideinfo()";
+
+	QString treeItemStatus;
+	getCertStatusText(certStatus, treeItemStatus);
+
+	m_ui.txtCert_RevStatus->setText(treeItemStatus);
+	m_ui.txtCert_RevStatus->setAccessibleName(treeItemStatus);
+}
+
+void MainWnd::getCertStatusText(PTEID_CertifStatus certStatus, QString &strCertStatus)
+{
+	//Currently eidlib only gives us 3 status from the enum:
+	// Valid, Revoked and Unknown for all other erros/problems
+	switch(certStatus)
+	{
+	case PTEID_CERTIF_STATUS_REVOKED:
+		strCertStatus = tr("Revoked");
+		break;
+	case PTEID_CERTIF_STATUS_TEST:
+		strCertStatus = tr("Test");
+		break;
+	case PTEID_CERTIF_STATUS_DATE:
+		strCertStatus= tr("Date");
+		break;
+	case PTEID_CERTIF_STATUS_VALID:
+		strCertStatus = tr("Valid");
+		break;
+	case PTEID_CERTIF_STATUS_UNKNOWN:
+	default:
+		strCertStatus = tr("Unknown");
+		break;
+	}
+}
 
 //*****************************************************
 // PIN item selection changed
@@ -1651,6 +1887,7 @@ void MainWnd::releaseVirtualReader( void )
 		m_virtReaderContext = NULL;
 	}
 }
+
 //*****************************************************
 // load the card data
 //*****************************************************
@@ -1707,8 +1944,8 @@ void MainWnd::loadCardData( void )
 						}
 						const char* readerName = ReaderSet.getReaderName(ReaderIdx);
 						m_CurrReaderName = readerName;
+
 						Show_Identity_Card(Card);
-						//Show_Address_Card(Card);
 
 						ReaderIdx=ReaderEndIdx;		// stop looping as soon as we found a card
 					}
@@ -2387,9 +2624,9 @@ void MainWnd::actionPDFSignature_triggered()
 //*****************************************************
 void MainWnd::actionVerifySignature_eID_triggered()
 {
-    dlgVerifySignature* dlgversig = new dlgVerifySignature( this);
-    dlgversig->exec();
-    delete dlgversig;
+    // dlgVerifySignature* dlgversig = new dlgVerifySignature( this);
+    // dlgversig->exec();
+    // delete dlgversig;
 }
 
 //*****************************************************
@@ -2747,6 +2984,12 @@ void MainWnd::ChangeAuthPin(PTEID_ReaderContext &ReaderContext, unsigned int pin
 			break;
 			case EIDMW_OTP_CERTIFICATE_ERROR:
 			msg = tr("Error connecting to the OTP Server. Your authentication certificate was rejected");
+			break;
+
+			case EIDMW_SSL_PROTOCOL_ERROR:
+			msg = tr("Error returned by the OTP server. Please make sure you have a valid authentication certificate");
+			break;
+
 			case EIDMW_OTP_UNKNOWN_ERROR:
 			msg = tr("Error connecting to the OTP Server.");
 			break;
@@ -2893,7 +3136,7 @@ void MainWnd::showTabs()
 		}
 
 		refreshTabCardPin();
-		refreshTabInfo();
+		//refreshTabInfo();
 
 		break;
 
@@ -2941,21 +3184,48 @@ void MainWnd::Show_Certificates_Card(PTEID_EIDCard& Card)
 	LoadDataCertificates(Card);
 }
 
-QTreeCertItem* MainWnd::buildTree(PTEID_Certificate &cert, bool &bEx){
+QTreeCertItem* MainWnd::buildTree(PTEID_Certificate &cert, bool &bEx)
+{
 	if (cert.isRoot())
-		return new QTreeCertItem(m_ui.treeCert,0,cert);
-	else {
-		QList<QTreeWidgetItem *> listItem = m_ui.treeCert->findItems(QString::fromUtf8(cert.getOwnerName()), Qt::MatchContains | Qt::MatchRecursive);
-		if (listItem.isEmpty() || dynamic_cast<QTreeCertItem *>(listItem.first())->getLabel().compare(QString::fromUtf8(cert.getLabel()))!=0){
+	{
+		// put the root cert as the tree top
+		return new QTreeCertItem(m_ui.treeCert, cert);
+	}
+	else
+	{
+		// search for the cert in the widgettree
+		QList<QTreeWidgetItem *> listItem = m_ui.treeCert->findItems(
+											QString::fromUtf8(cert.getOwnerName()),
+											Qt::MatchContains | Qt::MatchRecursive);
+
+		if (listItem.isEmpty() || dynamic_cast<QTreeCertItem *>(listItem.first())->getLabel().compare(QString::fromUtf8(cert.getLabel())) != 0) {
+			// when not in the tree add it
+
 			try {
-				return new QTreeCertItem(buildTree(cert.getIssuer(),bEx),0,cert);
-			} catch (PTEID_ExCertNoIssuer &ex){
+                return new QTreeCertItem(buildTree(cert.getIssuer(), bEx), cert);
+			} catch (PTEID_ExCertNoIssuer &ex) {
 				bEx = true;
-				return new QTreeCertItem(m_ui.treeCert,0,cert);
+				return new QTreeCertItem(m_ui.treeCert, cert);
 			}
 		}
 		else
+		{
 			return dynamic_cast<QTreeCertItem *>(listItem.first());
+		}
+	}
+}
+
+void MainWnd::connectTreeCertItems(void)
+{
+	QTreeWidgetItemIterator it(m_ui.treeCert);
+	while (*it)
+	{
+		QTreeCertItem *item = dynamic_cast<QTreeCertItem *>(*it);
+
+		connect(item, SIGNAL(certStatusReady(PTEID_CertifStatus)),
+				this, SLOT  (showCertStatusSideinfo(PTEID_CertifStatus)));
+
+		++it;
 	}
 }
 
@@ -2968,16 +3238,21 @@ void MainWnd::fillCertificateList( void )
 	if (!certificates)
 		return;
 
-	buildTree(certificates->getCert(PTEID_Certificate::CITIZEN_AUTH),noIssuer);
-	buildTree(certificates->getCert(PTEID_Certificate::CITIZEN_SIGN),noIssuer);
+    buildTree(certificates->getCert(PTEID_Certificate::CITIZEN_AUTH), noIssuer);
+    buildTree(certificates->getCert(PTEID_Certificate::CITIZEN_SIGN), noIssuer);
+
+	connectTreeCertItems();
 
 	m_ui.treeCert->expandAll();
 	m_ui.treeCert->setColumnCount(1);
-	m_ui.treeCert->sortItems(0,Qt::DescendingOrder);
+	m_ui.treeCert->sortItems(0, Qt::DescendingOrder);
 	if (m_ui.treeCert->topLevelItem(0))
-		m_ui.treeCert->setCurrentItem (m_ui.treeCert->topLevelItem(0));
+	{
+		m_ui.treeCert->setCurrentItem(m_ui.treeCert->topLevelItem(0));
+	}
 
-	if (noIssuer){
+	if (noIssuer)
+	{
 		QString title = tr("Certification path");
 		QString msg = tr("The certificates could not be validated, the certification path is not complete");
 		QMessageBox msgBoxcc(QMessageBox::Warning, title, msg, 0, this);
@@ -2991,8 +3266,6 @@ void MainWnd::fillCertificateList( void )
 //**************************************************
 void MainWnd::LoadDataID(PTEID_EIDCard& Card)
 {
-
-
 	//Progress bar was already hidden so proceed updating the GUI
 	setEnabledPinButtons(false);
 	setEnabledCertifButtons(false);
@@ -3000,8 +3273,7 @@ void MainWnd::LoadDataID(PTEID_EIDCard& Card)
 
 	if(!m_CI_Data.isDataLoaded())
 	{
-		
-		//Load data from card in a new thread
+	//Load data from card in a new thread
 		CardDataLoader loader(m_CI_Data, Card, m_CurrReaderName, this);
 		QFuture<void> future = QtConcurrent::run(&loader, &CardDataLoader::Load);
 		this->FutureWatcher.setFuture(future);
@@ -3024,7 +3296,8 @@ void MainWnd::LoadDataAddress(PTEID_EIDCard& Card)
 	setEnabledPinButtons(false);
 	setEnabledCertifButtons(false);
 	m_TypeCard = Card.getType();
-	m_CI_Data.LoadDataAddress(Card,m_CurrReaderName);
+	m_CI_Data.LoadDataAddress(Card, m_CurrReaderName);
+
 	if(!m_CI_Data.isDataLoaded())
 	{
 		//clearTabCertificates();
@@ -3039,7 +3312,7 @@ void MainWnd::LoadDataPersoData(PTEID_EIDCard& Card)
 {
 	setEnabledPinButtons(false);
 	setEnabledCertifButtons(false);
-    m_ui.btnPersoDataSave->setEnabled(true);
+	m_ui.btnPersoDataSave->setEnabled(true);
 	m_TypeCard = Card.getType();
 	CardDataLoader loader(m_CI_Data, Card, m_CurrReaderName);
 	QFuture<void> future = QtConcurrent::run(loader, &CardDataLoader::LoadPersoData);
@@ -3122,251 +3395,6 @@ QString MainWnd::getFinalLinkTarget(QString baseName)
 }
 
 
-
-//**************************************************
-// fill the software info table
-//**************************************************
-void MainWnd::fillSoftwareInfo( void )
-{
-	/*
-	QStringList libPaths = QProcess::systemEnvironment();
-	QStringList searchPaths;
-	QMap<QString,QString> softwareInfo;
-
-#ifdef WIN32
-
-	//--------------------------------
-	// search paths are:
-	// 1. path of executable
-	// 2. current directory
-	// 3. windows system directory
-	// 4. windows directory
-	// 5. PATH
-	//--------------------------------
-
-	//--------------------------------
-	// 1. exe path
-	//--------------------------------
-	searchPaths.push_back(QCoreApplication::applicationDirPath());
-
-	//--------------------------------
-	// 2. current path
-	//--------------------------------
-	searchPaths.push_back(QDir::currentPath());
-
-	//--------------------------------
-	// 3. system path
-	//--------------------------------
-	char sysDir[MAX_PATH];
-	QString systemPath = GetSystemDirectory(sysDir,MAX_PATH);
-	searchPaths.push_back(sysDir);
-
-	//--------------------------------
-	// 4. system path
-	//--------------------------------
-	char winDir[MAX_PATH];
-	GetWindowsDirectory(winDir,MAX_PATH);
-	searchPaths.push_back(winDir);
-
-	//--------------------------------
-	// 5. PATH variable
-	//--------------------------------
-	int idx = -1;
-	QRegExp envPATH("^PATH=.+");
-
-	if ( (idx=libPaths.indexOf(envPATH))>0)
-	{
-		QString strPATH = libPaths.at(idx);
-		strPATH = strPATH.mid(strPATH.indexOf("=")+1);
-		QStringList subPaths;
-		subPaths = strPATH.split(";");
-		foreach(QString p, subPaths)
-		{
-			searchPaths.push_back(p);
-		}
-	}
-
-	foreach (QString path, searchPaths)
-	{
-		for ( size_t idx=0; idx<sizeof(fileList)/sizeof(char*); idx++)
-		{
-			if (softwareInfo.end()==softwareInfo.find(fileList[idx]))
-			{
-				QFileInfo fileInfo(QDir::toNativeSeparators(path+"/"+fileList[idx]));
-				if (fileInfo.isFile())
-				{
-					CFileVersionInfo VerInfo;
-					if(VerInfo.Open(fileInfo.filePath().toLatin1()))
-					{
-						char version[256];
-						//VerInfo.QueryStringValue(VI_STR_PRODUCTVERSION, version);
-						VerInfo.QueryStringValue(VI_STR_FILEVERSION, version);
-						softwareInfo[QString(fileList[idx])] = QString(version);
-					}
-				}
-			}
-		}
-	}
-#elif defined __APPLE__
-	//--------------------------------
-	// search paths are:
-	// 1. DYLD_LIBRARY_PATH
-	// 2. /usr/local/lib    !!! assumes we're installing in /usr/local/lib !!!
-	//--------------------------------
-	//--------------------------------
-	// 1. DYLD_LIBRARY_PATH variable
-	//--------------------------------
-	int idx = -1;
-	QRegExp envPATH("^DYLD_LIBRARY_PATH=.+");
-	if ( (idx=libPaths.indexOf(envPATH))>0)
-	{
-		QString strPATH = libPaths.at(idx);
-		strPATH = strPATH.mid(strPATH.indexOf("=")+1);
-
-		QStringList subPaths;
-		subPaths = strPATH.split(":");
-		foreach(QString p, subPaths)
-		{
-			searchPaths.push_back(p);
-		}
-	}
-	//--------------------------------
-	// 2. /usr/local/lib
-	//--------------------------------
-	QString exePath = QCoreApplication::applicationDirPath();
-	searchPaths.push_back("/usr/local/lib");
-
-	foreach (QString path, searchPaths)
-	{
-		for ( size_t idx=0; idx<sizeof(fileList)/sizeof(char*); idx++)
-		{
-			if (softwareInfo.end()==softwareInfo.find(fileList[idx]))
-			{
-				QString thisFile(fileList[idx]);
-				//thisFile += ".*.*.*.dylib";
-				//--------------------------------
-				// we take the base filename and will follow the symbolic links until the last
-				//--------------------------------
-				thisFile += ".dylib";
-				QDir fileInfo(path,thisFile);
-				//QStringList theFiles = fileInfo.entryList();
-				QFileInfoList theFiles = fileInfo.entryInfoList();
-
-				if (theFiles.size()>0)
-				{
-					QString version;
-					QString baseName(theFiles[0].absoluteFilePath());
-					QString caption;
-					caption ="debug_before_getFinalLinkTarget";
-					baseName = getFinalLinkTarget(baseName);
-					caption = "debug_after_getFinalLinkTarget";
-
-					//--------------------------------
-					// abcdefg.x.y.z.dylib
-					// +-----+             == basename
-					// therefore the x.y.z length can be calculated as:
-					//    startpoint: baseName().size()+1  ( +1 for the dot after the basename)
-					//    length: fileName().size()
-					//            - (baseName().size()+1)   ( +1 for the dot after the basename)
-					//            - ".dylib".size()
-					//--------------------------------
-					QFileInfo info(baseName);
-
-					version = info.fileName();
-					version = version.mid(info.baseName().size()+1,version.size()-(info.baseName().size()+1)-QString(".dylib").size());
-
-					softwareInfo[thisFile]=QString(version);
-				}
-			}
-		}
-	}
-#else
-// Linux
-	//--------------------------------
-	// search paths are:
-	// 1. LD_LIBRARY_PATH
-	// 2. paths in file /etc/ld.so.conf
-	//    The problem with this is that this file can include other .conf files
-	//    This becomes too complicated for its purpose here, so we omit this.
-	// 3. ../lib
-	//--------------------------------
-	//--------------------------------
-	// 1. LD_LIBRARY_PATH variable
-	//--------------------------------
-	int idx = -1;
-	QRegExp envPATH("^LD_LIBRARY_PATH=.+");
-	if ( (idx=libPaths.indexOf(envPATH))>0)
-	{
-		QString strPATH = libPaths.at(idx);
-		strPATH = strPATH.mid(strPATH.indexOf("=")+1);
-
-		//printf("Splitting: %s\n",strPATH.toLatin1().data());
-
-		QStringList subPaths;
-		subPaths = strPATH.split(":");
-		foreach(QString p, subPaths)
-		{
-			searchPaths.push_back(p);
-		}
-	}
-	//--------------------------------
-	// 3. ../lib (relative to the exe path
-	//--------------------------------
-	QString exePath = QCoreApplication::applicationDirPath();
-	searchPaths.push_back(exePath+"/../lib");
-
-	foreach (QString path, searchPaths)
-	{
-		for ( size_t idx=0; idx<sizeof(fileList)/sizeof(char*); idx++)
-		{
-			if (softwareInfo.end()==softwareInfo.find(fileList[idx]))
-			{
-				QFileInfo fileInfo(path+"/"+fileList[idx]);
-				if (fileInfo.isFile())
-				{
-					QString thisFile;
-					thisFile = fileList[idx];
-					thisFile += ".?.?.?" ;
-					QDir thisDir(path,thisFile);
-					QStringList allFiles=thisDir.entryList();
-					foreach(QString p,allFiles)
-					{
-						QString version = p.mid(p.indexOf(".so.")+4);
-						softwareInfo[QString(fileList[idx])] = QString(version);
-					}
-				}
-			}
-		}
-	}
-
-#endif
-
-	m_ui.tblInfo->setRowCount( softwareInfo.size() );
-	m_ui.tblInfo->setColumnCount( 2 );
-
-	QTableWidgetItem*	newItem = NULL;
-	int					RowNr = 0;
-	int					ColNr = 0;
-
-	Qt::ItemFlags flags;
-	flags &= !Qt::ItemIsEditable;
-
-	for ( QMap<QString,QString>::iterator itData=softwareInfo.begin()
-		; itData != softwareInfo.end()
-		; itData++, ColNr=0, RowNr++
-		)
-	{
-		newItem = new QTableWidgetItem( itData.key() );
-		newItem->setFlags(flags);
-		m_ui.tblInfo->setItem( RowNr, ColNr++, newItem );
-		newItem = new QTableWidgetItem( itData.value() );
-		newItem->setFlags(flags);
-		m_ui.tblInfo->setItem( RowNr, ColNr, newItem );
-	}
-
-	 */
-}
-
 //**************************************************
 // clear button clicked
 // - back to the main screen
@@ -3410,7 +3438,7 @@ void MainWnd::refreshTabIdentity( void )
 
 	m_ui.lblIdentity_ImgPerson->show();
 
-	tFieldMap& PersonFields = m_CI_Data.m_PersonInfo.getFields();
+	const tFieldMap PersonFields = m_CI_Data.m_PersonInfo.getFields();
 
 	m_ui.txtIdentity_Name->setText		 ( QString::fromUtf8(PersonFields[NAME].toStdString().c_str()) );
 	m_ui.txtIdentity_Name->setAccessibleName ( QString::fromUtf8(PersonFields[NAME].toStdString().c_str()) );
@@ -3449,7 +3477,7 @@ void MainWnd::refreshTabIdentityExtra()
 {
 	tFieldMap& CardFields = m_CI_Data.m_CardInfo.getFields();
 
-	tFieldMap& PersonFields = m_CI_Data.m_PersonInfo.getFields();
+	const tFieldMap PersonFields = m_CI_Data.m_PersonInfo.getFields();
 
 	m_ui.txtIdentityExtra_TaxNo->setText	( QString::fromUtf8(PersonFields[TAXNO].toStdString().c_str()) );
 	m_ui.txtIdentityExtra_TaxNo->setAccessibleName	( QString::fromUtf8(PersonFields[TAXNO].toStdString().c_str()) );
@@ -3534,7 +3562,6 @@ void MainWnd::refreshTabAddress( void )
 {
     if (!m_CI_Data.isDataLoaded())
         return;
-
 
 	if (pinactivate == 1)
 	{
@@ -3626,6 +3653,7 @@ void MainWnd::PersoDataSaveButtonClicked( void )
         QMessageBox::critical(this, tr("Personal Notes"), tr("Error writing personal notes!"), QMessageBox::Ok );
     }
 }
+
 //*****************************************************
 // refresh the tab with the PTeid Personal Data
 //*****************************************************
@@ -3724,6 +3752,8 @@ void MainWnd::clearTabCertificates( void )
 	m_ui.txtCert_ValidUntil->setAccessibleName( "" );
 	m_ui.txtCert_KeyLenght->setText( "" );
 	m_ui.txtCert_KeyLenght->setAccessibleName( "" );
+	m_ui.txtCert_RevStatus->setText("");
+	m_ui.txtCert_RevStatus->setAccessibleName("");
 }
 
 //*****************************************************
@@ -3790,21 +3820,33 @@ void MainWnd::refreshTabCertificates( void )
 	certdatastatus = 0;
 	loadCardDataCertificates();
 
-	QList<QTreeWidgetItem *> selectedItems = m_ui.treeCert->selectedItems();
-	if(selectedItems.size()==0)
+	//qDebug() << "columns: " << m_ui.treeCert->columnCount();
+	//qDebug() << "top level count: " << m_ui.treeCert->topLevelItemCount();
+	//qDebug() << "selected items: " << m_ui.treeCert->selectedItems();
+	//qDebug() << "# seleteced: " << m_ui.treeCert->selectedItems().size();
+	//qDebug() << "find 'Signature': " << m_ui.treeCert->findItems ( QString("Signature"), Qt::MatchContains|Qt::MatchRecursive );
+
+    // este pedaço de codigo parece nao estar a fazer nada.
+    // no fillCertificateList que corre antes disto dentro do loadCardCertificates
+    // o cert de root ´e selected, logo os selected items sao 1 sendo o root o selecionado.
+    // o findItems para tentar selecionar o cert com o nome "Signature" retorna vazio
+    // pk n existe nehum item na tree com esse texto.
+
+	//QList<QTreeWidgetItem *> selectedItems = m_ui.treeCert->selectedItems();
+	/*if(selectedItems.size() == 0)
 	{
 		//If no item is selected, we select the signature certificate
 		selectedItems = m_ui.treeCert->findItems ( QString("Signature"), Qt::MatchContains|Qt::MatchRecursive );
-		if (selectedItems.size()>0)
+        if (selectedItems.size() > 0)
 		{
 			selectedItems[0]->setSelected(true);
 		}
 	}
 
-	if (selectedItems.size()>0)
+	if (selectedItems.size() > 0)
 	{
 		on_treeCert_itemClicked((QTreeCertItem *)selectedItems[0], 0);
-	}
+	}*/
 
 }
 
@@ -3847,12 +3889,6 @@ void MainWnd::refreshTabCardPin( void )
 	}
 }
 
-//*****************************************************
-// refresh the tab with the software info
-//*****************************************************
-void MainWnd::refreshTabInfo( void )
-{
-}
 
 //**************************************************
 // menu items to change the language
@@ -4084,16 +4120,18 @@ void MainWnd::customEvent( QEvent* pEvent )
 					m_imgPicture = NULL;
 					m_pinsInfo.clear();
 					m_CI_Data.Reset();
+
 					refreshTabIdentity();
 					refreshTabIdentityExtra();
 					refreshTabPersoData();
 					refreshTabCardPin();
 					refreshTabCertificates();
+
 					clearAddressData();
 					m_ui.btnSelectTab_Identity->setFocus();
 
-				if (m_pdf_signature_dialog)
-                    			m_pdf_signature_dialog->disableSignButton();
+					if (m_pdf_signature_dialog)
+						m_pdf_signature_dialog->disableSignButton();
 
 				}
 				//----------------------------------------------------------
@@ -4116,7 +4154,7 @@ void MainWnd::customEvent( QEvent* pEvent )
 					QString statusMsg;
 					statusMsg += tr("Card Reader: ");
 					statusMsg += pPopupEvent->getReaderName();
-					m_ui.statusBar->showMessage(statusMsg,m_STATUS_MSG_TIME);
+					m_ui.statusBar->showMessage(statusMsg, m_STATUS_MSG_TIME);
 
 					PTEID_ReaderContext& readerContext	= ReaderSet.getReaderByName(cardReader.toLatin1());
 
@@ -4213,6 +4251,7 @@ void MainWnd::customEvent( QEvent* pEvent )
 			}
 		}
 }
+
 //**************************************************
 // show the picture on the Card
 //**************************************************
@@ -4364,6 +4403,7 @@ void MainWnd::on_actionE_xit_triggered(void)
 {
 	quit_application();
 }
+
 //**************************************************
 // set the event callback functions
 //**************************************************
@@ -4381,12 +4421,12 @@ void MainWnd::setEventCallbacks( void )
 			void (*fCallback)(long lRet, unsigned long ulState, void* pCBData);
 
 			const char*			 readerName		= ReaderSet.getReaderName(Ix);
-			PTEID_ReaderContext&  readerContext  = ReaderSet.getReaderByNum(Ix);
-			CallBackData*		 pCBData		= new CallBackData(readerName,this);
+			PTEID_ReaderContext& readerContext  = ReaderSet.getReaderByNum(Ix);
+			CallBackData*		 pCBData		= new CallBackData(readerName, this);
 
 			fCallback = (void (*)(long,unsigned long,void *))&cardEventCallback;
 
-			m_callBackHandles[readerName] = readerContext.SetEventCallback(fCallback,pCBData);
+			m_callBackHandles[readerName] = readerContext.SetEventCallback(fCallback, pCBData);
 			m_callBackData[readerName]	  = pCBData;
 		}
 	}
@@ -4488,5 +4528,30 @@ void CardDataLoader::LoadCertificateData()
 }
 
 
+void QTreeCertItem::init(PTEID_Certificate &cert) {
+	this->cert = &cert;
+	m_Issuer = QString::fromUtf8(cert.getIssuerName());
+	m_Owner = QString::fromUtf8(cert.getOwnerName());
+	m_ValidityBegin = QString::fromUtf8(cert.getValidityBegin());
+	m_ValidityEnd = QString::fromUtf8(cert.getValidityEnd());
+	m_KeyLen = QString::number(cert.getKeyLength());
+	m_Label = QString::fromUtf8(cert.getLabel());
 
+	connect(&certStatusWatcher, SIGNAL(finished()), this, SLOT(handleFutureCertStatus()));
+}
 
+void QTreeCertItem::handleFutureCertStatus() {
+	//emit certStatusReady(certStatusWatcher.result());
+
+	PTEID_CertifStatus status = certStatusWatcher.result();
+	qDebug() << "item::emit cert status";
+	qDebug() << getOwner() << ": " << status;
+
+	emit certStatusReady(status);
+}
+
+void QTreeCertItem::askCertStatus() {
+	qDebug() << "item::askCertStatus()";
+	QFuture<PTEID_CertifStatus> future = QtConcurrent::run(this->cert, &PTEID_Certificate::getStatus);
+	certStatusWatcher.setFuture(future);
+}

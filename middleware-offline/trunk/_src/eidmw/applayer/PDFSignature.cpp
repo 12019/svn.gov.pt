@@ -38,6 +38,9 @@ namespace eIDMW
 		m_civil_number = NULL;
 		m_citizen_fullname = NULL;
 		m_batch_mode = true;
+		m_timestamp = false;
+		m_small_signature = false;
+		my_custom_image.img_data = NULL;
 
 	}
 
@@ -54,8 +57,20 @@ namespace eIDMW
 		m_citizen_fullname = NULL;
 		m_batch_mode = false;
 		m_timestamp = false;
+		m_small_signature = false;
+		my_custom_image.img_data = NULL;
 		m_doc = new PDFDoc(new GooString(pdf_file_path));
 	
+	}
+
+	void PDFSignature::setCustomImage(unsigned char *img_data, unsigned long img_length)
+	{
+
+		this->my_custom_image.img_data = img_data;
+		this->my_custom_image.img_length = img_length;
+		// this->my_custom_image.img_height = img_height;
+		// this->my_custom_image.img_width = img_width;
+
 	}
 
 	PDFSignature::~PDFSignature()
@@ -65,12 +80,15 @@ namespace eIDMW
 
 		//Free the strdup'ed strings from batchAddFile
 		for (int i = 0; i != m_files_to_sign.size(); i++)
-			free(m_files_to_sign.at(i));
+			free(m_files_to_sign.at(i).first);
+
+		if (m_doc != NULL)
+			delete m_doc;
 	}
 
-	void PDFSignature::batchAddFile(char *file_path)
+	void PDFSignature::batchAddFile(char *file_path, bool last_page)
 	{
-		m_files_to_sign.push_back(strdup(file_path));
+		m_files_to_sign.push_back(std::make_pair(strdup(file_path), last_page));
 
 	}
 
@@ -79,11 +97,17 @@ namespace eIDMW
 		m_timestamp = true;
 	}
 
-	void PDFSignature::setVisible(unsigned int page_number, int sector_number)
+	void PDFSignature::enableSmallSignature()
+	{
+		m_small_signature = true;
+	}
+
+	void PDFSignature::setVisible(unsigned int page_number, int sector_number, bool is_landscape)
 	{
 		m_visible = true;
 		m_page = page_number;
 		m_sector = sector_number;
+		m_isLandscape = is_landscape;
 
 	}
 	
@@ -96,41 +120,123 @@ namespace eIDMW
 
 	}
 
-	PDFRectangle PDFSignature::getSignatureRectangle(double page_height, double page_width)
+	bool PDFSignature::isLandscapeFormat()
 	{
-		// Add padding, adjust to subtly tweak the location 
-		// The units for x_pad, y_pad, sig_height and sig_width are postscript
-		// points (1 px == 0.75 points)
+		if (m_doc)
+        {
+            if (!m_doc->isOk())
+                return false;
+
+            Page *p = m_doc->getPage(m_page);
+            PDFRectangle *p_media = p->getMediaBox();
+
+            double height = p_media->y2, width = p_media->x2;
+
+            //Take into account page rotation
+            if (p->getRotate() == 90)
+            {
+            	height = p_media->x2;
+            	width = p_media->y2;	
+            }
+
+            return width > height;
+		}
+		
+		return false;
+
+	}
+
+
+	PDFRectangle PDFSignature::computeSigLocationFromSectorLandscape(double page_height, double page_width, int sector)
+	{
 		PDFRectangle sig_rect;
 		double vert_align = 16; //Add this to vertically center inside each cell
+		//Number of columns for portrait layout
+		int columns = 4.0;
+		double signature_height = m_small_signature ? sig_height / 2.0 : sig_height;
+		int MAX_SECTOR = m_small_signature ? 40 : 20;
+		const double n_lines = MAX_SECTOR / 4.0;
 
-		double sig_width = (page_width - lr_margin*2) / 3.0;
+		double sig_width = (page_width - lr_margin*2) / columns;
 		
 		//Add left margin
 		sig_rect.x1 = lr_margin;
 		sig_rect.x2 = lr_margin;
 
-		if (m_sector < 1 || m_sector > 18)
-			fprintf (stderr, "Illegal value for signature page sector: %d Valid values [1-18]\n", 
-					m_sector);
+		if (sector < 1 || sector > MAX_SECTOR)
+			fprintf (stderr, "Illegal value for signature page sector: %u Valid values [1-%d]\n", 
+					sector, MAX_SECTOR);
 		
-		if (m_sector < 16)
+		if (sector < MAX_SECTOR - 3)
 		{
-			int line = m_sector / 3 + 1;
-			if (m_sector % 3 == 0)
-			   line = m_sector / 3;
+			int line = sector / 4 + 1;
+			if (sector % 4 == 0)
+			   line = sector / 4;
 
-			sig_rect.y1 += (page_height - 2*tb_margin) * (6-line) / 6.0;
-			sig_rect.y2 += (page_height - 2*tb_margin) * (6-line) / 6.0;
+			sig_rect.y1 += (page_height - 2*tb_margin) * (n_lines-line) / n_lines;
+			sig_rect.y2 += (page_height - 2*tb_margin) * (n_lines-line) / n_lines;
 		}
 
-		if (m_sector % 3 == 2 )
+		int column = (sector-1) % 4;
+
+		sig_rect.x1 += (column * sig_width);
+		sig_rect.x2 += (column * sig_width);
+		
+		sig_rect.y1 += tb_margin + vert_align;
+
+		//Define height and width of the rectangle
+		sig_rect.x2 += sig_width;
+		sig_rect.y2 += signature_height + tb_margin + vert_align;
+
+		
+		fprintf(stderr, "DEBUG: Sector: %02d Location = (%f, %f) (%f, %f) \n", sector, sig_rect.x1, sig_rect.y1, sig_rect.x2, sig_rect.y2);
+
+		return sig_rect;
+	}
+	
+
+	PDFRectangle PDFSignature::computeSigLocationFromSector(double page_height, double page_width, int sector)
+	{
+		fprintf(stderr, "computeSigLocationFromSector called with sector=%d and m_small_signature = %d\n ",
+		   sector, m_small_signature);
+		int MAX_SECTOR = m_small_signature ? 36 : 18;
+		double signature_height = m_small_signature ? sig_height / 2.0 : sig_height;
+		const double n_lines = MAX_SECTOR / 3.0;
+		// Add padding, adjust to subtly tweak the location
+		// The units for x_pad, y_pad, sig_height and sig_width are postscript
+		// points (1 px == 0.75 points)
+		PDFRectangle sig_rect;
+		double vert_align = 16; //Add this to vertically center inside each cell
+		//Number of columns for portrait layout
+		int columns = 3.0;
+
+		double sig_width = (page_width - lr_margin*2) / columns;
+		
+		//Add left margin
+		sig_rect.x1 = lr_margin;
+		sig_rect.x2 = lr_margin;
+
+		if (sector < 1 || sector > MAX_SECTOR)
+			fprintf (stderr, "Illegal value for signature page sector: %u Valid values [1-%d]\n", 
+					sector, MAX_SECTOR);
+		
+		if (sector < MAX_SECTOR -2)
+		{
+			int line = sector / 3 + 1;
+			if (sector % 3 == 0)
+			   line = sector / 3;
+
+			sig_rect.y1 += (page_height - 2*tb_margin) * (n_lines-line) / n_lines;
+			sig_rect.y2 += (page_height - 2*tb_margin) * (n_lines-line) / n_lines;
+		}
+
+		if (sector % 3 == 2 )
 		{
 			sig_rect.x1 += sig_width;
 			sig_rect.x2 += sig_width;
 		}
 
-		if (m_sector % 3 == 0 )
+		if (sector % 3 == 0 )
 		{
 			sig_rect.x1 += sig_width * 2.0;
 			sig_rect.x2 += sig_width * 2.0;
@@ -140,9 +246,9 @@ namespace eIDMW
 
 		//Define height and width of the rectangle
 		sig_rect.x2 += sig_width;
-		sig_rect.y2 += sig_height + tb_margin + vert_align;
+		sig_rect.y2 += signature_height + tb_margin + vert_align;
 		
-
+		fprintf(stderr, "DEBUG: Sector: %02d Location = (%f, %f) (%f, %f) \n", sector, sig_rect.x1, sig_rect.y1, sig_rect.x2, sig_rect.y2);
 		return sig_rect;
 	}
 
@@ -161,6 +267,8 @@ namespace eIDMW
 		if (x509 == NULL)
 		{
 			MWLOG(LEV_ERROR, MOD_APL, L"loadCert() Error decoding certificate data!");
+			free(data_serial);
+			free(data_common_name);
 			return;
 		}
 		X509_NAME * subj = X509_get_subject_name(x509);
@@ -174,14 +282,16 @@ namespace eIDMW
 
 	int PDFSignature::getPageCount()
 	{
-		if (!m_doc->isOk()) {
-				throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
+		if (!m_doc->isOk()) 
+		{
+			fprintf(stderr, "getPageCount(): Probably broken PDF...\n");
+			return -1;
 		}
 		if (m_doc->isEncrypted())
 		{
 			fprintf(stderr,
-				"Error in getPageCount(): Encrypted PDFs are unsupported At the moment\n");
-			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
+				"getPageCount(): Encrypted PDFs are unsupported at the moment\n");
+			return -1;
 		}
 		return m_doc->getNumPages();
 
@@ -225,10 +335,14 @@ namespace eIDMW
 		{
 			 for (unsigned int i = 0; i < m_files_to_sign.size(); i++)
 			 {
-				 char *current_file = m_files_to_sign.at(i);
+				 char *current_file = m_files_to_sign.at(i).first;
 				 std::string f = generateFinalPath(outfile_path,
 						 current_file);
+
 				 m_doc = new PDFDoc(new GooString(current_file));
+				 //Set page as the last
+				 if (m_files_to_sign.at(i).second)
+				 	m_page = m_doc->getNumPages();
 
 				rc += signSingleFile(location, reason, f.c_str());
 				if (i == 0)
@@ -240,6 +354,26 @@ namespace eIDMW
 
 		return rc;
 
+	}
+
+	int PDFSignature::getOtherPageCount(const char *input_path)
+	{
+		GooString filename(input_path);
+		PDFDoc doc(new GooString(input_path));
+
+		if (!doc.isOk())
+		{
+			fprintf(stderr, "getOtherPageCount(): Probably broken PDF...\n");
+			return -1;
+		}
+		if (doc.isEncrypted())
+		{
+			fprintf(stderr,
+				"getOtherPageCount(): Encrypted PDFs are unsupported at the moment\n");
+			return -1;
+		}
+
+		return doc.getNumPages();
 	}
 
 
@@ -256,8 +390,6 @@ namespace eIDMW
 		GooString *outputName;
 		outputName = new GooString(outfile_path);
 		
-		doc = m_doc;
-
 		if (!doc->isOk()) {
 			delete doc;
 			fprintf(stderr, "Poppler returned error loading PDF document %s\n", 
@@ -274,7 +406,7 @@ namespace eIDMW
 
 		if (m_page > (unsigned int)doc->getNumPages())
 		{
-			fprintf(stderr, "Error: Signature Page %d is out of bounds for document %s",
+			fprintf(stderr, "Error: Signature Page %u is out of bounds for document %s",
 				m_page, doc->getFileName()->getCString());
 			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
 		}
@@ -293,7 +425,12 @@ namespace eIDMW
 		{
 			//Sig Location by sector
 			if (location_x == -1)
-				sig_location = getSignatureRectangle(height, width);
+			{
+				if (m_isLandscape)
+					sig_location = computeSigLocationFromSectorLandscape(height, width, m_sector);
+				else
+					sig_location = computeSigLocationFromSector(height, width, m_sector);
+			}
 			else
 			{
 			    double sig_width = (width - lr_margin*2) / 3.0;
@@ -319,6 +456,9 @@ namespace eIDMW
 
 		bool incremental = doc->isSigned() || doc->isReaderEnabled();
 
+		if (this->my_custom_image.img_data != NULL)
+			doc->addCustomSignatureImage(my_custom_image.img_data, my_custom_image.img_length);
+
 		doc->prepareSignature(incremental, &sig_location, m_citizen_fullname, m_civil_number,
 			location, reason, m_page, m_sector);
 		unsigned long len = doc->getSigByteArray(&to_sign, incremental);
@@ -339,7 +479,9 @@ namespace eIDMW
 		if (final_ret != errNone)
 			throw CMWEXCEPTION(EIDMW_ERR_UNKNOWN);
 
-		delete doc;
+		delete m_doc;
+		m_doc = NULL;
+
 		delete outputName;
 
 		return rc;

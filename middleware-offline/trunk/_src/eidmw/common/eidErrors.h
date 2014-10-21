@@ -290,6 +290,15 @@
 #define EIDMW_OTP_CERTIFICATE_ERROR		0xe1d00d03
 #define EIDMW_OTP_UNKNOWN_ERROR			0xe1d00d04
 
+#define EIDMW_SAM_CONNECTION_ERROR    0xe1d00d05
+#define EIDMW_SAM_PROTOCOL_ERROR      0xe1d00d06
+#define EIDMW_SAM_UNKNOWN_ERROR      0xe1d00d07
+#define EIDMW_SSL_PROTOCOL_ERROR      0xe1d00d08
+
+
+#define EIDMW_TIMESTAMP_ERROR 0xe1d00e01
+
+
 // Errors in system calls
 
 /** a system call returned an error */

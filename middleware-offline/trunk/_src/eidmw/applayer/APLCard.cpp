@@ -141,6 +141,24 @@ CByteArray APL_Card::Sign(const CByteArray & oData, bool signatureKey)
 	return out;
 }
 
+CByteArray APL_Card::SignSHA256(const CByteArray & oData, bool signatureKey)
+{
+	CByteArray out;
+	BEGIN_CAL_OPERATION(m_reader)
+	tPrivKey signing_key;
+    //Private key IDs can be found with pkcs15-tool --list-keys from OpenSC package
+	if (signatureKey)
+		signing_key = m_reader->getCalReader()->GetPrivKeyByID(0x46); 
+	else
+		signing_key = m_reader->getCalReader()->GetPrivKeyByID(0x45);
+
+	out = m_reader->getCalReader()->Sign(signing_key, SIGN_ALGO_SHA256_RSA_PKCS, oData);
+	END_CAL_OPERATION(m_reader)
+
+	return out;
+
+}
+
 bool checkExistingFiles(const char **files, unsigned int n_paths)
 {
 	for(unsigned int i=0; i != n_paths; i++)
@@ -173,12 +191,114 @@ CByteArray &APL_Card::SignXades(const char ** paths, unsigned int n_paths, const
 	
 	XadesSignature sig(this);
 
-	CByteArray &signature = sig.SignXades(paths, n_paths, false);
-	StoreSignatureToDisk (signature, NULL, paths, n_paths,output_path);
+	CByteArray &signature = sig.SignXades(paths, n_paths);
+	StoreSignatureToDisk (signature, paths, n_paths,output_path);
 
 	//Write zip container signature and referenced files in zip container
 
 	return signature;
+}
+
+typedef void (* t_callback_addr) (void*, int);
+
+
+/*
+	Implements the address change protocol as implemented by the Portuguese State hosted website
+	It conditionally executes some card interactions and sends different parameters to the server 
+	depending on the version of the smart card applet, IAS 0.7 or IAS 1.01.
+	Technical specification: the confidential document "Change Address Technical Solution" by Zetes version 5.3
+*/
+bool APL_Card::ChangeAddress(char *secret_code, char *process, t_callback_addr callback, void* callback_data)
+{
+	char * kicc = NULL;
+	SAM sam_helper(this);
+	char *serialNumber = NULL;
+	char *resp_internal_auth = NULL , *resp_mse = NULL;
+	
+	DHParams dh_params;
+
+	if (this->getType() == APL_CARDTYPE_PTEID_IAS07)
+		sam_helper.getDHParams(&dh_params);
+	else
+	{
+	//	throw CMWEXCEPTION(EIDMW_SAM_UNSUPPORTED_CARD);
+	}
+
+
+	SSLConnection conn(ADDRESS_CHANGE_SERVER);
+
+	callback(callback_data, 10);
+
+	DHParamsResponse *p1 = conn.do_SAM_1stpost(&dh_params, secret_code, process, serialNumber);
+	
+	callback(callback_data, 25);
+
+	if (p1->cv_ifd_aut == NULL)
+	{
+		throw CMWEXCEPTION(EIDMW_SAM_PROTOCOL_ERROR);
+	}
+
+	if (p1->kifd != NULL)
+		sam_helper.sendKIFD(p1->kifd);
+
+	if (this->getType() == APL_CARDTYPE_PTEID_IAS07)
+		kicc = sam_helper.getKICC();
+
+	if ( !sam_helper.verifyCert_CV_IFD(p1->cv_ifd_aut))
+	{
+		throw CMWEXCEPTION(EIDMW_SAM_PROTOCOL_ERROR);	
+	}
+
+	char *challenge = sam_helper.generateChallenge();
+
+	callback(callback_data, 30);
+
+	SignedChallengeResponse * resp_2ndpost = conn.do_SAM_2ndpost(challenge, kicc);
+
+	callback(callback_data, 40);
+
+	if (resp_2ndpost != NULL && resp_2ndpost->signed_challenge != NULL)
+	{
+		bool ret_signed_ch = sam_helper.verifySignedChallenge(resp_2ndpost->signed_challenge);
+
+		if (!ret_signed_ch)
+		{
+			fprintf(stderr, "EXTERNAL AUTHENTICATE command failed! Aborting operation.\n");
+			throw CMWEXCEPTION(EIDMW_SAM_PROTOCOL_ERROR);
+		}
+		if (this->getType() == APL_CARDTYPE_PTEID_IAS07)
+		{
+			resp_mse = sam_helper.sendPrebuiltAPDU(resp_2ndpost->set_se_command);
+
+			resp_internal_auth = sam_helper.sendPrebuiltAPDU(resp_2ndpost->internal_auth);
+		}
+
+		StartWriteResponse * r1 = conn.do_SAM_3rdpost(resp_mse, resp_internal_auth);
+
+		callback(callback_data, 60);
+
+		if (r1 != NULL)
+		{
+			fprintf(stderr, "DEBUG: writing new address...\n");
+			std::vector<char *> address_response = sam_helper.sendSequenceOfPrebuiltAPDUs(r1->apdu_write_address);
+			fprintf(stderr, "DEBUG: writing new SOD...\n");
+			std::vector<char *> sod_response = sam_helper.sendSequenceOfPrebuiltAPDUs(r1->apdu_write_sod);
+
+			StartWriteResponse start_write_resp = {address_response, sod_response};
+
+			callback(callback_data, 90);
+			//Report the results to the server for verification purposes
+			conn.do_SAM_4thpost(start_write_resp);
+
+			callback(callback_data, 100);
+
+			return true;
+		}
+		else
+			return false;
+	}
+
+	return false;
 }
 
 bool APL_Card::ChangeCapPin(const char * new_pin)
@@ -192,7 +312,7 @@ bool APL_Card::ChangeCapPin(const char * new_pin)
 	const unsigned char GEMSAFE_APPLET_AID[] = {0x60, 0x46, 0x32, 0xFF, 0x00, 0x00, 0x02};
 
 	//Establish SSL Connection with otp server to get the CAP PIN Change APDU
-	SSLConnection conn;
+	SSLConnection conn(OTP_SERVER);
 	
 	char* cookie = conn.do_OTP_1stpost();
 
@@ -201,7 +321,7 @@ bool APL_Card::ChangeCapPin(const char * new_pin)
 
 	this->readFile(PTEID_FILE_TOKENINFO, token_info_data);
 	CByteArray PAN = token_info_data.GetBytes(7, 8);
-	std:string pan_string = PAN.ToString(false);
+	std::string pan_string = PAN.ToString(false);
 
 	//Get OTP Params from EMV-Applet
 	OTPParams otp_params, otp_params2;
@@ -280,37 +400,45 @@ char *generateFinalPath(const char *output_dir, const char *path)
 
 void APL_Card::SignXadesIndividual(const char ** paths, unsigned int n_paths, const char *output_dir)
 {
-	SignIndividual(paths, n_paths, output_dir, false);
+	SignIndividual(paths, n_paths, output_dir, false, false);
 }
 
 void APL_Card::SignXadesTIndividual(const char ** paths, unsigned int n_paths, const char *output_dir)
 {
-	SignIndividual(paths, n_paths, output_dir, true);
+	SignIndividual(paths, n_paths, output_dir, true, false);
 }
+
+void APL_Card::SignXadesAIndividual(const char ** paths, unsigned int n_paths, const char *output_dir)
+{
+	SignIndividual(paths, n_paths, output_dir, false, true);
+}
+
 
 // Implementation of the PIN-caching version of SignXades()
 // It signs each input file seperately and creates a .zip container for each
-void APL_Card::SignIndividual(const char ** paths, unsigned int n_paths, const char *output_dir, bool timestamp)
+void APL_Card::SignIndividual(const char ** paths, unsigned int n_paths, const char *output_dir, bool timestamp, bool xades_a)
 {
 
 	if (paths == NULL || n_paths < 1 || !checkExistingFiles(paths, n_paths))
 	   throw CMWEXCEPTION(EIDMW_ERR_CHECK);
 
-	XadesSignature sig(this);
-
-        const char **files_to_sign = new const char*[1];
+    const char **files_to_sign = new const char*[1];
 
 	for (unsigned int i=0; i!= n_paths; i++)
 	{
+		XadesSignature sig(this);
+		if (timestamp)
+			sig.enableTimestamp();
+		else if (xades_a)
+			sig.enableLongTermValidation();
+
 		CByteArray * ts_data = NULL;
 
 		files_to_sign[0] = paths[i];
-		CByteArray &signature = sig.SignXades(files_to_sign, 1, timestamp);
-		if (timestamp)
-			ts_data = &(sig.mp_timestamp_data);
+		CByteArray &signature = sig.SignXades(files_to_sign, 1);
 		
 		const char *output_file = generateFinalPath(output_dir, paths[i]);
-		StoreSignatureToDisk (signature, ts_data, files_to_sign, 1, output_file);
+		StoreSignatureToDisk (signature, files_to_sign, 1, output_file);
 		delete []output_file;
 
 		//Set SSO on after first iteration to avoid more PinCmd() user interaction for the remaining 
@@ -328,17 +456,33 @@ CByteArray &APL_Card::SignXadesT(const char ** paths, unsigned int n_paths, cons
 {
 	if (paths == NULL || n_paths < 1 || !checkExistingFiles(paths, n_paths))
 	   throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+	
 	XadesSignature sig(this);
-
-	CByteArray &signature = sig.SignXades(paths, n_paths, true);
-	CByteArray *ts_data = &(sig.mp_timestamp_data);
+	sig.enableTimestamp();
+	
+	CByteArray &signature = sig.SignXades(paths, n_paths);
 
 	//Write zip container signature and referenced files in zip container
-	StoreSignatureToDisk (signature, ts_data, paths, n_paths, output_file);
+	StoreSignatureToDisk(signature, paths, n_paths, output_file);
 
 	return signature;
 }
 
+CByteArray &APL_Card::SignXadesA(const char ** paths, unsigned int n_paths, const char *output_file)
+{
+	if (paths == NULL || n_paths < 1 || !checkExistingFiles(paths, n_paths))
+	   throw CMWEXCEPTION(EIDMW_ERR_CHECK);
+
+	XadesSignature sig(this);
+	sig.enableLongTermValidation();
+	
+	CByteArray &signature = sig.SignXades(paths, n_paths);
+
+	//Write zip container signature and referenced files in zip container
+	StoreSignatureToDisk(signature, paths, n_paths, output_file);
+
+	return signature;
+}
 
 
 
@@ -367,7 +511,6 @@ APL_SmartCard::APL_SmartCard(APL_ReaderContext *reader):APL_Card(reader)
 
 	m_allowTestAsked=false;
 	m_allowTestAnswer=false;
-	m_allowBadDate=true;
 
 	m_challenge=NULL;
 	m_challengeResponse=NULL;
@@ -648,16 +791,6 @@ void APL_SmartCard::setAllowTestCard(bool allow)
 	m_allowTestAnswer=allow;
 
 	m_allowTestAsked=true;
-}
-
-bool APL_SmartCard::getAllowBadDate()
-{
-	return m_allowBadDate;
-}
-
-void APL_SmartCard::setAllowBadDate(bool allow)
-{
-	m_allowBadDate=allow;
 }
 
 void APL_SmartCard::initChallengeResponse()

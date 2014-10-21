@@ -280,32 +280,11 @@ APL_CardType APL_ReaderContext::getPhysicalCardType()
 		//Don't need to read anything from the start yet...
 		try
 		{
-			//lmedinas: Card Init
-			//CByteArray file = m_calreader->ReadFile(PTEID_FILE_SOD,0,FULL_FILE,true);
-
+	
 			CByteArray file2 = m_calreader->ReadFile(PTEID_FILE_ID, 182, 17,true);
 			stringstream serial;
 			serial << file2.GetBytes();
 			m_InitSerialNumber = serial.str();
-
-			/*CTLVBuffer oTLVBuffer;
-			oTLVBuffer.ParseTLV(file.GetBytes(), file.Size());
-			oTLVBuffer.FillLongData(PTEID_FIELD_TAG_ID_DocumentType, &lDocType);*/
-
-			/////////READ SOD INIT as a possible fallback for Identify Citizens
-			/*CByteArray pteidngSodBuffer;
-			ofstream myfile;
-			std::string m_sodfile;
-			std::string pteidfile = "/home/metalgod/.pteid-ng/pteidgui-ng-";
-			pteidfile.append(PTEID_FILE_SOD);
-			pteidfile.append(".txt");
-			myfile.open (pteidfile.c_str());
-			//pteidngSodBuffer = file.GetBytes(2560, 16);
-			pteidngSodBuffer = file.GetBytes(0, 4000);
-			m_sodfile.assign((char*)(pteidngSodBuffer.GetBytes()), pteidngSodBuffer.Size());
-			myfile << m_sodfile;
-			myfile.close();*/
-			///////////////////////////
 
 		}
 		catch(CMWException &e)
@@ -678,6 +657,7 @@ void CAppLayer::startAllServices()
 	//Then start the caches (Certificates and CRL)
 	if(!m_certStatusCache)
 		m_certStatusCache = new APL_CertStatusCache(m_cryptoFwk);
+
 }
 
 void CAppLayer::stopAllServices() 

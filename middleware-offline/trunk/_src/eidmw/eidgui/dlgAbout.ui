@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>421</width>
-    <height>347</height>
+    <width>433</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -38,7 +38,7 @@
    <property name="geometry">
     <rect>
      <x>300</x>
-     <y>320</y>
+     <y>450</y>
      <width>85</width>
      <height>27</height>
     </rect>
@@ -52,7 +52,7 @@
     <rect>
      <x>20</x>
      <y>100</y>
-     <width>349</width>
+     <width>400</width>
      <height>22</height>
     </rect>
    </property>
@@ -83,7 +83,7 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>400</width>
+     <width>410</width>
      <height>21</height>
     </size>
    </property>
@@ -115,32 +115,32 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>421</width>
+     <width>433</width>
      <height>91</height>
     </rect>
    </property>
    <property name="styleSheet">
     <string notr="true">background-color: rgb(255, 255, 255);</string>
    </property>
-   <widget class="QLabel" name="lblIcon">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>0</y>
-      <width>361</width>
-      <height>79</height>
-     </rect>
-    </property>
-    <property name="autoFillBackground">
-     <bool>false</bool>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-    <property name="pixmap">
-     <pixmap resource="eidgui.qrc">:/images/Images/a-z_identiteitskaart_logo.png</pixmap>
-    </property>
-   </widget>
+  </widget>
+  <widget class="QLabel" name="lbl_logocc">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>0</y>
+     <width>361</width>
+     <height>79</height>
+    </rect>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap resource="eidgui.qrc">:/images/Images/a-z_identiteitskaart_logo.png</pixmap>
+   </property>
   </widget>
   <widget class="QLabel" name="label">
    <property name="geometry">
@@ -152,7 +152,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>&lt;a href=&quot;http://cartaodecidadao.pt&quot;&gt; http://cartaodecidadao.pt</string>
+    <string>&lt;a href=&quot;http://www.cartaodecidadao.pt&quot;&gt; http://www.cartaodecidadao.pt</string>
    </property>
    <property name="openExternalLinks">
     <bool>true</bool>
@@ -162,7 +162,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>240</y>
+     <y>220</y>
      <width>371</width>
      <height>22</height>
     </rect>
@@ -188,7 +188,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>270</y>
+     <y>250</y>
      <width>381</width>
      <height>22</height>
     </rect>
@@ -201,7 +201,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>290</y>
+     <y>280</y>
      <width>371</width>
      <height>22</height>
     </rect>
@@ -223,6 +223,23 @@
     <string/>
    </property>
   </widget>
+
+<widget class="QLabel" name="label_qren">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>320</y>
+     <width>433</width>
+     <height>103</height>
+    </rect>
+   </property>
+    <property name="pixmap">
+     <pixmap resource="eidgui.qrc">:/images/Images/logo_cor400.png</pixmap>
+    </property>
+   <property name="text">
+    <string/>
+   </property>
+</widget>
  </widget>
  <resources>
   <include location="eidgui.qrc"/>
