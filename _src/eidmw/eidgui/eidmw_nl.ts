@@ -15,26 +15,87 @@
         <source>PDF Signature</source>
         <translation>Assinatura de PDF</translation>
      </message>
-      <message>
-        <source>Universal Signature</source>
-        <translation>Assinatura Universal</translation>
+     <message>
+     <source>Universal Signature</source>
+     <translation>Assinatura Universal</translation>
      </message>
+     <message>
+     <source>Authentication Certificate:</source>
+     <translation>Certificado de Autenticação:</translation>
+     </message>
+     <message>
+     <source>Signature Certificate:</source>
+     <translation>Certificado de Assinatura:</translation>
+     </message>
+	 
+	 <message>
+        <source>Error returned by the OTP server. Please make sure you have a valid authentication certificate</source>
+		<translation>Erro na ligação ao servidor de OTP. Por favor verifique que tem o certificado de autenticação válido</translation>
+	 </message>
+	 
+	 <message>
+        <source>Error in the Address Change operation. Please make sure you have a valid authentication certificate</source>
+		<translation>Erro na operação de mudança de morada. Por favor verifique que tem o certificado de autenticação válido</translation>
+	 </message>
+	 
      <message>
         <source>The certificates could not be validated, the certification path is not complete</source>
         <translation>Os certificados não foram validados, o caminho de certificação não está completo</translation>
+</message>
+<message>
+        <source>Unfortunately the Address Change operation is unsupported for this card</source>
+        <translation>A operação de Mudança de Morada não é suportada neste cartão</translation>
 </message>
 <message>
 	<source>Change Authentication and OTP PIN</source>
 	<translation>Alterar Pin de Autenticação e OTP</translation>
 </message>
 <message>
+    <source>Address Change</source>
+    <translation>Mudança de Morada</translation>
+</message>
+
+<message>
+    <source>Address Confirmation</source>
+    <translation>Confirmação de Morada</translation>
+</message>
+
+<message>
+    <source>Error connecting to the Address Change server</source>
+    <translation>Erro de ligação ao servidor para mudança de morada</translation>
+</message>
+
+    <message>
+    <source>Address Changed successfully.</source>
+    <translation>A morada foi alterada com sucesso.</translation>
+    </message>
+    <message>
+        <source>Error connecting to the Address Change server.\nPlease check if your Internet connection is functional</source>
+        <translation>Erro de ligação ao servidor para mudança de morada.\nPor favor verifique se a sua ligação à Internet está funcional</translation>
+    </message>
+<message>
+    <source>Unexpected error in the Address Change operation</source>
+    <translation>Erro inesperado na mudança de morada</translation>
+</message>
+
+<message>
+    <source>Changing Address in card...</source>
+    <translation>Mudando a morada no Cartão...</translation>
+</message>
+        
+<message>
 	<source>Attention: your current authentication PIN will be requested twice in two different dialog boxes.</source>
 	<translation>Atenção: o seu actual PIN de autenticação vai ser requerido duas vezes neste processo.</translation>
-	</message>
+</message>
 
 	<message>
 	<source>Sorry, this operation is unsupported on this reader</source>
 	<translation>Pedimos desculpa, mas esta operação não é suportada neste leitor de cartões</translation>
+</message>
+
+<message>
+	<source>Error in the Address Change operation. Please make sure you insert the correct process number and secret code.</source>
+	<translation>Erro na operação de mudança de morada. Verifique por favor se inseriu correctamente o número de processo e código de confirmação.</translation>
 </message>
 
 	<message>
@@ -858,70 +919,6 @@ Please specify .xml, .csv or .eid</source>
         <translation type="unfinished">Alteração de PIN falhou</translation>
     </message>
     <message>
-        <source>txt_ECard_1</source>
-        <translation>E Kaart</translation>
-    </message>
-    <message>
-        <source>txt_ECard_2</source>
-        <translation>Carte E</translation>
-    </message>
-    <message>
-        <source>txt_ECard_3</source>
-        <translation>E Karte</translation>
-    </message>
-    <message>
-        <source>txt_ECard_4</source>
-        <translation>E Card</translation>
-    </message>
-    <message>
-        <source>txt_ECard_plus_1</source>
-        <translation>E+ Kaart</translation>
-    </message>
-    <message>
-        <source>txt_ECard_plus_2</source>
-        <translation>Carte E+</translation>
-    </message>
-    <message>
-        <source>txt_ECard_plus_3</source>
-        <translation>E+ Karte</translation>
-    </message>
-    <message>
-        <source>txt_ECard_plus_4</source>
-        <translation>E+ Card</translation>
-    </message>
-    <message>
-        <source>txt_FCard_1</source>
-        <translation>F Kaart</translation>
-    </message>
-    <message>
-        <source>txt_FCard_2</source>
-        <translation>Carte F</translation>
-    </message>
-    <message>
-        <source>txt_FCard_3</source>
-        <translation>F Karte</translation>
-    </message>
-    <message>
-        <source>txt_FCard_4</source>
-        <translation>F Card</translation>
-    </message>
-    <message>
-        <source>txt_FCard_plus_1</source>
-        <translation>F+ Kaart</translation>
-    </message>
-    <message>
-        <source>txt_FCard_plus_2</source>
-        <translation>Carte F+</translation>
-    </message>
-    <message>
-        <source>txt_FCard_plus_3</source>
-        <translation>F+ Karte</translation>
-    </message>
-    <message>
-        <source>txt_FCard_plus_4</source>
-        <translation>F+ Card</translation>
-    </message>
-    <message>
         <source>Belgian eID Runtime</source>
         <translation>Belgische eID Runtime</translation>
     </message>
@@ -1057,7 +1054,7 @@ Please specify .xml, .csv or .eid</source>
     </message>
     <message>
         <source>Revoked</source>
-        <translation>Ingetrokken</translation>
+        <translation>Revogado</translation>
     </message>
     <message>
         <source>Opmerkingen&lt;br&gt;&lt;i&gt;Remarks&lt;/i&gt;</source>
@@ -1066,14 +1063,6 @@ Please specify .xml, .csv or .eid</source>
     <message>
         <source>Not available</source>
         <translation>Não disponível</translation>
-    </message>
-    <message>
-        <source>Developed by the Belgian Government</source>
-        <translation>Ontwikkeld door de Belgische overheid</translation>
-    </message>
-    <message>
-        <source>eID bin Files (*.eid);;eID XML files (*.xml);;eID CSV files (*.csv)</source>
-        <translation>eID bin bestanden (*.eid);;eID XML bestanden (*.xml);;eID CSV bestanden (*.csv)</translation>
     </message>
     <message>
         <source>OCSP Status</source>
@@ -1229,6 +1218,10 @@ Please specify .xml, .csv or .eid</source>
         <translation>Versão</translation>
     </message>
     <message>
+        <source>About</source>
+        <translation>Acerca de</translation>
+    </message>
+    <message>
         <source>For information or support about this software please visit</source>
         <translation>Caso tenha dificuldades na utilização desta aplicação consulte</translation>
     </message>
@@ -1371,34 +1364,6 @@ Please specify .xml, .csv or .eid</source>
 <context>
     <name>dlgPrint</name>
     <message>
-        <source>Card number</source>
-        <translation>Kaart nummer</translation>
-    </message>
-    <message>
-        <source>Name</source>
-        <translation>Naam</translation>
-    </message>
-    <message>
-        <source>First Names</source>
-        <translation>Voornamen</translation>
-    </message>
-    <message>
-        <source>Nationality</source>
-        <translation>Nationaliteit</translation>
-    </message>
-    <message>
-        <source>Sex</source>
-        <translation>Geslacht</translation>
-    </message>
-    <message>
-        <source>Birth date</source>
-        <translation>Geboortedatum</translation>
-    </message>
-    <message>
-        <source>Birth place</source>
-        <translation>Geboorteplaats</translation>
-    </message>
-    <message>
         <source>Additional Indications</source>
         <translation>Informações Adicionais</translation>
     </message>
@@ -1509,6 +1474,22 @@ Please specify .xml, .csv or .eid</source>
         <translation>Adicionar Ficheiros</translation>
     </message>
     <message>
+        <source>Basic Signature (XAdES-BES)</source>
+        <translation>Assinatura Básica (XAdES-BES)</translation>
+    </message>
+     <message>
+        <source>With Long-Term Validation (XAdES-A)</source>
+        <translation>Com Validação a Longo Termo (XAdES-A)</translation>
+    </message>
+     <message>
+        <source>With Timestamp (XAdES-T)</source>
+        <translation>Incluir Selo Temporal (XAdES-T)</translation>
+    </message>
+    <message> 
+        <source>Signature Level</source>
+        <translation>Nível de assinatura</translation>
+    </message>
+    <message>
         <source>Files to Sign</source>
         <translation>Ficheiros a Assinar</translation>
     </message>
@@ -1533,8 +1514,12 @@ Please specify .xml, .csv or .eid</source>
         <translation>Erro</translation>
     </message>
     <message>
-        <source>Error Generating Signature!</source>
-        <translation>Erro ao Gerar Assinatura!</translation>
+        <source>Error generating Signature!</source>
+        <translation>Erro ao gerar Assinatura!</translation>
+    </message>
+    <message>
+        <source>Error obtaining timestamp</source>
+        <translation>Erro na obtenção de selo temporal</translation>
     </message>
     <message>
         <source>Select File(s)</source>
@@ -1637,19 +1622,66 @@ Please specify .xml, .csv or .eid</source>
     </message>
 
 </context>
+
+<context>
+ <name>ChangeAddressDialog</name>   
+ <message>
+    <source>Address Change</source>
+    <translation>Alteração de Morada</translation>
+</message>
+
+<message>
+    <source>Please insert your process number and secret code you received by mail.</source>
+    <translation>Por favor insira o número de processo e o código secreto recebido pelo correio.</translation>
+</message>
+
+<message>
+    <source>Process Number</source>
+    <translation>Nº de Processo de Alteração de Morada</translation>
+</message>
+
+<message>
+    <source>Address Confirmation Code</source>
+    <translation>Código de Confirmação de Morada</translation>
+</message>
+
+</context>
 <context>
     <name>PDFSignWindow</name>
      <message>
-        <source>&lt;html&gt;Choose the page sector where you &lt;br&gt; want your signature to appear.&lt;br&gt;The grey sectors are already filled&lt;br&gt;with other signatures.&lt;/html&gt;</source>
-	     <translation>&lt;html&gt;Escolha a área da página onde pretende &lt;br&gt;colocar a assinatura &lt;br&gt;As áreas cinzentas já estão ocupadas&lt;br&gt;com outras assinaturas&lt;/html&gt;</translation>
+        <source>Choose the page sector where you want your signature to appear.\nThe grey sectors are already filled with other signatures.</source>
+   <translation>Escolha a área da página onde pretende colocar a assinatura.\nAs áreas cinzentas já estão ocupadas com outras assinaturas.</translation>
      </message>
+
      <message>
-        <source>Selected sector: </source>
-        <translation>Área Seleccionada: </translation>
+        <source>Selected sector: %1</source>
+        <translation>Área Seleccionada: %1</translation>
+     </message>
+
+     <message>
+        <source>Choose custom image</source>
+        <translation>Imagem personalizada</translation>
+     </message>
+
+     <message>
+        <source>Change page orientation</source>
+        <translation>Mudar orientação de página</translation>
 </message>
 <message>
-	<source>Signature Position: </source>
-	<translation>Posição da assinatura: </translation>
+        <source>Horizontal page</source>
+        <translation>Página horizontal</translation>
+</message>
+<message>
+        <source>Unsupported or damaged PDF file: </source>
+        <translation>Ficheiro PDF não suportado ou danificado: </translation>
+</message>
+<message>
+        <source>Vertical page</source>
+        <translation>Página vertical</translation>
+</message>
+<message>
+	<source>Signature Position:\n</source>
+	<translation>Posição da assinatura:\n</translation>
 </message>
      <message>
         <source>some of the timestamps could not be applied</source>
@@ -1667,6 +1699,29 @@ Please specify .xml, .csv or .eid</source>
 	<source>PDF Signature</source> 
 	<translation>Assinatura de ficheiros PDF</translation>
 </message>
+
+    <message>
+        <source>Horizontal position: %1</source>
+        <translation>Na horizontal: %1</translation>
+    </message>
+    <message>
+        <source>Vertical position: %1</source>
+        <translation>Na vertical: %1</translation>
+    </message>
+    <message>
+        <source>PDF Signature - Free Positioning</source>
+        <translation>Assinatura de PDF - Posicionamento preciso</translation>
+
+    </message>
+    <message>
+        <source>Reset</source>
+        <translation>Limpar</translation>
+    </message>
+    <message>
+        <source>A4 Page</source>
+        <translation>Página A4</translation>
+    </message>
+
 <message>
 	<source>Free Positioning</source> 
 	<translation>Posicionamento preciso</translation>
@@ -1757,6 +1812,10 @@ Escolha outra por favor.</translation>
 <message>
 	<source>Page</source>
 	<translation>Página</translation>
+</message>
+<message>
+	<source>Location</source>
+	<translation>Localização</translation>
 </message>
 <message>
 	<source>Signing PDF file(s)...</source>

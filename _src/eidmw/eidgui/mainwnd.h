@@ -164,12 +164,22 @@ private:
 	eCustomEventType m_customEventType;
 };
 
-class QTreeCertItem : public QTreeWidgetItem
+class QTreeCertItem : public QObject, public QTreeWidgetItem
 {
+	Q_OBJECT
+
 public:
-	QTreeCertItem(int type, PTEID_Certificate &cert):QTreeWidgetItem(QStringList(QString::fromUtf8(cert.getOwnerName())),type) {init(cert);}
-	QTreeCertItem(QTreeWidget *view, int type, PTEID_Certificate &cert):QTreeWidgetItem(view,QStringList(QString::fromUtf8(cert.getOwnerName())),type) {init(cert);}
-	QTreeCertItem(QTreeCertItem *parent, int type, PTEID_Certificate &cert):QTreeWidgetItem(parent,QStringList(QString::fromUtf8(cert.getOwnerName())),type){init(cert);}
+	QTreeCertItem(PTEID_Certificate &cert):
+		QTreeWidgetItem(QStringList(QString::fromUtf8(cert.getOwnerName())), QTreeWidgetItem::UserType)
+	{ init(cert); }
+
+	QTreeCertItem(QTreeWidget *view, PTEID_Certificate &cert):
+		QTreeWidgetItem(view, QStringList(QString::fromUtf8(cert.getOwnerName())), QTreeWidgetItem::UserType)
+	{ init(cert); }
+
+	QTreeCertItem(QTreeCertItem *parent, PTEID_Certificate &cert):
+		QTreeWidgetItem(parent, QStringList(QString::fromUtf8(cert.getOwnerName())), QTreeWidgetItem::UserType)
+	{ init(cert); }
 
 
 	QString const& getIssuer() {return m_Issuer;}
@@ -178,7 +188,8 @@ public:
 	QString const& getValidityEnd() {return m_ValidityEnd;}
 	QString const& getKeyLen() {return m_KeyLen;}
 	QString const& getLabel() {return m_Label;}
-	PTEID_Certificate *getCert() { return cert;}
+	PTEID_Certificate *getCert() { return cert; }
+	void askCertStatus(); // run the computation again, will emit certStatusReady
 
 private:
 	QString m_Issuer;
@@ -188,16 +199,15 @@ private:
 	QString m_KeyLen;
 	QString m_Label;
 	PTEID_Certificate *cert;
+	QFutureWatcher<PTEID_CertifStatus> certStatusWatcher;
 
-	void init(PTEID_Certificate &cert){
-		this->cert = &cert;
-		m_Issuer = QString::fromUtf8(cert.getIssuerName());
-		m_Owner = QString::fromUtf8(cert.getOwnerName());
-		m_ValidityBegin = QString::fromUtf8(cert.getValidityBegin());
-		m_ValidityEnd = QString::fromUtf8(cert.getValidityEnd());
-		m_KeyLen = QString::number(cert.getKeyLength());
-		m_Label = QString::fromUtf8(cert.getLabel());
-	}
+	void init(PTEID_Certificate &cert);
+
+signals:
+	void certStatusReady(PTEID_CertifStatus status);
+
+private slots:
+	void handleFutureCertStatus();
 };
 
 /* Helper Class for Threaded Data Loading */
@@ -233,10 +243,15 @@ public:
 	static bool ImportCertificates( QString const& readerName );
 	static bool RemoveCertificates( const char* readerName );
 	static bool RemoveCertificates( QString const& readerName );
+	static void address_change_callback(void *, int);
 	GUISettings&	getSettings( void )
 	{
 		return m_Settings;
 	}
+
+signals:
+	void addressProgressChanged(int value);
+	void addressChangeFinished(long return_code);
 
 
 private slots:
@@ -258,7 +273,15 @@ private slots:
 	void setLanguageEn( void );
 	void setLanguageNl( void );
 	void restoreWindow( void );
+	void setAddressProgress(int value);
+	void showChangeAddressDialog(long code);
 	void messageRespond( const QString& message);
+	void showJavaLaunchError(QProcess::ProcessError error);
+
+	void showCertStatusSideinfo(PTEID_CertifStatus certStatus);
+
+	void getCertStatusText(PTEID_CertifStatus certStatus, QString& strCertStatus);
+	//PTEID_CertifStatus checkCertStatus(PTEID_Certificate *cert);
 
 	// eventFilter to Catch actions from "personalized toolbar"
 	bool eventFilter(QObject *,QEvent *);
@@ -270,12 +293,13 @@ private slots:
 	void on_btnPIN_Test_clicked( void );
 	void on_btnPIN_Change_clicked( void );
 	void on_treePIN_itemClicked(QTreeWidgetItem* item, int column);
-	void on_treeCert_itemClicked(QTreeWidgetItem* item, int column);
-	void on_treeCert_itemSelectionChanged ( void );
+
+	void on_treeCert_currentItemChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous);
+
 	void on_btnCert_Details_clicked( void );
 	void on_btnCert_Register_clicked( void );
 	void on_treePIN_itemSelectionChanged ( void );
-
+	void on_btnAddress_Change_clicked(void);
 
 	void on_btnSelectTab_Identity_clicked ( void );
 	void on_btnSelectTab_Identity_Extra_clicked ( void );
@@ -295,6 +319,7 @@ private slots:
 	void on_btnShortcut_UnivSign_clicked( void );
 	void on_btnShortcut_PdfSign_clicked( void );
 	void on_btnShortcut_VerifSign_clicked( void );
+	// void on_btnShortcut_LaunchJava_clicked();
 
 //SUBMENUS Toolbar
 	void hide_submenus( void );
@@ -302,6 +327,7 @@ private slots:
 	void quit_application();
 	void show_window_parameters();
 	void show_window_about();
+	
 
 	void updateReaderList( void );
 	void customEvent( QEvent * event );
@@ -315,6 +341,7 @@ protected:
 
 	void showNormal( void );
 	void showNoReaderMsg( void );
+	// void launchJavaProcess(QString &application_jar, QString &classpath);
 
 
 	// SystemTray
@@ -333,7 +360,11 @@ protected:
 	QTranslator			m_translator;
 
 	QProgressDialog *m_progress;
+	QProgressDialog *m_progress_addr;
 	QFutureWatcher<void> FutureWatcher;
+
+	QFutureWatcher<PTEID_CertifStatus> watcherCertStatusAuth;
+	QFutureWatcher<PTEID_CertifStatus> watcherCertStatusSign;
 
 	PinInfo list_of_pins[3];
 	std::map<long unsigned int,PinInfo *> m_pinsInfo;
@@ -346,6 +377,8 @@ private:
 	void loadCardDataAddress ();
 	bool loadCardDataPersoData ();
 	void loadCardDataCertificates ();
+	void setup_addressChange_progress_bar();
+	void doChangeAddress(const char *process, const char *secret_code);
 
 	// Refresh Data
 	void showTabs( void );
@@ -360,7 +393,10 @@ private:
 	void refreshTabPersoData( void );
 	void refreshTabCertificates( void );
 	void refreshTabCardPin( void );
-	void refreshTabInfo( void );
+	//void refreshTabInfo( void );
+
+	//TESTING
+	void change_address_dummy(QString &process, QString &secret_code);
 
 	void Show_Splash( void );
 	void Show_Identity_Card(PTEID_EIDCard& Card);
@@ -378,44 +414,9 @@ private:
 	void InitLanguageMenu( void );
 	void setLanguage( void );
 	void setLanguage( GenPur::UI_LANGUAGE language );
-	void fillCertTree( PTEID_Certificate *cert, short level, QTreeCertItem* item );
-	void _getCertStatusText( PTEID_CertifStatus certStatus, QString& strCertStatus )
-	{
-		switch(certStatus)
-		{
-		case PTEID_CERTIF_STATUS_REVOKED:
-			strCertStatus = tr("Revoked");
-			break;
-		case PTEID_CERTIF_STATUS_TEST:
-			strCertStatus = tr("Test");
-			break;
-		case PTEID_CERTIF_STATUS_DATE:
-			strCertStatus = tr("Date");
-			break;
-		case PTEID_CERTIF_STATUS_VALID:
-			strCertStatus = tr("Valid");
-			break;
-		case PTEID_CERTIF_STATUS_UNKNOWN:
-		default:
-			strCertStatus = tr("Unknown");
-			break;
-		}
-	}
-	void getCertStatusText( PTEID_CertifStatus certStatus, QString& strCertStatus )
-	{
-		switch(certStatus)
-		{
-		case PTEID_CERTIF_STATUS_REVOKED:
-			strCertStatus = tr("Revoked");
-			break;
-		case PTEID_CERTIF_STATUS_VALID:
-		default:
-			strCertStatus = tr("Unknown");
-			break;
-		}
-	}
+
 	void ChangeAuthPin(PTEID_ReaderContext&, unsigned int);
-	void fillSoftwareInfo( void );
+	//void fillSoftwareInfo( void );
 	void setLanguageMenu( GenPur::UI_LANGUAGE language );
 	void setLanguageMenu( QString const& uiLang );
 	void writeSettings( void );
@@ -459,6 +460,10 @@ private:
 	void createTrayMenu();
 	QString getFinalLinkTarget(QString baseName);	
 	void cleanupCallbackData();
+
+	void connectTreeCertItems(void);
+	void syncTreeItemWithSideinfo(QTreeCertItem *item);
+	void fillCertTree( PTEID_Certificate *cert, short level, QTreeCertItem* item );
 	QTreeCertItem* buildTree(PTEID_Certificate &cert, bool &bEx);
 
 	eZOOMSTATUS				m_Zoom;
@@ -473,7 +478,7 @@ private:
 	tCallBackHandles		m_callBackHandles;
 	tCallBackData			m_callBackData;
 	QString					m_CurrReaderName;		//!< the current reader we're using
-	PTEID_ReaderContext*		m_virtReaderContext;	//!< virtual reader context we're using
+	PTEID_ReaderContext*		 m_virtReaderContext;
 	bool					m_UseKeyPad;
 	GUISettings&			m_Settings;				//!< settings of the app
 	QTimer*					m_timerReaderList;
@@ -482,7 +487,6 @@ private:
 
 	bool					m_ShowBalloon;			//!< To avoid the message eID still running when the gui start minimize
 	QMessageBox*			m_msgBox;
-	PTEID_CertifStatus		m_connectionStatus;
 	
 public:
 	static tCertPerReader			m_certContexts;			//!< certificate contexts of each reader

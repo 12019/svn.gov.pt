@@ -46,6 +46,37 @@
 namespace eIDMW
 {
 
+const void *memmem(const void *haystack, size_t n, const void *needle, size_t m)
+{
+    if (m > n || !m || !n)
+        return NULL;
+
+    if (m > 1) {
+        const unsigned char*  y = (const unsigned char*) haystack;
+        const unsigned char*  x = (const unsigned char*) needle;
+        size_t                j = 0;
+        size_t                k = 1, l = 2;
+
+        if (x[0] == x[1]) {
+            k = 2;
+            l = 1;
+        }
+        while (j <= n-m) {
+            if (x[1] != y[j+1]) {
+                j += k;
+            } else {
+                if (!memcmp(x+2, y+j+2, m-2) && x[0] == y[j])
+                    return (void*) &y[j];
+                j += l;
+            }
+        }
+    } else {
+        /* degenerate case */
+        return memchr(haystack, ((unsigned char*)needle)[0], n);
+    }
+    return NULL;
+}
+
 #ifdef WIN32
 	char *Basename(char *absolute_path)
 	{
@@ -62,10 +93,9 @@ namespace eIDMW
 	int Truncate(const char *path)
 	{
 		int fh = 0, result = 0;
-		unsigned int nbytes = BUFSIZ;
 
 		/* This replicates the use of truncate() on Unix */
-		if (fh = _sopen(path, _O_RDWR, _S_IWRITE) == 0)
+		if ((fh = _sopen(path, _O_RDWR, _S_IWRITE)) == NULL)
 		{
 			if (( result = _chsize(fh, 0)) == 0)
 			_close(fh);
@@ -256,6 +286,8 @@ void CPathUtil::checkDir(const char *dirIn)
 	if(strlen(dirIn)==0)
 		return;
 
+	fprintf(stderr, "checkDir() was called with %s\n", dirIn);
+
 	std::string directory = std::string(dirIn) + PATH_SEP_STR;
 #ifdef WIN32
 	DWORD dwError = 0;
@@ -304,7 +336,7 @@ void CPathUtil::checkDir(const char *dirIn)
 		if( mkdir(directory.c_str(),S_IRWXU | S_IRWXG | S_IRWXO) != 0)
 #endif
 		{
-			printf("The path '%s' does not exist.\nCreate it or change the config parameter\n",dirIn);
+			fprintf(stderr, "The path '%s' does not exist.\nCreate it or change the config parameter\n",dirIn);
 			throw CMWEXCEPTION(EIDMW_INVALID_PATH);
 		}
 	}

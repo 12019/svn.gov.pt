@@ -43,8 +43,8 @@
 
 using namespace eIDMW;
 
-std::string serverurl = "http://svn.gov.pt/projects/ccidadao/repository/middleware-offline/tags/builds/lastversion/";
-std::string remoteversion = "http://svn.gov.pt/projects/ccidadao/repository/middleware-offline/tags/builds/lastversion/version.txt";
+std::string serverurl = "https://svn.gov.pt/projects/ccidadao/repository/middleware-offline/tags/builds/lastversion/";
+std::string remoteversion = "https://svn.gov.pt/projects/ccidadao/repository/middleware-offline/tags/builds/lastversion/version.txt";
 
 std::string WINDOWS32 = "PteidMW-Basic.msi";
 std::string WINDOWS64 = "PteidMW-Basic-x64.msi";
@@ -302,6 +302,7 @@ bool AutoUpdates::VerifyUpdates(std::string filedata)
 		QMessageBox msgBoxnoupdates(QMessageBox::Information, tr("Auto-update"),
 			       	tr("No updates available at the moment"), 0, this);
 		msgBoxnoupdates.exec();
+		this->close();
 		return false;
 	}
 }

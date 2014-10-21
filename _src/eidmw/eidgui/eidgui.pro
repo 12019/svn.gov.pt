@@ -102,10 +102,9 @@ INCLUDEPATH += . ../dialogs ../eidlib ../_Builds ../common
 INCLUDEPATH += /usr/include/cairo
 
 LIBS += -L../lib  \
-        -l$${EIDLIB} \
-	-l$${COMMONLIB} \
-	-l$${APPLAYERLIB} \
-        -lfreeimagePTEiD
+	-Wl,-rpath-link,../lib \
+    -l$${EIDLIB} \
+	-l$${COMMONLIB}
 
 LIBS += -lcairo
 
@@ -137,31 +136,32 @@ HEADERS += CardInformation.h \
 					 mylistview.h \
 					 dlgsignature.h \
 					 PDFSignWindow.h \
-					 FreeSelectionDialog.h \
+					 ChangeAddressDialog.h \
 					 ../_Builds/pteidversions.h \
-					 ../dialogs/dialogs.h 
+					 ../dialogs/dialogs.h
            
-FORMS += dlgAbout.ui dlgOptions.ui mainwnd.ui picturepopup.ui dlgPrint.ui dlgSignature.ui dlgVerifySignature.ui PDFSignWindow.ui FreeSelectionDialog.ui
+FORMS += dlgAbout.ui dlgOptions.ui mainwnd.ui picturepopup.ui dlgPrint.ui dlgSignature.ui dlgVerifySignature.ui PDFSignWindow.ui ChangeAddressDialog.ui
+
+RESOURCES = eidgui.qrc 
 
 SOURCES += CardInformation.cpp \
            dlgAbout.cpp \
            dlgOptions.cpp \
            httpwindow.cpp \
            AutoUpdates.cpp \
+           ChangeAddressDialog.cpp \
            main.cpp \
            mainwnd.cpp \
-					 dlgprint.cpp \
-					 dlgverifysignature.cpp \
-					 dlgsignature.cpp \
-					 picturepopup.cpp \
-					 qtsingleapplication.cpp \
+		   dlgprint.cpp \
+		   dlgverifysignature.cpp \
+		   dlgsignature.cpp \
+			picturepopup.cpp \
+			qtsingleapplication.cpp \
 					 PDFSignWindow.cpp \
-					 FreeSelectionDialog.cpp \
 					 mylistview.cpp \
 					 genpur.cpp
 unix:!macx: SOURCES += qtsingleapplication_x11.cpp
 macx: SOURCES += qtsingleapplication_mac.cpp	
 
-RESOURCES += eidgui.qrc 
-    #         qtconf.qrc
+
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>489</width>
-    <height>300</height>
+    <width>547</width>
+    <height>311</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -29,8 +29,8 @@
   <widget class="QPushButton" name="pbAddFiles">
    <property name="geometry">
     <rect>
-     <x>330</x>
-     <y>220</y>
+     <x>350</x>
+     <y>190</y>
      <width>151</width>
      <height>27</height>
     </rect>
@@ -54,6 +54,12 @@
      <height>20</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
    <property name="text">
     <string>Files to Sign</string>
    </property>
@@ -61,7 +67,7 @@
   <widget class="QPushButton" name="pbCancel">
    <property name="geometry">
     <rect>
-     <x>300</x>
+     <x>350</x>
      <y>260</y>
      <width>85</width>
      <height>27</height>
@@ -77,7 +83,7 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>395</x>
+     <x>440</x>
      <y>260</y>
      <width>85</width>
      <height>27</height>
@@ -90,31 +96,18 @@
   <widget class="MyListView" name="listView">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>20</x>
      <y>30</y>
-     <width>471</width>
-     <height>191</height>
+     <width>481</width>
+     <height>151</height>
     </rect>
-   </property>
-  </widget>
-  <widget class="QCheckBox" name="checkbox_timestamp">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>230</y>
-     <width>291</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Add Timestamp (XAdES-T)</string>
    </property>
   </widget>
   <widget class="QCheckBox" name="checkbox_singlefiles">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>260</y>
+     <y>280</y>
      <width>221</width>
      <height>20</height>
     </rect>
@@ -122,6 +115,58 @@
    <property name="text">
     <string>Create Individual Signatures</string>
    </property>
+  </widget>
+  <widget class="QGroupBox" name="groupBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>190</y>
+     <width>331</width>
+     <height>80</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Signature Level</string>
+   </property>
+   <widget class="QRadioButton" name="radioButton_xades_b">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>20</y>
+      <width>291</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Basic Signature (XAdES-BES)</string>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="radioButton_xades_t">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>301</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>With Timestamp (XAdES-T)</string>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="radioButton_xades_a">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>60</y>
+      <width>311</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>With Long-Term Validation (XAdES-A)</string>
+    </property>
+   </widget>
   </widget>
  </widget>
  <customwidgets>

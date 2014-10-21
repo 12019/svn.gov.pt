@@ -3,6 +3,7 @@
 
 #include "Export.h"
 #include <vector>
+#include <utility>
 
 class PDFRectangle;
 class PDFDoc;
@@ -13,6 +14,14 @@ namespace eIDMW
 
 	class CReader;
 
+	typedef struct
+	{
+		unsigned char * img_data;
+		unsigned long img_length;
+		int img_height;
+		int img_width;
+	} Pixmap;
+
 	class PDFSignature
 	{
 	public:
@@ -21,25 +30,29 @@ namespace eIDMW
 		EIDMW_APL_API ~PDFSignature();
 		
 		//Batch Operations (with PIN caching)
-		EIDMW_APL_API void batchAddFile(char *file_path);
+		EIDMW_APL_API void batchAddFile(char *file_path, bool last_page);
 		EIDMW_APL_API void enableTimestamp();
 
-		EIDMW_APL_API void setVisible(unsigned int page, int sector);
+		EIDMW_APL_API void setVisible(unsigned int page, int sector, bool is_landscape);
 		EIDMW_APL_API void setVisibleCoordinates(unsigned int page, double coord_x, double coord_y);
 		EIDMW_APL_API char *getOccupiedSectors(int page);
 		EIDMW_APL_API int getPageCount();
+		EIDMW_APL_API int getOtherPageCount(const char *input_path);
 		void setCard(APL_Card *card) { m_card = card; };
 		
 		//General interface to signing in single file-mode or batch-mode
 		EIDMW_APL_API int signFiles(const char *location, const char *reason,
 			const char *outfile_path);
-
+        EIDMW_APL_API bool isLandscapeFormat();
+		EIDMW_APL_API void setCustomImage(unsigned char *img_data, unsigned long img_length);
+		EIDMW_APL_API void enableSmallSignature();
 
 	private:
 
 		void getCitizenData();
 		std::string generateFinalPath(const char *output_dir, const char *path);
-		PDFRectangle getSignatureRectangle(double, double);
+		PDFRectangle computeSigLocationFromSector(double, double, int);
+		PDFRectangle computeSigLocationFromSectorLandscape(double, double, int);
 		int signSingleFile(const char *location, const char *reason,
 			const char *outfile_path);
 
@@ -56,9 +69,13 @@ namespace eIDMW
 		unsigned int m_page, m_sector;
 		double location_x, location_y;
 		bool m_visible;
+		bool m_isLandscape;
 		bool m_batch_mode;
 		bool m_timestamp;
-		std::vector<char *> m_files_to_sign;
+		bool m_small_signature;
+		std::vector< std::pair<char *, bool> > m_files_to_sign;
+		Pixmap my_custom_image;
+		
 
 	};
 

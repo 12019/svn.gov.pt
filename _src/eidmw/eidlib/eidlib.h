@@ -821,9 +821,14 @@ class PTEID_PDFSignature
 		PTEIDSDK_API ~PTEID_PDFSignature();
 
 		PTEIDSDK_API void addToBatchSigning(char *input_path);
+		PTEIDSDK_API void addToBatchSigning(char *input_path, bool last_page);
 		PTEIDSDK_API int getPageCount();
+		PTEIDSDK_API int getOtherPageCount(const char *input_path);
 		PTEIDSDK_API void enableTimestamp();
+		PTEIDSDK_API void enableSmallSignatureFormat();
+		PTEIDSDK_API bool isLandscapeFormat();
 		PTEIDSDK_API char *getOccupiedSectors(int page);
+		PTEIDSDK_API void setCustomImage(unsigned char *image_data, unsigned long image_length);
 
 	private:
 	//The applayer object that actually implements the signature
@@ -900,14 +905,16 @@ public:
 	    *  @param IN n_paths is the number of elements in the paths array 
 	    */
 	     PTEIDSDK_API PTEID_ByteArray SignXades(const char * const* paths, unsigned int n_paths, const char *output_path); /** Return a Xades signature as a UTF-8 string (supports multiple files)*/
-	     PTEIDSDK_API PTEID_ByteArray SignXades(PTEID_ByteArray to_be_signed, const char *URL); /** Return a Xades signature as a UTF-8 string (supports multiple files)*/
+	     
 	     PTEIDSDK_API PTEID_ByteArray SignXadesT(const char * const* path, unsigned int n_paths, const char *output_path); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
-	     PTEIDSDK_API PTEID_ByteArray SignXadesT(PTEID_ByteArray to_be_signed, const char *URL); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
+	     PTEIDSDK_API PTEID_ByteArray SignXadesA(const char * const* path, unsigned int n_paths, const char *output_path); /** Return a Xades-T signature as a UTF-8 string (supports multiple files)*/
+	     
 	     PTEIDSDK_API void SignXadesIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the XAdes signature in individual zip containers  */
 	     PTEIDSDK_API void SignXadesTIndividual(const char * const* paths, unsigned int n_paths, const char *output_path); /** Store the Xades-T signature in individual zip containers  */
+		 PTEIDSDK_API void SignXadesAIndividual(const char * const* paths, unsigned int n_paths, const char *output_path);
 		
 	     //PDF Signature with location by page sector (the portrait A4 page is split into 18 cells: 6 lines and 3 columns)
-	     PTEIDSDK_API int SignPDF(PTEID_PDFSignature &sig_handler, int page, int page_sector, const char *location, const char *reason,
+	     PTEIDSDK_API int SignPDF(PTEID_PDFSignature &sig_handler, int page, int page_sector, bool is_landscape, const char *location, const char *reason,
 			const char *outfile_path);
 
 	     //PDF Signature with location by precise location (in postscript points) the coordinate system has its origin in the top left corner 
@@ -922,6 +929,10 @@ public:
 	      * 
 	      */
 	     PTEIDSDK_API bool ChangeCapPin(const char *new_pin);
+
+	     typedef void (*t_address_change_callback)(void *, int);
+
+	     PTEIDSDK_API bool ChangeAddress(char *secretCode, char *process, t_address_change_callback callback, void *callback_data);
 
 	     /* helper method for the compatibility layer */
 	     PTEIDSDK_API bool ChangeCapPinCompLayer(const char *old_pin, const char *new_pin,unsigned long &ulRemaining);
@@ -1484,6 +1495,7 @@ public:
 
 	PTEIDSDK_API const char *getLabel();				/**< Return the label of the certificate */
 	PTEIDSDK_API unsigned long getID();				/**< Return the id of the certificate */
+	PTEIDSDK_API PTEID_CertifStatus getStatus();			/** OCSP/CRL validation status */
 
 	PTEIDSDK_API PTEID_CertifType getType();			/**< Return the type of the certificate */
 

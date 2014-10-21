@@ -239,7 +239,7 @@ long PTEID_SmartCard::readFile(const char *fileID, PTEID_ByteArray &in,PTEID_Pin
 }
 
 
-int PTEID_EIDCard::SignPDF(PTEID_PDFSignature &sig_handler, int page, int page_sector, const char *location, const char *reason,
+int PTEID_EIDCard::SignPDF(PTEID_PDFSignature &sig_handler, int page, int page_sector, bool is_landscape, const char *location, const char *reason,
 			const char *outfile_path)
 {
 	PDFSignature *pdf_sig = NULL;
@@ -250,10 +250,10 @@ int PTEID_EIDCard::SignPDF(PTEID_PDFSignature &sig_handler, int page, int page_s
 	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
 
 	//Accessing PTEID_PDFSignature private parts because we're friends :)
-	pdf_sig = sig_handler.mp_signature; 
+	pdf_sig = sig_handler.mp_signature;
 
 	if (page_sector != 0 && page != 0)
-		pdf_sig->setVisible(page, page_sector);
+		pdf_sig->setVisible(page, page_sector, is_landscape);
 
 	rc = pcard->SignPDF(pdf_sig, location, reason, outfile_path);
 
@@ -266,7 +266,8 @@ int PTEID_EIDCard::SignPDF(PTEID_PDFSignature &sig_handler, int page, double coo
 			const char *outfile_path)
 
 {
-
+	int rc = 0;
+	
 	BEGIN_TRY_CATCH
 
 	APL_Card *pcard = static_cast<APL_Card *>(m_impl);
@@ -274,9 +275,11 @@ int PTEID_EIDCard::SignPDF(PTEID_PDFSignature &sig_handler, int page, double coo
 	PDFSignature *pdf_sig = sig_handler.mp_signature; 
 	pdf_sig->setVisibleCoordinates(page, coord_x, coord_y);
 
-	return pcard->SignPDF(pdf_sig, location, reason, outfile_path);
+	rc = pcard->SignPDF(pdf_sig, location, reason, outfile_path);
 	
 	END_TRY_CATCH
+
+	return rc;
 
 }
 
@@ -297,14 +300,34 @@ PTEID_PDFSignature::~PTEID_PDFSignature()
 
 void PTEID_PDFSignature::addToBatchSigning(char *input_path)
 {
-	mp_signature->batchAddFile(input_path);
+	mp_signature->batchAddFile(input_path, false);
 
+}
+
+void PTEID_PDFSignature::addToBatchSigning(char *input_path, bool last_page)
+{
+	mp_signature->batchAddFile(input_path, last_page);
+}
+
+bool PTEID_PDFSignature::isLandscapeFormat()
+{
+	return mp_signature->isLandscapeFormat();
 }
 
 void PTEID_PDFSignature::enableTimestamp()
 {
 	mp_signature->enableTimestamp();
 
+}
+
+void PTEID_PDFSignature::setCustomImage(unsigned char *image_data, unsigned long img_length)
+{
+	mp_signature->setCustomImage(image_data, img_length);
+}
+
+void PTEID_PDFSignature::enableSmallSignatureFormat()
+{
+	mp_signature->enableSmallSignature();
 }
 
 char *PTEID_PDFSignature::getOccupiedSectors(int page)
@@ -318,6 +341,11 @@ char *PTEID_PDFSignature::getOccupiedSectors(int page)
 int PTEID_PDFSignature::getPageCount()
 {
 	return mp_signature->getPageCount();
+}
+
+int PTEID_PDFSignature::getOtherPageCount(const char *input_path)
+{
+	return mp_signature->getOtherPageCount(input_path);
 }
 
 bool PTEID_SmartCard::writeFile(const char *fileID,const PTEID_ByteArray &baOut,PTEID_Pin *pin,const char *csPinCode)
@@ -1116,6 +1144,21 @@ bool PTEID_EIDCard::ChangeCapPin(const char *new_pin){
 	APL_EIDCard *pcard = static_cast<APL_EIDCard *>(m_impl);
 
 	out = pcard->ChangeCapPin(new_pin);
+	
+	END_TRY_CATCH
+
+	return out;
+}
+
+bool PTEID_EIDCard::ChangeAddress(char *secretCode, char *process, t_address_change_callback callback, void *callback_data)
+{
+	bool out = false;
+
+	BEGIN_TRY_CATCH
+
+	APL_EIDCard *pcard = static_cast<APL_EIDCard *>(m_impl);
+
+	out = pcard->ChangeAddress(secretCode, process, callback, callback_data);
 	
 	END_TRY_CATCH
 

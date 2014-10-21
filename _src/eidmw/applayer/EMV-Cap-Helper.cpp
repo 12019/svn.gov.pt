@@ -102,7 +102,7 @@ bool EMVCapHelper::getOtpParams(OTPParams *otp_struct)
 	otp_struct->counter = COUNTER;
 	otp_struct->pin_try_counter = m_trycounter;
 
-	if (m_pan == NULL || m_arqc == NULL || m_pan == NULL)
+	if (m_pan == NULL || m_arqc == NULL || m_atc == NULL)
 		return false;
 	else 
 		return true;
@@ -142,7 +142,7 @@ void EMVCapHelper::GetPan()
  */
 char *getEMVPinBlock(const char *pin)
 {
-
+	char tmp[2];
 	char * buffer = (char*)malloc(8);
 
 	int i = 0;
@@ -155,7 +155,6 @@ char *getEMVPinBlock(const char *pin)
 	int high_nibble = 1;
 	for(; i < strlen(pin); i++)
 	{
-		char * tmp = (char*)malloc(2);
 		tmp[0] = pin[i];
 		tmp[1] = 0;
 		digit = atoi(tmp);
