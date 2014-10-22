@@ -1,10 +1,8 @@
-2,2,0
+2,3,0
 
 #<b>* Release Notes</b>
 <p>
-- Versao estavel 2.2.0<br/>
+- Versao estavel 2.3.0<br/>
 
-- Correccao da funcionalidade de alteracao de pin de autenticacao<br/>
-
-- Correccao do metodo de assinatura PKCS11 em Java<br/>
+- Versao oficial com funcionalidade assinatura PDF<br/>
 <p>
