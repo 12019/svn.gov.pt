@@ -1,8 +1,8 @@
 2,4,0
 
-#<b>* Release Notes</b>
+#<b>* Notas de Lançamento</b>
 <p>
-- Versao estavel 2.3.0<br/>
+- Versão estável 2.3.0<br/>
 
-- Versao oficial com funcionalidade assinatura PDF<br/>
+- Versão oficial com funcionalidade de assinatura PDF<br/>
 <p>
